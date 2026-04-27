@@ -4,17 +4,25 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import group12.budgetbuddi.data.dao.CategoryDao
 import group12.budgetbuddi.data.dao.UserDao
+import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.data.entity.PasswordResetToken
 import group12.budgetbuddi.data.entity.User
 
 @Database(
-    entities = [User::class, PasswordResetToken::class],
-    version = 1,
+    entities = [
+        User::class,
+        PasswordResetToken::class,
+        CategoryEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+
     abstract fun userDao(): UserDao
+    abstract fun categoryDao(): CategoryDao
 
     companion object {
         @Volatile
@@ -26,7 +34,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "budget_buddi_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration(false)
+                    .build()
+
                 INSTANCE = instance
                 instance
             }
