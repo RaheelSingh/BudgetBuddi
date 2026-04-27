@@ -14,7 +14,6 @@ import group12.budgetbuddi.data.entity.User
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
-
     abstract fun userDao(): UserDao
 
     companion object {

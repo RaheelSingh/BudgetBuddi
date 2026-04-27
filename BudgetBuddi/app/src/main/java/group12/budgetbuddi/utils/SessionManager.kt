@@ -1,55 +1,33 @@
 package group12.budgetbuddi.utils
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import android.content.SharedPreferences
 
+class SessionManager(context: Context) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "auth_session")
-
-class SessionManager(private val context: Context) {
-
-    companion object {
-
-        private val IS_LOGGED_IN = stringPreferencesKey("is_logged_in")
-        private val USER_EMAIL = stringPreferencesKey("user_email")
-        private val USERNAME = stringPreferencesKey("username")
-    }
-
-    suspend fun saveSession(email: String, username: String) {
-        context.dataStore.edit { preferences ->
-            preferences[IS_LOGGED_IN] = "true"
-            preferences[USER_EMAIL] = email
-            preferences[USERNAME] = username
+    fun saveSession(email: String, username: String) {
+        prefs.edit().apply {
+            putBoolean("is_logged_in", true)
+            putString("user_email", email)
+            putString("username", username)
+            apply()
         }
     }
 
-    fun isLoggedIn(): Flow<Boolean> {
-        return context.dataStore.data.map { preferences ->
-            preferences[IS_LOGGED_IN] == "true"
-        }
+    fun isLoggedIn(): Boolean {
+        return prefs.getBoolean("is_logged_in", false)
     }
 
-    fun getUserEmail(): Flow<String?> {
-        return context.dataStore.data.map { preferences ->
-            preferences[USER_EMAIL]
-        }
+    fun getUserEmail(): String? {
+        return prefs.getString("user_email", null)
     }
 
-    fun getUsername(): Flow<String?> {
-        return context.dataStore.data.map { preferences ->
-            preferences[USERNAME]
-        }
+    fun getUsername(): String? {
+        return prefs.getString("username", null)
     }
 
-    suspend fun clearSession() {
-        context.dataStore.edit { preferences ->
-            preferences.clear()
-        }
+    fun clearSession() {
+        prefs.edit().clear().apply()
     }
 }

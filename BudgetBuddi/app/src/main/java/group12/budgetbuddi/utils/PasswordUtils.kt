@@ -11,7 +11,6 @@ object PasswordUtils {
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
-
     fun generateSalt(): String {
         val bytes = ByteArray(16)
         SecureRandom().nextBytes(bytes)
