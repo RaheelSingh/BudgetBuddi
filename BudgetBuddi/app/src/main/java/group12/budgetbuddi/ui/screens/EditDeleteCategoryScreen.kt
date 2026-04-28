@@ -5,12 +5,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.ui.components.AppScaffold
+import group12.budgetbuddi.ui.components.CategoryVisualPreview
+import group12.budgetbuddi.ui.components.EmojiPicker
+import group12.budgetbuddi.ui.components.IconPicker
+import group12.budgetbuddi.ui.components.SimpleColorWheel
+import group12.budgetbuddi.ui.components.colorFromHex
+import group12.budgetbuddi.ui.components.colorToHex
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 
@@ -29,11 +36,15 @@ fun EditDeleteCategoryScreen(
 
     var editedMainCategory by remember { mutableStateOf("") }
     var editedSubCategory by remember { mutableStateOf("") }
-    var editedVisualValue by remember { mutableStateOf("") }
-    var editedOutlineColor by remember { mutableStateOf("") }
+
+    var editedVisualType by remember { mutableStateOf("emoji") }
+    var editedVisualValue by remember { mutableStateOf("🍳") }
+    var selectedColor by remember { mutableStateOf(colorFromHex("#4CAF50")) }
 
     var mainExpanded by remember { mutableStateOf(false) }
     var subExpanded by remember { mutableStateOf(false) }
+
+    val editedOutlineColor = colorToHex(selectedColor)
 
     val filteredSubCategories = categories.filter {
         it.mainCategory == selectedMainCategory
@@ -50,7 +61,7 @@ fun EditDeleteCategoryScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { navController.popBackStack() }) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
@@ -99,8 +110,10 @@ fun EditDeleteCategoryScreen(
 
                                 editedMainCategory = category
                                 editedSubCategory = ""
-                                editedVisualValue = ""
-                                editedOutlineColor = ""
+
+                                editedVisualType = "emoji"
+                                editedVisualValue = "🍳"
+                                selectedColor = colorFromHex("#4CAF50")
 
                                 mainExpanded = false
                             }
@@ -148,8 +161,9 @@ fun EditDeleteCategoryScreen(
 
                                 editedMainCategory = category.mainCategory
                                 editedSubCategory = category.subCategory
+                                editedVisualType = category.visualType
                                 editedVisualValue = category.visualValue
-                                editedOutlineColor = category.outlineColor
+                                selectedColor = colorFromHex(category.outlineColor)
 
                                 subExpanded = false
                             }
@@ -182,25 +196,79 @@ fun EditDeleteCategoryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = editedVisualValue,
-                onValueChange = { editedVisualValue = it },
-                label = { Text("Emoji / Icon") },
-                enabled = selectedSubCategory != null,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Text("Category Visual", style = MaterialTheme.typography.titleMedium)
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = editedOutlineColor,
-                onValueChange = { editedOutlineColor = it },
-                label = { Text("Outline Color") },
-                enabled = selectedSubCategory != null,
-                modifier = Modifier.fillMaxWidth()
+            CategoryVisualPreview(
+                visualType = editedVisualType,
+                visualValue = editedVisualValue,
+                outlineColor = editedOutlineColor
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row {
+                FilterChip(
+                    selected = editedVisualType == "emoji",
+                    enabled = selectedSubCategory != null,
+                    onClick = {
+                        editedVisualType = "emoji"
+                        editedVisualValue = "🍳"
+                    },
+                    label = { Text("Emoji") }
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                FilterChip(
+                    selected = editedVisualType == "icon",
+                    enabled = selectedSubCategory != null,
+                    onClick = {
+                        editedVisualType = "icon"
+                        editedVisualValue = "restaurant"
+                    },
+                    label = { Text("Icon") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (selectedSubCategory != null) {
+                if (editedVisualType == "emoji") {
+                    Text("Choose Emoji", style = MaterialTheme.typography.bodyMedium)
+
+                    EmojiPicker(
+                        selectedEmoji = editedVisualValue,
+                        onEmojiSelected = { editedVisualValue = it }
+                    )
+                } else {
+                    Text("Choose Icon", style = MaterialTheme.typography.bodyMedium)
+
+                    IconPicker(
+                        selectedIconKey = editedVisualValue,
+                        onIconSelected = { editedVisualValue = it }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Choose Outline Colour", style = MaterialTheme.typography.titleMedium)
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                SimpleColorWheel(
+                    selectedColor = selectedColor,
+                    onColorSelected = { selectedColor = it }
+                )
+            } else {
+                Text(
+                    text = "Select a subcategory to edit emoji/icon and colour.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -211,6 +279,7 @@ fun EditDeleteCategoryScreen(
                             it.copy(
                                 mainCategory = editedMainCategory,
                                 subCategory = editedSubCategory,
+                                visualType = editedVisualType,
                                 visualValue = editedVisualValue,
                                 outlineColor = editedOutlineColor
                             )
