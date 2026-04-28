@@ -59,6 +59,12 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
+            Button(
+                onClick = { navController.navigate("expense_list") }
+            ) {
+                Text("Test Expense List")
+            }
+
             // Still keeping logout button for now (even though menu also has logout)
             Button(
                 onClick = {

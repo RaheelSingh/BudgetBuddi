@@ -1,5 +1,5 @@
 package group12.budgetbuddi
-
+import group12.budgetbuddi.ui.screens.ExpenseListScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+
 
     NavHost(
         navController = navController,
@@ -83,6 +84,9 @@ fun AppNavigation() {
 
         composable("add_transaction") {
             AddTransactionScreen(navController = navController)
+        }
+        composable("expense_list") {
+            ExpenseListScreen(navController = navController)
         }
     }
 }
