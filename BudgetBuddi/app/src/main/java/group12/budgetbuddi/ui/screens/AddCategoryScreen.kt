@@ -1,13 +1,16 @@
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import group12.budgetbuddi.ui.components.AppScaffold
+import group12.budgetbuddi.ui.components.*
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 
@@ -18,18 +21,18 @@ fun AddCategoryScreen(
     authViewModel: AuthViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-
     val mainCategories by categoryViewModel.mainCategories.collectAsState()
 
     var mainCategory by remember { mutableStateOf("") }
     var subCategory by remember { mutableStateOf("") }
+
     var visualType by remember { mutableStateOf("emoji") }
-    var visualValue by remember { mutableStateOf("") }
-    var outlineColor by remember { mutableStateOf("#4CAF50") }
+    var visualValue by remember { mutableStateOf("🍳") }
+
+    var selectedColor by remember { mutableStateOf(colorFromHex("#4CAF50")) }
+    val outlineColor = colorToHex(selectedColor)
 
     var expanded by remember { mutableStateOf(false) }
-
-    val uiMessage by categoryViewModel.uiMessage.collectAsState()
 
     AppScaffold(
         navController = navController,
@@ -42,8 +45,19 @@ fun AddCategoryScreen(
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { navController.popBackStack() }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
 
-            Text("Add Category", style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    "Add Category",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -57,7 +71,10 @@ fun AddCategoryScreen(
                     onValueChange = { mainCategory = it },
                     label = { Text("Main Category") },
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(
+                            type = ExposedDropdownMenuAnchorType.PrimaryEditable,
+                            enabled = true
+                        )
                         .fillMaxWidth()
                 )
 
@@ -65,6 +82,14 @@ fun AddCategoryScreen(
                     expanded = expanded,
                     onDismissRequest = { expanded = false }
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("Add new category...") },
+                        onClick = {
+                            mainCategory = ""
+                            expanded = false
+                        }
+                    )
+
                     mainCategories.forEach { category ->
                         DropdownMenuItem(
                             text = { Text(category) },
@@ -87,13 +112,28 @@ fun AddCategoryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Category Visual", style = MaterialTheme.typography.titleMedium)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CategoryVisualPreview(
+                visualType = visualType,
+                visualValue = visualValue,
+                outlineColor = outlineColor
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Visual type
             Row {
                 FilterChip(
                     selected = visualType == "emoji",
-                    onClick = { visualType = "emoji" },
+                    onClick = {
+                        visualType = "emoji"
+                        visualValue = "🍳"
+                    },
                     label = { Text("Emoji") }
                 )
 
@@ -101,30 +141,39 @@ fun AddCategoryScreen(
 
                 FilterChip(
                     selected = visualType == "icon",
-                    onClick = { visualType = "icon" },
+                    onClick = {
+                        visualType = "icon"
+                        visualValue = "restaurant"
+                    },
                     label = { Text("Icon") }
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            if (visualType == "emoji") {
+                Text("Choose Emoji", style = MaterialTheme.typography.bodyMedium)
+                EmojiPicker(
+                    selectedEmoji = visualValue,
+                    onEmojiSelected = { visualValue = it }
+                )
+            } else {
+                Text("Choose Icon", style = MaterialTheme.typography.bodyMedium)
+                IconPicker(
+                    selectedIconKey = visualValue,
+                    onIconSelected = { visualValue = it }
+                )
+            }
 
-            // Visual value
-            OutlinedTextField(
-                value = visualValue,
-                onValueChange = { visualValue = it },
-                label = { Text("Emoji or Icon Name") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Text("Choose Outline Colour", style = MaterialTheme.typography.titleMedium)
 
-            // Simple color input
-            OutlinedTextField(
-                value = outlineColor,
-                onValueChange = { outlineColor = it },
-                label = { Text("Outline Color (Hex)") },
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SimpleColorWheel(
+                selectedColor = selectedColor,
+                onColorSelected = { selectedColor = it }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -139,17 +188,13 @@ fun AddCategoryScreen(
                         visualValue = visualValue,
                         outlineColor = outlineColor
                     )
+
+                    navController.popBackStack()
                 },
+                enabled = mainCategory.isNotBlank() && subCategory.isNotBlank() && visualValue.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Add Category")
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Message
-            uiMessage?.let {
-                Text(it, color = MaterialTheme.colorScheme.primary)
             }
         }
     }

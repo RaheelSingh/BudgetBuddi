@@ -10,7 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.TextFieldValue
+import group12.budgetbuddi.ui.components.CategoryVisualPreview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -93,22 +93,20 @@ fun CategoriesScreen(
 
 @Composable
 fun CategoryItem(category: group12.budgetbuddi.data.entity.CategoryEntity) {
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
     ) {
         Row(
-            modifier = Modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-
-            // Emoji / Icon display
-            Text(
-                text = category.visualValue,
-                style = MaterialTheme.typography.headlineMedium
+            CategoryVisualPreview(
+                visualType = category.visualType,
+                visualValue = category.visualValue,
+                outlineColor = category.outlineColor,
+                modifier = Modifier.size(56.dp)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
