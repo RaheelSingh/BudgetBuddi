@@ -22,4 +22,35 @@ class ExpenseRepository(private val expenseDao: ExpenseDao) {
     ): Flow<List<ExpenseEntity>> =
         expenseDao.getExpensesByDateRange(userEmail, fromDate, toDate)
 
+    fun getExpensesByCategory(
+        userEmail: String,
+        category: String
+    ): Flow<List<ExpenseEntity>> =
+        expenseDao.getExpensesByCategory(userEmail, category)
+
+    fun getExpensesByCategoryAndDateRange(
+        userEmail: String,
+        category: String,
+        fromDate: String,
+        toDate: String
+    ): Flow<List<ExpenseEntity>> =
+        expenseDao.getExpensesByCategoryAndDateRange(userEmail, category, fromDate, toDate)
+
+    fun getTotalExpenses(userEmail: String): Flow<Double?> =
+        expenseDao.getTotalExpenses(userEmail)
+
+    fun getTotalIncome(userEmail: String): Flow<Double?> =
+        expenseDao.getTotalIncome(userEmail)
+
+    suspend fun insertExpense(expense: ExpenseEntity): Long =
+        expenseDao.insertExpense(expense)
+
+    suspend fun updateExpense(expense: ExpenseEntity) =
+        expenseDao.updateExpense(expense)
+
+    suspend fun deleteExpense(expense: ExpenseEntity) =
+        expenseDao.deleteExpense(expense)
+
+    suspend fun getExpenseById(id: Long): ExpenseEntity? =
+        expenseDao.getExpenseById(id)
 }
