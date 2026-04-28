@@ -1,15 +1,16 @@
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.ui.components.CategoryVisualPreview
@@ -59,13 +60,15 @@ fun EditDeleteCategoryScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { navController.popBackStack() }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
+                    Text(
+                        text = "<",
+                        color = Color(0xFF139A43),
+                        style = MaterialTheme.typography.headlineMedium
                     )
                 }
 
