@@ -37,32 +37,32 @@ fun BottomNavBar(
         )
 
         NavigationBarItem(
-            selected = selectedRoute == "budget_report",
+            selected = selectedRoute == "daily_report",
             onClick = {
-                navController.navigate("budget_report") {
+                navController.navigate("daily_report") {
                     launchSingleTop = true
                 }
             },
             icon = {
                 Icon(
                     imageVector = Icons.Default.Assessment,
-                    contentDescription = "Budget Report"
+                    contentDescription = "Daily Report"
                 )
             },
-            label = { Text("Report") }
+            label = { Text("Daily") }
         )
 
         NavigationBarItem(
-            selected = selectedRoute == "add_expense",
+            selected = selectedRoute == "add_transaction",
             onClick = {
-                navController.navigate("add_expense") {
+                navController.navigate("add_transaction") {
                     launchSingleTop = true
                 }
             },
             icon = {
                 Icon(
                     imageVector = Icons.Default.AddCircle,
-                    contentDescription = "Add Expense"
+                    contentDescription = "Add Transaction"
                 )
             },
             label = { Text("Add") }

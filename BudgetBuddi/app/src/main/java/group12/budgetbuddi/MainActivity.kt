@@ -43,21 +43,46 @@ fun AppNavigation() {
         composable("welcome") {
             WelcomeScreen(navController = navController)
         }
+
         composable("login") {
             LoginScreen(navController = navController)
         }
+
         composable("register") {
             RegisterScreen(navController = navController)
         }
+
         composable("forgot") {
             ForgotPasswordScreen(navController = navController)
         }
+
         composable("reset/{token}") { backStackEntry ->
             val token = backStackEntry.arguments?.getString("token") ?: ""
             ResetPasswordScreen(navController = navController, token = token)
         }
+
         composable("home") {
             HomeScreen(navController = navController)
+        }
+
+        composable("categories") {
+            CategoriesScreen(navController = navController)
+        }
+
+        composable("add_category") {
+            AddCategoryScreen(navController = navController)
+        }
+
+        composable("edit_delete_category") {
+            EditDeleteCategoryScreen(navController = navController)
+        }
+
+        composable("daily_report") {
+            DailyReportScreen(navController = navController)
+        }
+
+        composable("add_transaction") {
+            AddTransactionScreen(navController = navController)
         }
     }
 }
