@@ -30,4 +30,49 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE userEmail = :userEmail AND type = 'income' ORDER BY date DESC, createdAt DESC")
     fun getIncomeOnly(userEmail: String): Flow<List<ExpenseEntity>>
 
+    @Query("""
+        SELECT * FROM expenses
+        WHERE userEmail = :userEmail
+        AND date BETWEEN :fromDate AND :toDate
+        ORDER BY date DESC, createdAt DESC
+    """)
+    fun getExpensesByDateRange(
+        userEmail: String,
+        fromDate: String,
+        toDate: String
+    ): Flow<List<ExpenseEntity>>
+
+    @Query("""
+        SELECT * FROM expenses
+        WHERE userEmail = :userEmail
+        AND category = :category
+        ORDER BY date DESC, createdAt DESC
+    """)
+    fun getExpensesByCategory(
+        userEmail: String,
+        category: String
+    ): Flow<List<ExpenseEntity>>
+
+    @Query("""
+        SELECT * FROM expenses
+        WHERE userEmail = :userEmail
+        AND category = :category
+        AND date BETWEEN :fromDate AND :toDate
+        ORDER BY date DESC, createdAt DESC
+    """)
+    fun getExpensesByCategoryAndDateRange(
+        userEmail: String,
+        category: String,
+        fromDate: String,
+        toDate: String
+    ): Flow<List<ExpenseEntity>>
+
+    @Query("SELECT SUM(amount) FROM expenses WHERE userEmail = :userEmail AND type = 'expense'")
+    fun getTotalExpenses(userEmail: String): Flow<Double?>
+
+    @Query("SELECT SUM(amount) FROM expenses WHERE userEmail = :userEmail AND type = 'income'")
+    fun getTotalIncome(userEmail: String): Flow<Double?>
+
+    @Query("SELECT * FROM expenses WHERE id = :id")
+    suspend fun getExpenseById(id: Long): ExpenseEntity?
 }
