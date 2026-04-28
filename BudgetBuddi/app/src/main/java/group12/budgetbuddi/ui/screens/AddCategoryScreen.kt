@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -10,10 +11,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import group12.budgetbuddi.R
 import group12.budgetbuddi.ui.components.*
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
@@ -39,6 +43,10 @@ fun AddCategoryScreen(
     val outlineColor = colorToHex(selectedColor)
 
     var expanded by remember { mutableStateOf(false) }
+
+    val canAdd = mainCategory.isNotBlank() &&
+            subCategory.isNotBlank() &&
+            visualValue.isNotBlank()
 
     AppScaffold(
         navController = navController,
@@ -71,8 +79,9 @@ fun AddCategoryScreen(
 
                 Text(
                     text = "New Category",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    )
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -88,7 +97,7 @@ fun AddCategoryScreen(
                         )
                         navController.popBackStack()
                     },
-                    enabled = mainCategory.isNotBlank() && subCategory.isNotBlank() && visualValue.isNotBlank()
+                    enabled = canAdd
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
@@ -98,18 +107,17 @@ fun AddCategoryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            CategoryVisualPreview(
-                visualType = visualType,
-                visualValue = visualValue,
-                outlineColor = outlineColor,
+            Image(
+                painter = painterResource(id = R.drawable.category_bubu),
+                contentDescription = "Category Image",
                 modifier = Modifier
+                    .size(95.dp)
                     .align(Alignment.CenterHorizontally)
-                    .size(58.dp)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             ExposedDropdownMenuBox(
                 expanded = expanded,
@@ -158,7 +166,7 @@ fun AddCategoryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = subCategory,
@@ -174,19 +182,24 @@ fun AddCategoryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            HorizontalDivider(color = BudgetGreen)
+            HorizontalDivider(
+                color = BudgetGreen,
+                thickness = 2.dp
+            )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = "Appearance",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = BudgetGreen
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically
@@ -195,7 +208,7 @@ fun AddCategoryScreen(
                     visualType = visualType,
                     visualValue = visualValue,
                     outlineColor = outlineColor,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(52.dp)
                 )
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -227,12 +240,14 @@ fun AddCategoryScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             if (visualType == "emoji") {
                 Text(
                     text = "Choose Emoji",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
                     color = Color.Gray
                 )
 
@@ -245,7 +260,9 @@ fun AddCategoryScreen(
             } else {
                 Text(
                     text = "Choose Icon",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
                     color = Color.Gray
                 )
 
@@ -257,15 +274,17 @@ fun AddCategoryScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "Outline Colour",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
                 color = Color.Gray
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Box(
                 modifier = Modifier.fillMaxWidth(),
@@ -277,7 +296,7 @@ fun AddCategoryScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             OutlinedButton(
                 onClick = {
@@ -290,16 +309,14 @@ fun AddCategoryScreen(
                     )
                     navController.popBackStack()
                 },
-                enabled = mainCategory.isNotBlank() && subCategory.isNotBlank() && visualValue.isNotBlank(),
+                enabled = canAdd,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = BudgetGreen
                 ),
                 border = ButtonDefaults.outlinedButtonBorder(
-                    enabled = mainCategory.isNotBlank() &&
-                            subCategory.isNotBlank() &&
-                            visualValue.isNotBlank()
+                    enabled = canAdd
                 ).copy(
-                    brush = androidx.compose.ui.graphics.SolidColor(BudgetGreen)
+                    brush = SolidColor(BudgetGreen)
                 ),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -307,6 +324,8 @@ fun AddCategoryScreen(
             ) {
                 Text("Add")
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,10 +12,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import group12.budgetbuddi.R
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.ui.components.*
 import group12.budgetbuddi.viewmodel.AuthViewModel
@@ -117,8 +120,9 @@ fun EditDeleteCategoryScreen(
 
                 Text(
                     text = "Edit / Delete",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    )
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
@@ -135,18 +139,27 @@ fun EditDeleteCategoryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            CategoryVisualPreview(
-                visualType = editedVisualType,
-                visualValue = editedVisualValue,
-                outlineColor = editedOutlineColor,
+            Image(
+                painter = painterResource(id = R.drawable.category_bubu),
+                contentDescription = "Category Image",
                 modifier = Modifier
+                    .size(95.dp)
                     .align(Alignment.CenterHorizontally)
-                    .size(58.dp)
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(22.dp))
+
+            Text(
+                text = "Select Category",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = BudgetGreen
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             ExposedDropdownMenuBox(
                 expanded = mainExpanded,
@@ -199,7 +212,7 @@ fun EditDeleteCategoryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             ExposedDropdownMenuBox(
                 expanded = subExpanded,
@@ -256,7 +269,24 @@ fun EditDeleteCategoryScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            HorizontalDivider(
+                color = BudgetGreen,
+                thickness = 2.dp
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "Edit Selected Category",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = BudgetGreen
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = editedMainCategory,
@@ -274,7 +304,7 @@ fun EditDeleteCategoryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             OutlinedTextField(
                 value = editedSubCategory,
@@ -292,26 +322,31 @@ fun EditDeleteCategoryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            HorizontalDivider(color = BudgetGreen)
+            HorizontalDivider(
+                color = BudgetGreen,
+                thickness = 2.dp
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "Appearance",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = BudgetGreen
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CategoryVisualPreview(
                     visualType = editedVisualType,
                     visualValue = editedVisualValue,
                     outlineColor = editedOutlineColor,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(52.dp)
                 )
 
                 Spacer(modifier = Modifier.width(14.dp))
@@ -345,13 +380,15 @@ fun EditDeleteCategoryScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             if (selectedSubCategory != null) {
                 if (editedVisualType == "emoji") {
                     Text(
                         text = "Choose Emoji",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         color = Color.Gray
                     )
 
@@ -364,7 +401,9 @@ fun EditDeleteCategoryScreen(
                 } else {
                     Text(
                         text = "Choose Icon",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         color = Color.Gray
                     )
 
@@ -376,15 +415,17 @@ fun EditDeleteCategoryScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
                     text = "Outline Colour",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
                     color = Color.Gray
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Box(
                     modifier = Modifier.fillMaxWidth(),
@@ -398,12 +439,12 @@ fun EditDeleteCategoryScreen(
             } else {
                 Text(
                     text = "Select a subcategory to edit its emoji/icon and colour.",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = Color.Gray
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
             OutlinedButton(
                 onClick = { saveChanges() },
@@ -463,7 +504,7 @@ fun EditDeleteCategoryScreen(
                 Text("Delete Whole Category")
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
