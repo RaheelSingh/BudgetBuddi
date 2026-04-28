@@ -1,8 +1,11 @@
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -10,11 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.R
@@ -349,35 +354,39 @@ fun EditDeleteCategoryScreen(
                     modifier = Modifier.size(52.dp)
                 )
 
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                FilterChip(
-                    selected = editedVisualType == "icon",
-                    enabled = selectedSubCategory != null,
-                    onClick = {
-                        editedVisualType = "icon"
-                        editedVisualValue = "restaurant"
-                    },
-                    label = { Text("Icon") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = BudgetGreen.copy(alpha = 0.35f)
-                    )
-                )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(Color(0xFFE0E0E0))
+                        .padding(3.dp)
+                ) {
+                    listOf("emoji" to "Emoji", "icon" to "Icon").forEach { (value, label) ->
+                        val isSelected = editedVisualType == value
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                FilterChip(
-                    selected = editedVisualType == "emoji",
-                    enabled = selectedSubCategory != null,
-                    onClick = {
-                        editedVisualType = "emoji"
-                        editedVisualValue = "🍳"
-                    },
-                    label = { Text("Emoji") },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = BudgetGreen.copy(alpha = 0.35f)
-                    )
-                )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(
+                                    if (isSelected) BudgetGreen else Color.Transparent
+                                )
+                                .clickable(enabled = selectedSubCategory != null) {
+                                    editedVisualType = value
+                                    editedVisualValue = if (value == "emoji") "🍳" else "restaurant"
+                                }
+                                .padding(horizontal = 28.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) Color.White else Color.Gray,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -477,6 +486,11 @@ fun EditDeleteCategoryScreen(
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 ),
+                border = ButtonDefaults.outlinedButtonBorder(
+                    enabled = selectedSubCategory != null
+                ).copy(
+                    brush = SolidColor(MaterialTheme.colorScheme.error)
+                ),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .width(220.dp)
@@ -496,6 +510,11 @@ fun EditDeleteCategoryScreen(
                 enabled = selectedMainCategory.isNotBlank(),
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = ButtonDefaults.outlinedButtonBorder(
+                    enabled = selectedMainCategory.isNotBlank()
+                ).copy(
+                    brush = SolidColor(MaterialTheme.colorScheme.error)
                 ),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
