@@ -68,8 +68,6 @@ fun AddTransactionScreen(
         var selectedType by remember { mutableStateOf("expense") }
         var amountText by remember { mutableStateOf("") }
         var selectedDate by remember { mutableStateOf("") }
-        var startTime by remember { mutableStateOf("") }
-        var endTime by remember { mutableStateOf("") }
         var note by remember { mutableStateOf("") }
         var selectedMainCategory by remember { mutableStateOf("") }
         var selectedSubCategory by remember { mutableStateOf("") }
@@ -83,8 +81,6 @@ fun AddTransactionScreen(
         var pendingCameraPath by remember { mutableStateOf<String?>(null) }
 
         var showDatePicker by remember { mutableStateOf(false) }
-        var showStartTimePicker by remember { mutableStateOf(false) }
-        var showEndTimePicker by remember { mutableStateOf(false) }
         var showCategoryDialog by remember { mutableStateOf(false) }
         var showPaymentDialog by remember { mutableStateOf(false) }
         var showPhotoDialog by remember { mutableStateOf(false) }
@@ -218,9 +214,7 @@ fun AddTransactionScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(
-                                if (selectedType == value) BrandGreen else Color.Transparent
-                            )
+                            .background(if (selectedType == value) BrandGreen else Color.Transparent)
                             .clickable { selectedType = value }
                             .padding(horizontal = 28.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -258,26 +252,6 @@ fun AddTransactionScreen(
                 value = selectedDate,
                 placeholder = "Pick a date",
                 onClick = { showDatePicker = true }
-            )
-
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
-
-            FormRow(
-                icon = Icons.Default.AccessTime,
-                label = "Start Time :",
-                value = startTime,
-                placeholder = "Pick start time",
-                onClick = { showStartTimePicker = true }
-            )
-
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
-
-            FormRow(
-                icon = Icons.Default.AccessTime,
-                label = "End Time :",
-                value = endTime,
-                placeholder = "Pick end time",
-                onClick = { showEndTimePicker = true }
             )
 
             Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
@@ -342,10 +316,18 @@ fun AddTransactionScreen(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Text(
-                        text = if (selectedImageUri != null) "Photo attached ✓" else "Add Photo :",
-                        color = if (selectedImageUri != null) BrandGreen else Color.Gray
-                    )
+                    Column {
+                        Text(
+                            text = if (selectedImageUri != null) "Photo attached ✓" else "Add Photo :",
+                            color = if (selectedImageUri != null) BrandGreen else Color.Gray
+                        )
+
+                        Text(
+                            text = "Optional",
+                            color = Color.LightGray,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
 
                 Icon(
@@ -434,9 +416,7 @@ fun AddTransactionScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(
-                                    if (isRecurring == value) BrandGreen else Color.Transparent
-                                )
+                                .background(if (isRecurring == value) BrandGreen else Color.Transparent)
                                 .clickable { isRecurring = value }
                                 .padding(horizontal = 16.dp, vertical = 6.dp),
                             contentAlignment = Alignment.Center
@@ -477,8 +457,8 @@ fun AddTransactionScreen(
                         category = selectedMainCategory,
                         subCategory = selectedSubCategory,
                         date = selectedDate,
-                        startTime = startTime,
-                        endTime = endTime,
+                        startTime = "",
+                        endTime = "",
                         note = note,
                         photoPath = photoPath,
                         paymentMethod = paymentMethod,
@@ -529,56 +509,6 @@ fun AddTransactionScreen(
             ) {
                 DatePicker(state = datePickerState)
             }
-        }
-
-        if (showStartTimePicker) {
-            val timeState = rememberTimePickerState()
-
-            AlertDialog(
-                onDismissRequest = { showStartTimePicker = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            startTime = "%02d:%02d".format(timeState.hour, timeState.minute)
-                            showStartTimePicker = false
-                        }
-                    ) {
-                        Text("OK", color = BrandGreen)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showStartTimePicker = false }) {
-                        Text("Cancel")
-                    }
-                },
-                title = { Text("Start Time") },
-                text = { TimePicker(state = timeState) }
-            )
-        }
-
-        if (showEndTimePicker) {
-            val timeState = rememberTimePickerState()
-
-            AlertDialog(
-                onDismissRequest = { showEndTimePicker = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            endTime = "%02d:%02d".format(timeState.hour, timeState.minute)
-                            showEndTimePicker = false
-                        }
-                    ) {
-                        Text("OK", color = BrandGreen)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showEndTimePicker = false }) {
-                        Text("Cancel")
-                    }
-                },
-                title = { Text("End Time") },
-                text = { TimePicker(state = timeState) }
-            )
         }
 
         if (showCategoryDialog) {
@@ -721,7 +651,6 @@ fun AddTransactionScreen(
                 title = { Text("Add Photo") },
                 text = {
                     Column {
-
                         TextButton(
                             onClick = {
                                 showPhotoDialog = false
@@ -742,10 +671,7 @@ fun AddTransactionScreen(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Text(
-                                text = "Choose from Gallery",
-                                color = Color.Black
-                            )
+                            Text("Choose from Gallery", color = Color.Black)
                         }
 
                         TextButton(
@@ -784,10 +710,7 @@ fun AddTransactionScreen(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Text(
-                                text = "Take Photo",
-                                color = Color.Black
-                            )
+                            Text("Take Photo", color = Color.Black)
                         }
                     }
                 }
