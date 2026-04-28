@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -22,6 +23,7 @@ fun HamburgerMenu(
     selectedRoute: String,
     onHomeClick: () -> Unit,
     onCategoriesClick: () -> Unit,
+    onExpensesClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     ModalDrawerSheet {
@@ -58,6 +60,18 @@ fun HamburgerMenu(
                     )
                 },
                 label = { Text("Categories") }
+            )
+
+            NavigationDrawerItem(
+                selected = selectedRoute == "expenses",
+                onClick = onExpensesClick,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.ListAlt,
+                        contentDescription = "Transactions"
+                    )
+                },
+                label = { Text("Transactions") }
             )
 
             NavigationDrawerItem(

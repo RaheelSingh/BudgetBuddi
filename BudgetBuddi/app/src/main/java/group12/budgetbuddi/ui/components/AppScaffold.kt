@@ -18,41 +18,29 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppScaffold(
     navController: NavController,
-    selectedRoute: String, // used to highlight current tab/menu item
+    selectedRoute: String,
     authViewModel: AuthViewModel,
-    content: @Composable (Modifier) -> Unit // screen content injected here
+    content: @Composable (Modifier) -> Unit
 ) {
-
-    // Controls whether the drawer is open or closed
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-
-    // For drawer to open/close asynchronously
     val scope = rememberCoroutineScope()
 
-    // Changes drawer to open from right to left
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-
         ModalNavigationDrawer(
             drawerState = drawerState,
-
-            // Drawer content = hamburger menu UI
             drawerContent = {
-
-                // Set the drawer content itself back to normal left-to-right text/layout
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     HamburgerMenu(
                         selectedRoute = selectedRoute,
 
-                        // Navigate to Home
                         onHomeClick = {
-                            scope.launch { drawerState.close() } // close drawer first
+                            scope.launch { drawerState.close() }
                             navController.navigate("home") {
-                                popUpTo("home") { inclusive = true } // avoid stacking duplicates
+                                popUpTo("home") { inclusive = true }
                                 launchSingleTop = true
                             }
                         },
 
-                        // Navigate to Categories screen
                         onCategoriesClick = {
                             scope.launch { drawerState.close() }
                             navController.navigate("categories") {
@@ -60,7 +48,13 @@ fun AppScaffold(
                             }
                         },
 
-                        // Logout user and return to welcome screen
+                        onExpensesClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("expenses") {
+                                launchSingleTop = true
+                            }
+                        },
+
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
@@ -72,29 +66,18 @@ fun AppScaffold(
                 }
             }
         ) {
-
-            // Set the main app content back to normal left-to-right layout
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-
-                // Main layout structure (bottom nav and screen content)
                 Scaffold(
-
-                    // Bottom navigation bar always visible
                     bottomBar = {
                         BottomNavBar(
                             navController = navController,
                             selectedRoute = selectedRoute,
-
-                            // When hamburger icon is clicked then drawer opens
                             onMenuClick = {
                                 scope.launch { drawerState.open() }
                             }
                         )
                     }
-
                 ) { padding ->
-
-                    // Inject actual screen UI here with proper padding
                     content(Modifier.padding(padding))
                 }
             }

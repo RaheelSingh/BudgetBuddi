@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
             BudgetBuddiTheme {
                 Surface(
@@ -80,6 +81,10 @@ fun AppNavigation() {
 
         composable("daily_report") {
             DailyReportScreen(navController = navController)
+        }
+
+        composable("expenses") {
+            ExpensesScreen(navController = navController)
         }
 
         composable("add_transaction") {
