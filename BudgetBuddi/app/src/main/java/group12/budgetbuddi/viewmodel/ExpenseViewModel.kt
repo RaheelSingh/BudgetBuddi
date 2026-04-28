@@ -36,4 +36,51 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
+    fun saveExpense(
+        amount: Double,
+        type: String,
+        category: String,
+        subCategory: String,
+        date: String,
+        startTime: String,
+        endTime: String,
+        note: String,
+        photoPath: String?,
+        paymentMethod: String,
+        isRecurring: Boolean
+    ) {
+        if (amount <= 0.0) {
+            _uiMessage.value = "Please enter a valid amount"
+            return
+        }
+        if (category.isBlank()) {
+            _uiMessage.value = "Please select a category"
+            return
+        }
+        if (date.isBlank()) {
+            _uiMessage.value = "Please select a date"
+            return
+        }
+
+        val expense = ExpenseEntity(
+            userEmail = currentUserEmail,
+            amount = amount,
+            type = type,
+            category = category,
+            subCategory = subCategory,
+            date = date,
+            startTime = startTime,
+            endTime = endTime,
+            note = note,
+            photoPath = photoPath,
+            paymentMethod = paymentMethod,
+            isRecurring = isRecurring
+        )
+
+        viewModelScope.launch {
+            repository.insertExpense(expense)
+            _uiMessage.value = "Saved successfully"
+            _saveSuccess.value = true
+        }
+    }
 }
