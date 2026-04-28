@@ -83,4 +83,19 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             _saveSuccess.value = true
         }
     }
+
+    fun deleteExpense(expense: ExpenseEntity) {
+        viewModelScope.launch {
+            repository.deleteExpense(expense)
+            _uiMessage.value = "Expense deleted"
+        }
+    }
+
+    fun clearMessage() {
+        _uiMessage.value = null
+    }
+
+    fun clearSaveSuccess() {
+        _saveSuccess.value = false
+    }
 }
