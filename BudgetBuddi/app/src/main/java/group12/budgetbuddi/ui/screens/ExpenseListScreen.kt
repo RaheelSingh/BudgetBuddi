@@ -13,37 +13,29 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Sample data class for testing
-data class SampleExpense(
-    val date: String,
-    val description: String,
-    val category: String,
-    val amount: String
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpenseListScreen(navController: NavController) {
+fun ExpenseListScreen(
+    navController: NavController,
+    expenseViewModel: ExpenseViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    val allExpenses by expenseViewModel.allExpenses.collectAsState()
+
+    // Filter to show only expenses (not income)
+    val expensesOnly = remember(allExpenses) {
+        allExpenses.filter { it.type == "expense" }
+    }
+
     val startDate = remember { mutableStateOf(Date()) }
     val endDate = remember { mutableStateOf(Date()) }
     val dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
-
-    // Sample expenses using your app's real categories
-    val sampleExpenses = listOf(
-        SampleExpense("01/15/2024", "Lunch at McDonald's", "restaurant", "$12.50"),
-        SampleExpense("01/14/2024", "Movie night", "movie", "$25.00"),
-        SampleExpense("01/13/2024", "Gas for car", "fuel", "$45.00"),
-        SampleExpense("01/12/2024", "Grocery shopping", "shopping", "$85.30"),
-        SampleExpense("01/11/2024", "Monthly rent", "home", "$1200.00"),
-        SampleExpense("01/10/2024", "Doctor visit", "health", "$65.00"),
-        SampleExpense("01/09/2024", "Bus ticket", "transport", "$3.50"),
-        SampleExpense("01/08/2024", "School supplies", "school", "$35.00"),
-        SampleExpense("01/07/2024", "Birthday gift", "gift", "$50.00"),
-        SampleExpense("01/06/2024", "Coffee", "restaurant", "$4.50")
-    )
 
     Scaffold(
         topBar = {
@@ -75,7 +67,7 @@ fun ExpenseListScreen(navController: NavController) {
                     OutlinedButton(
                         onClick = {
                             android.widget.Toast.makeText(
-                                navController.context,
+                                context,
                                 "Date picker coming soon",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
@@ -92,7 +84,7 @@ fun ExpenseListScreen(navController: NavController) {
                     OutlinedButton(
                         onClick = {
                             android.widget.Toast.makeText(
-                                navController.context,
+                                context,
                                 "Date picker coming soon",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
@@ -109,7 +101,7 @@ fun ExpenseListScreen(navController: NavController) {
                     Button(
                         onClick = {
                             android.widget.Toast.makeText(
-                                navController.context,
+                                context,
                                 "Filter: ${dateFormat.format(startDate.value)} to ${dateFormat.format(endDate.value)}",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
@@ -123,93 +115,53 @@ fun ExpenseListScreen(navController: NavController) {
                 }
             }
 
-            // Title
+            // Title and count
             Text(
-                text = "Recent Expenses",
+                text = "Recent Expenses (${expensesOnly.size})",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // RecyclerView (LazyColumn) - Expense List with Photo Thumbnails
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(sampleExpenses) { expense ->
-                    // Each expense row with photo thumbnail
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
+            // Expense List
+            if (expensesOnly.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No expenses found. Add some expenses first.")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(expensesOnly) { expense ->
+                        ExpenseListItem(
+                            expense = expense,
+                            onItemClick = {
                                 android.widget.Toast.makeText(
-                                    navController.context,
-                                    "Clicked: ${expense.description}",
+                                    context,
+                                    "Clicked: ${expense.category}",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             },
-                        elevation = CardDefaults.cardElevation(2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // PHOTO THUMBNAIL (Placeholder for now)
-                            Box(
-                                modifier = Modifier
-                                    .size(60.dp)
-                                    .clickable {
-                                        android.widget.Toast.makeText(
-                                            navController.context,
-                                            "Photo clicked for: ${expense.description}",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                            ) {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = MaterialTheme.shapes.small
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("📷", style = MaterialTheme.typography.bodyLarge)
-                                    }
+                            onPhotoClick = {
+                                if (!expense.photoPath.isNullOrBlank()) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Photo: ${expense.photoPath}",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "No photo attached",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
-
-                            // Expense Details
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = expense.description,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                                )
-                                Text(
-                                    text = expense.date,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                // Category name
-                                Text(
-                                    text = expense.category,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            // Amount
-                            Text(
-                                text = expense.amount,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        )
                     }
                 }
             }
