@@ -6,46 +6,42 @@ import androidx.lifecycle.viewModelScope
 import group12.budgetbuddi.data.database.AppDatabase
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.repository.CategoryRepository
+import group12.budgetbuddi.utils.SessionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class CategoryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: CategoryRepository
+    private val sessionManager = SessionManager(application)
 
-    // UI State
+    private val currentUserEmail: String =
+        sessionManager.getUserEmail() ?: "guest"
+
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage
 
-    // Data flows
     val allCategories: StateFlow<List<CategoryEntity>>
-
     val filteredCategories: StateFlow<List<CategoryEntity>>
-
     val mainCategories: StateFlow<List<String>>
 
-    // Init
     init {
         val dao = AppDatabase.getInstance(application).categoryDao()
         repository = CategoryRepository(dao)
 
-        // Seed default categories
         viewModelScope.launch {
-            repository.seedDefaultCategoriesIfNeeded()
+            repository.seedDefaultCategoriesIfNeeded(currentUserEmail)
         }
 
-        // All categories
-        allCategories = repository.getAllCategories()
+        allCategories = repository.getAllCategories(currentUserEmail)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        // Main categories for dropdowns
-        mainCategories = repository.getMainCategories()
+        mainCategories = repository.getMainCategories(currentUserEmail)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        // Filtered categories (search)
         filteredCategories = combine(
             allCategories,
             _searchQuery
@@ -61,12 +57,10 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     }
 
-    // Search
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
 
-    // Add category
     fun addCategory(
         mainCategory: String,
         subCategory: String,
@@ -80,6 +74,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         }
 
         val newCategory = CategoryEntity(
+            userEmail = currentUserEmail,
             mainCategory = mainCategory.trim(),
             subCategory = subCategory.trim(),
             visualType = visualType,
@@ -93,7 +88,6 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // Delete
     fun deleteSubCategory(category: CategoryEntity) {
         viewModelScope.launch {
             repository.deleteCategory(category)
@@ -103,12 +97,11 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
     fun deleteWholeCategory(mainCategory: String) {
         viewModelScope.launch {
-            repository.deleteWholeCategory(mainCategory)
+            repository.deleteWholeCategory(currentUserEmail, mainCategory)
             _uiMessage.value = "Category deleted"
         }
     }
 
-    // Update
     fun updateCategory(updatedCategory: CategoryEntity) {
         if (updatedCategory.mainCategory.isBlank() || updatedCategory.subCategory.isBlank()) {
             _uiMessage.value = "Fields cannot be empty"
@@ -116,12 +109,11 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
-            repository.updateCategory(updatedCategory)
+            repository.updateCategory(updatedCategory.copy(userEmail = currentUserEmail))
             _uiMessage.value = "Category updated"
         }
     }
 
-    // Clear message
     fun clearMessage() {
         _uiMessage.value = null
     }

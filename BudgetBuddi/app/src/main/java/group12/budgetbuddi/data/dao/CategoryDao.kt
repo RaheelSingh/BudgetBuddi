@@ -24,26 +24,58 @@ interface CategoryDao {
     @Delete
     suspend fun deleteCategory(category: CategoryEntity)
 
-    @Query("SELECT * FROM categories ORDER BY mainCategory ASC, subCategory ASC")
-    fun getAllCategories(): Flow<List<CategoryEntity>>
-
-    @Query("SELECT * FROM categories WHERE mainCategory = :mainCategory ORDER BY subCategory ASC")
-    fun getSubCategoriesForMainCategory(mainCategory: String): Flow<List<CategoryEntity>>
-
-    @Query("SELECT DISTINCT mainCategory FROM categories ORDER BY mainCategory ASC")
-    fun getMainCategories(): Flow<List<String>>
+    @Query("""
+        SELECT * FROM categories
+        WHERE userEmail = :userEmail
+        ORDER BY mainCategory ASC, subCategory ASC
+    """)
+    fun getAllCategories(userEmail: String): Flow<List<CategoryEntity>>
 
     @Query("""
         SELECT * FROM categories
-        WHERE mainCategory LIKE '%' || :searchQuery || '%'
-        OR subCategory LIKE '%' || :searchQuery || '%'
+        WHERE userEmail = :userEmail
+        AND mainCategory = :mainCategory
+        ORDER BY subCategory ASC
+    """)
+    fun getSubCategoriesForMainCategory(
+        userEmail: String,
+        mainCategory: String
+    ): Flow<List<CategoryEntity>>
+
+    @Query("""
+        SELECT DISTINCT mainCategory FROM categories
+        WHERE userEmail = :userEmail
+        ORDER BY mainCategory ASC
+    """)
+    fun getMainCategories(userEmail: String): Flow<List<String>>
+
+    @Query("""
+        SELECT * FROM categories
+        WHERE userEmail = :userEmail
+        AND (
+            mainCategory LIKE '%' || :searchQuery || '%'
+            OR subCategory LIKE '%' || :searchQuery || '%'
+        )
         ORDER BY mainCategory ASC, subCategory ASC
     """)
-    fun searchCategories(searchQuery: String): Flow<List<CategoryEntity>>
+    fun searchCategories(
+        userEmail: String,
+        searchQuery: String
+    ): Flow<List<CategoryEntity>>
 
-    @Query("DELETE FROM categories WHERE mainCategory = :mainCategory")
-    suspend fun deleteWholeMainCategory(mainCategory: String)
+    @Query("""
+        DELETE FROM categories
+        WHERE userEmail = :userEmail
+        AND mainCategory = :mainCategory
+    """)
+    suspend fun deleteWholeMainCategory(
+        userEmail: String,
+        mainCategory: String
+    )
 
-    @Query("SELECT COUNT(*) FROM categories")
-    suspend fun getCategoryCount(): Int
+    @Query("""
+        SELECT COUNT(*) FROM categories
+        WHERE userEmail = :userEmail
+    """)
+    suspend fun getCategoryCountForUser(userEmail: String): Int
 }

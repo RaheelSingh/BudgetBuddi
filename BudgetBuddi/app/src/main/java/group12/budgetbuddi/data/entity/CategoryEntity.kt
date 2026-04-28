@@ -8,6 +8,7 @@ data class CategoryEntity(
 
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
+    val userEmail: String,
     val mainCategory: String,
     val subCategory: String,
     val visualType: String,

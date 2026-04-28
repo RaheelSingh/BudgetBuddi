@@ -16,7 +16,7 @@ import group12.budgetbuddi.data.entity.User
         PasswordResetToken::class,
         CategoryEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
