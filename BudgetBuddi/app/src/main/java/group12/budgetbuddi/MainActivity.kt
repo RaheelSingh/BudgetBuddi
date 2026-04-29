@@ -15,6 +15,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import group12.budgetbuddi.ui.screens.*
 import group12.budgetbuddi.ui.theme.BudgetBuddiTheme
+import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,7 +38,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-
 
     NavHost(
         navController = navController,
@@ -96,9 +96,10 @@ fun AppNavigation() {
             ExpenseListScreen(navController = navController)
         }
 
-        // ADDed ROUTE FOR PHOTO VIEWER
-        composable("photo_viewer/{photoPath}") { backStackEntry ->
-            val photoPath = backStackEntry.arguments?.getString("photoPath") ?: ""
+
+        composable("photo_viewer/{encodedPath}") { backStackEntry ->
+            val encodedPath = backStackEntry.arguments?.getString("encodedPath") ?: ""
+            val photoPath = URLDecoder.decode(encodedPath, "UTF-8")
             PhotoViewerScreen(
                 photoPath = photoPath,
                 onBack = { navController.popBackStack() }

@@ -21,6 +21,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import java.io.File
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -81,7 +82,9 @@ fun ExpenseListItem(
                     .clickable {
                         if (hasPhoto && photoUri != null) {
                             try {
-                                navController.navigate("photo_viewer/${expense.photoPath}")
+                                // ENCODE the path to handle special characters
+                                val encodedPath = URLEncoder.encode(expense.photoPath, "UTF-8")
+                                navController.navigate("photo_viewer/$encodedPath")
                             } catch (e: Exception) {
                                 android.widget.Toast.makeText(
                                     context,
