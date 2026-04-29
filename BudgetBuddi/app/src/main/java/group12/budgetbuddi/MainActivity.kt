@@ -71,6 +71,11 @@ fun AppNavigation() {
             ForgotPasswordScreen(navController)
         }
 
+        composable("reset/{token}") { backStackEntry ->
+            val token = backStackEntry.arguments?.getString("token") ?: ""
+            ResetPasswordScreen(navController = navController, token = token)
+        }
+
         composable("home") {
             HomeScreen(navController)
         }
