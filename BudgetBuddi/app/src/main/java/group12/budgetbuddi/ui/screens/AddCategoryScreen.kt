@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -189,10 +190,7 @@ fun AddCategoryScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            HorizontalDivider(
-                color = BudgetGreen,
-                thickness = 2.dp
-            )
+            HorizontalDivider(color = BudgetGreen, thickness = 2.dp)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -206,9 +204,7 @@ fun AddCategoryScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 CategoryVisualPreview(
                     visualType = visualType,
                     visualValue = visualValue,
@@ -218,37 +214,13 @@ fun AddCategoryScreen(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Color(0xFFE0E0E0))
-                        .padding(3.dp)
-                ) {
-                    listOf("emoji" to "Emoji", "icon" to "Icon").forEach { (value, label) ->
-                        val isSelected = visualType == value
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(
-                                    if (isSelected) BudgetGreen else Color.Transparent
-                                )
-                                .clickable {
-                                    visualType = value
-                                    visualValue = if (value == "emoji") "🍳" else "restaurant"
-                                }
-                                .padding(horizontal = 28.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) Color.White else Color.Gray,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
-                            )
-                        }
+                AnimatedVisualTypeToggle(
+                    selectedType = visualType,
+                    onSelected = { newType ->
+                        visualType = newType
+                        visualValue = if (newType == "emoji") "🍳" else "restaurant"
                     }
-                }
+                )
             }
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -338,5 +310,78 @@ fun AddCategoryScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun AnimatedVisualTypeToggle(
+    selectedType: String,
+    onSelected: (String) -> Unit
+) {
+    val toggleWidth = 184.dp
+    val optionWidth = 92.dp
+
+    val indicatorOffset by animateDpAsState(
+        targetValue = if (selectedType == "emoji") 0.dp else optionWidth,
+        label = "visualToggleSlide"
+    )
+
+    Box(
+        modifier = Modifier
+            .width(toggleWidth)
+            .height(40.dp)
+            .clip(RoundedCornerShape(50))
+            .background(Color(0xFFE0E0E0))
+            .padding(3.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = indicatorOffset)
+                .width(optionWidth - 6.dp)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(50))
+                .background(BudgetGreen)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            ToggleOption(
+                text = "Emoji",
+                selected = selectedType == "emoji",
+                modifier = Modifier.weight(1f),
+                onClick = { onSelected("emoji") }
+            )
+
+            ToggleOption(
+                text = "Icon",
+                selected = selectedType == "icon",
+                modifier = Modifier.weight(1f),
+                onClick = { onSelected("icon") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ToggleOption(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(50))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            color = if (selected) Color.White else Color.Gray,
+            fontWeight = FontWeight.Medium,
+            fontSize = 14.sp
+        )
     }
 }

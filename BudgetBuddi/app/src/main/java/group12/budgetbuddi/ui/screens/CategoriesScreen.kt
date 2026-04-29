@@ -1,30 +1,40 @@
 package group12.budgetbuddi.ui.screens
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.ui.components.CategoryVisualPreview
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 
-private val Green = Color(0xFF139A43)
+private val BudgetGreen = Color(0xFF139A43)
 
 @Composable
 fun CategoriesScreen(
@@ -32,11 +42,10 @@ fun CategoriesScreen(
     authViewModel: AuthViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-
     val searchQuery by categoryViewModel.searchQuery.collectAsState()
     val categories by categoryViewModel.filteredCategories.collectAsState()
 
-    val grouped = categories.groupBy { it.mainCategory }
+    val groupedCategories = categories.groupBy { it.mainCategory }
 
     AppScaffold(
         navController = navController,
@@ -47,84 +56,115 @@ fun CategoriesScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
-
-            // Page title
-            Text(
-                text = "Categories",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold
-                ),
-                color = Green
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Search + buttons row
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(
+                    onClick = {
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = BudgetGreen
+                    )
+                }
 
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { categoryViewModel.updateSearchQuery(it) },
-                    placeholder = { Text("Search") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = "Categories",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 28.sp
+                    )
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.weight(1f))
 
-                IconButton(
-                    onClick = { navController.navigate("edit_delete_category") }
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .border(1.5.dp, BudgetGreen, RoundedCornerShape(50))
+                        .padding(horizontal = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Green)
-                }
-
-                IconButton(
-                    onClick = { navController.navigate("add_category") }
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add", tint = Green)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Category sections
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-
-                grouped.forEach { (mainCategory, subCategories) ->
-
-                    item {
-                        Text(
-                            text = mainCategory,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            color = Color.Black
+                    IconButton(
+                        onClick = { navController.navigate("edit_delete_category") },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit/Delete",
+                            tint = BudgetGreen,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    item {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(4),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 220.dp),
-                            userScrollEnabled = false
-                        ) {
-                            items(subCategories) { category ->
-                                SubCategoryItem(category)
+                    IconButton(
+                        onClick = { navController.navigate("add_category") },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add",
+                            tint = BudgetGreen,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            RoundedSearchBar(
+                searchQuery = searchQuery,
+                onSearchChanged = { categoryViewModel.updateSearchQuery(it) }
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (categories.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No categories found")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    groupedCategories.forEach { (mainCategory, subCategories) ->
+
+                        item {
+                            CategorySectionHeader(mainCategory)
+                        }
+
+                        item {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(4),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 300.dp),
+                                userScrollEnabled = false
+                            ) {
+                                items(subCategories) { category ->
+                                    SubCategoryGridItem(category)
+                                }
                             }
                         }
-                    }
 
-                    item {
-                        Spacer(modifier = Modifier.height(12.dp))
+                        item {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
                 }
             }
@@ -133,36 +173,102 @@ fun CategoriesScreen(
 }
 
 @Composable
-fun SubCategoryItem(category: group12.budgetbuddi.data.entity.CategoryEntity) {
+private fun RoundedSearchBar(
+    searchQuery: String,
+    onSearchChanged: (String) -> Unit
+) {
+    OutlinedTextField(
+        value = searchQuery,
+        onValueChange = onSearchChanged,
+        placeholder = {
+            Text(
+                text = "Search",
+                fontSize = 15.sp
+            )
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = Color.Gray
+            )
+        },
+        singleLine = true,
+        shape = RoundedCornerShape(50),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = BudgetGreen,
+            unfocusedBorderColor = Color.LightGray,
+            cursorColor = BudgetGreen
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+    )
+}
+
+@Composable
+private fun CategorySectionHeader(title: String) {
+    Column {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 21.sp
+            ),
+            color = Color.DarkGray,
+            modifier = Modifier.padding(start = 2.dp)
+        )
+
+        Spacer(modifier = Modifier.height(5.dp))
+
+        HorizontalDivider(
+            color = BudgetGreen,
+            thickness = 1.7.dp
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun SubCategoryGridItem(category: CategoryEntity) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        label = "categoryPressScale"
+    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(6.dp)
+        modifier = Modifier
+            .padding(horizontal = 1.dp, vertical = 6.dp)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) {
+                // No action for now. This exists only for subtle press feedback.
+            }
     ) {
+        CategoryVisualPreview(
+            visualType = category.visualType,
+            visualValue = category.visualValue,
+            outlineColor = category.outlineColor,
+            modifier = Modifier.size(70.dp)
+        )
 
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .background(
-                    color = Color.Transparent,
-                    shape = CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            CategoryVisualPreview(
-                visualType = category.visualType,
-                visualValue = category.visualValue,
-                outlineColor = category.outlineColor,
-                modifier = Modifier.size(48.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(5.dp))
 
         Text(
             text = category.subCategory,
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.5.sp
+            ),
+            maxLines = 1,
+            color = Color.DarkGray
         )
     }
 }
