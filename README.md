@@ -215,6 +215,9 @@ Additional structure:
 - Advanced budgeting tools
 - Gamification features
 
+## Youtube Link
+- https://youtu.be/dIlM7XEWnMo
+
 ### Project Members
 - Kaeden Samsunder - ST10313111
 - Raheel Singh - ST10321249
