@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import group12.budgetbuddi.ui.theme.BrandGreen
 
 @Composable
 fun CategorySelectorDialog(
@@ -32,7 +33,8 @@ fun CategorySelectorDialog(
                 Text(
                     text = "Select Categories to Show",
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    color = BrandGreen
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -42,16 +44,22 @@ fun CategorySelectorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    TextButton(
+                    OutlinedButton(
                         onClick = { tempSelected = allCategories.toSet() },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = BrandGreen
+                        )
                     ) {
                         Text("Select All")
                     }
 
-                    TextButton(
+                    OutlinedButton(
                         onClick = { tempSelected = emptySet() },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = BrandGreen
+                        )
                     ) {
                         Text("Deselect All")
                     }
@@ -59,7 +67,7 @@ fun CategorySelectorDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Divider()
+                HorizontalDivider()
 
                 // Category list with checkboxes
                 LazyColumn(
@@ -80,7 +88,10 @@ fun CategorySelectorDialog(
                                     } else {
                                         tempSelected - category
                                     }
-                                }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = BrandGreen
+                                )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -88,7 +99,7 @@ fun CategorySelectorDialog(
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
-                        Divider()
+                        HorizontalDivider()
                     }
                 }
 
@@ -99,14 +110,23 @@ fun CategorySelectorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = BrandGreen
+                        )
+                    ) {
                         Text("Cancel")
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Button(
-                        onClick = { onConfirm(tempSelected) }
+                        onClick = { onConfirm(tempSelected) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BrandGreen
+                        ),
+                        shape = MaterialTheme.shapes.small
                     ) {
                         Text("Apply (${tempSelected.size} selected)")
                     }
