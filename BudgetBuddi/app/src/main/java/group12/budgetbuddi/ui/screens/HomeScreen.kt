@@ -59,6 +59,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(48.dp))
 
+
             // Still keeping logout button for now (even though menu also has logout)
             Button(
                 onClick = {

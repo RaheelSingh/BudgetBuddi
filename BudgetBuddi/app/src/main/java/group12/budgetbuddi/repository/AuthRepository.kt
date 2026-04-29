@@ -30,10 +30,13 @@ class AuthRepository(private val context: Context) {
         if (!PasswordUtils.isValidEmail(email)) {
             return@withContext RegisterResult(false, "Invalid email format", null)
         }
-        // Validate password strength
-        if (!PasswordUtils.isStrongPassword(password)) {
-            return@withContext RegisterResult(false, "Password must be at least 6 characters", null)
+
+        // NEW: Validate password strength with comprehensive rules
+        val passwordValidation = PasswordUtils.isValidPassword(password)
+        if (!passwordValidation.isValid) {
+            return@withContext RegisterResult(false, passwordValidation.errors.first(), null)
         }
+
         // Create user
         val passwordHash = PasswordUtils.createStoredHash(password)
         val user = User(
@@ -87,9 +90,13 @@ class AuthRepository(private val context: Context) {
         if (resetToken == null) {
             return@withContext ResetResult(false, "Invalid or expired reset code", "", null)
         }
-        if (!PasswordUtils.isStrongPassword(newPassword)) {
-            return@withContext ResetResult(false, "Password must be at least 6 characters", "", null)
+
+        // NEW: Validate new password strength with comprehensive rules
+        val passwordValidation = PasswordUtils.isValidPassword(newPassword)
+        if (!passwordValidation.isValid) {
+            return@withContext ResetResult(false, passwordValidation.errors.first(), "", null)
         }
+
         val newPasswordHash = PasswordUtils.createStoredHash(newPassword)
         userDao.updatePassword(resetToken.email, newPasswordHash)
         userDao.deleteResetTokensForEmail(resetToken.email)
@@ -116,3 +123,15 @@ data class ResetResult(
     val token: String,
     val error: String?
 )
+
+/**
+ * references:
+ *
+ * developer.android.com(2026) 'Repository pattern in Android', Android Developers.
+ *    Available at: https://developer.android.com/jetpack/guide
+ *    (Accessed: 29 April 2026).
+ *
+ * JetBrains (2026) 'Kotlin Coroutines - Dispatchers', Kotlin Language Documentation.
+ *    Available at: https://kotlinlang.org/docs/coroutines-guide.html
+ *    (Accessed: 29 April 2026).
+ */

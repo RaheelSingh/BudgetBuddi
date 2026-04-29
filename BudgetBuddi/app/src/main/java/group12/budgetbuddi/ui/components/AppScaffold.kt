@@ -36,7 +36,6 @@ fun AppScaffold(
 
     // This makes the drawer open from the right side.
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-
         ModalNavigationDrawer(
             drawerState = drawerState,
 
@@ -62,6 +61,34 @@ fun AppScaffold(
                             }
                         },
 
+                        onExpensesClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("expense_list") {
+                                launchSingleTop = true
+                            }
+                        },
+
+                        onCategorySummaryClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("category_summary") {
+                                launchSingleTop = true
+                            }
+                        },
+
+                        onBudgetGoalsClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("budget_goals") {
+                                launchSingleTop = true
+                            }
+                        },
+
+                        onCategoryTotalsClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("category_totals") {
+                                launchSingleTop = true
+                            }
+                        },
+
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
@@ -76,7 +103,6 @@ fun AppScaffold(
 
             // The main app content also stays left-to-right.
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-
                 Scaffold(
                     bottomBar = {
                         BottomNavBar(

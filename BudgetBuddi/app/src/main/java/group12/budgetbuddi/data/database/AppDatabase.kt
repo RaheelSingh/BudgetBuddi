@@ -4,9 +4,13 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import group12.budgetbuddi.data.dao.BudgetGoalDao
 import group12.budgetbuddi.data.dao.CategoryDao
+import group12.budgetbuddi.data.dao.ExpenseDao
 import group12.budgetbuddi.data.dao.UserDao
+import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.data.entity.CategoryEntity
+import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.data.entity.PasswordResetToken
 import group12.budgetbuddi.data.entity.User
 
@@ -14,15 +18,19 @@ import group12.budgetbuddi.data.entity.User
     entities = [
         User::class,
         PasswordResetToken::class,
-        CategoryEntity::class
+        CategoryEntity::class,
+        ExpenseEntity::class,
+        BudgetGoalEntity::class
     ],
-    version = 3,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
     abstract fun categoryDao(): CategoryDao
+    abstract fun expenseDao(): ExpenseDao
+    abstract fun budgetGoalDao(): BudgetGoalDao
 
     companion object {
         @Volatile
@@ -35,7 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "budget_buddi_database"
                 )
-                    .fallbackToDestructiveMigration(false)
+                    .fallbackToDestructiveMigration()
                     .build()
 
                 INSTANCE = instance
@@ -44,3 +52,10 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+
+/**
+ * reference:
+ * developer.android.com (2026) 'Room persistence library - Database setup', Android Developers.
+ * Available at: https://developer.android.com/training/data-storage/room/defining-data
+ * (Accessed: 29 April 2026).
+ */
