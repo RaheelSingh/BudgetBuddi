@@ -50,7 +50,7 @@ fun AppScaffold(
 
                         onExpensesClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate("expenses") {
+                            navController.navigate("expense_list") {
                                 launchSingleTop = true
                             }
                         },
