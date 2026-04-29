@@ -4,6 +4,11 @@ import group12.budgetbuddi.data.dao.BudgetGoalDao
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * References:
+ * - Android Repository Pattern: https://developer.android.com/jetpack/guide#repositories
+ */
+
 class BudgetGoalRepository(private val budgetGoalDao: BudgetGoalDao) {
 
     suspend fun saveGoal(goal: BudgetGoalEntity) {

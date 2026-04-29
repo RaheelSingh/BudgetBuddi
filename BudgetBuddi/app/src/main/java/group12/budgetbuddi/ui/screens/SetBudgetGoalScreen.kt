@@ -31,6 +31,12 @@ import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
 import java.util.Calendar
 
+/**
+ * References:
+ * - Jetpack Compose TextFields: https://developer.android.com/jetpack/compose/text/user-input
+ * - Material 3 Design: https://m3.material.io/components
+ */
+
 private val BrandGreen = Color(0xFF4CAF50)
 private val LightGreen = Color(0xFFE8F5E9)
 

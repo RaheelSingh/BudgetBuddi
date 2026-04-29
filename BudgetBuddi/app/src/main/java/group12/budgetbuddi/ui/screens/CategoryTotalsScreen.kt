@@ -29,6 +29,11 @@ import group12.budgetbuddi.viewmodel.CategoryTotalItem
 import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
 import java.util.Calendar
 
+/**
+ * References:
+ * - Jetpack Compose LazyColumn: https://developer.android.com/jetpack/compose/lists
+ * - Material 3 Cards: https://developer.android.com/jetpack/compose/components/card
+ */
 private val BrandGreen = Color(0xFF4CAF50)
 private val LightGreen = Color(0xFFE8F5E9)
 private val WarningOrange = Color(0xFFFF9800)

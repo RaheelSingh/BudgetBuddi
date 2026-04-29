@@ -14,6 +14,12 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+
+/**
+ * References:
+ * - Android ViewModel & StateFlow: https://developer.android.com/topic/libraries/architecture/viewmodel
+ * - Room Database Flow Collections: https://developer.android.com/training/data-storage/room
+ */
 data class CategoryTotalItem(
     val categoryName: String,
     val totalSpent: Double,

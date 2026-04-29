@@ -7,6 +7,11 @@ import androidx.room.Query
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * References:
+ * - Android Room DAO: https://developer.android.com/training/data-storage/room/accessing-data
+ * - Room Delete-Insert Pattern: https://developer.android.com/training/data-storage/room/relationships
+ */
 @Dao
 interface BudgetGoalDao {
 
