@@ -1,3 +1,19 @@
+/*
+“Androidx.compose.material3  |  API Reference  |  Android Developers.” Android Developers, 2025, developer.android.com/reference/kotlin/androidx/compose/material3/package-summary. Accessed 29 Apr. 2026.
+
+Google. “ViewModel Overview  |  Android Developers.” Android Developers, 2019, developer.android.com/topic/libraries/architecture/viewmodel. Accessed 29 Apr. 2026.
+
+“Lists and Grids.” Android Developers, 2024, developer.android.com/develop/ui/compose/lists. Accessed 29 Apr. 2026.
+
+“Navigation with Compose | Jetpack Compose.” Android Developers, 2026, developer.android.com/develop/ui/compose/navigation. Accessed 29 Apr. 2026.
+
+“SimpleDateFormat  |  API Reference  |  Android Developers.” Android Developers, 2026, developer.android.com/reference/java/text/SimpleDateFormat. Accessed 29 Apr. 2026.
+
+“Thinking in Compose | Jetpack Compose.” Android Developers, 2026, developer.android.com/develop/ui/compose/mental-model. Accessed 29 Apr. 2026.
+ */
+
+
+
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.background
@@ -46,7 +62,7 @@ fun ExpensesScreen(
         authViewModel = authViewModel
     ) { modifier ->
 
-        val allTransactions by expenseViewModel.allExpenses.collectAsState()
+        val allTransactions by expenseViewModel.allExpenses.collectAsState()  //Retrieves data from the ViewMode, Automatically updates UI when data changes ,Implements MVVM architecture
 
         Column(
             modifier = modifier
@@ -67,7 +83,7 @@ fun ExpensesScreen(
 
                 IconButton(
                     onClick = {
-                        navController.navigate("add_transaction") {
+                        navController.navigate("add_transaction") {  //Navigates to another screen while preventing duplicate instances.
                             launchSingleTop = true
                         }
                     }
@@ -117,7 +133,7 @@ fun ExpensesScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(allTransactions) { transaction ->
+                    items(allTransactions) { transaction ->  //Displays a scrollable list efficiently, only rendering visible items (like RecyclerView).
                         TransactionCard(transaction = transaction)
                         Spacer(modifier = Modifier.height(10.dp))
                     }
@@ -135,7 +151,7 @@ private fun TransactionCard(transaction: ExpenseEntity) {
 
     val displayDate = remember(transaction.date) {
         try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())  //Converts stored date into a user-friendly format.
             val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             val parsedDate = inputFormat.parse(transaction.date)
             if (parsedDate != null) outputFormat.format(parsedDate) else transaction.date
