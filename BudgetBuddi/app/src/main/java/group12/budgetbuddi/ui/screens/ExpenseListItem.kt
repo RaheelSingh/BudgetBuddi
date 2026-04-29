@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import group12.budgetbuddi.data.entity.ExpenseEntity
@@ -23,8 +24,8 @@ import java.util.*
 @Composable
 fun ExpenseListItem(
     expense: ExpenseEntity,
-    onItemClick: () -> Unit,
-    onPhotoClick: () -> Unit
+    navController: NavController,
+    onItemClick: () -> Unit
 ) {
     val context = LocalContext.current
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -50,12 +51,22 @@ fun ExpenseListItem(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Photo Thumbnail
+            // Photo Thumbnail - Click to open full screen
             Box(
                 modifier = Modifier
                     .size(60.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable { onPhotoClick() },
+                    .clickable {
+                        if (!expense.photoPath.isNullOrBlank()) {
+                            navController.navigate("photo_viewer/${expense.photoPath}")
+                        } else {
+                            android.widget.Toast.makeText(
+                                context,
+                                "No photo attached",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (!expense.photoPath.isNullOrBlank() && File(expense.photoPath).exists()) {

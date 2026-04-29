@@ -33,9 +33,38 @@ fun ExpenseListScreen(
         allExpenses.filter { it.type == "expense" }
     }
 
-    val startDate = remember { mutableStateOf(Date()) }
-    val endDate = remember { mutableStateOf(Date()) }
-    val dateFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+    // Date filter state
+    var startDate by remember { mutableStateOf<Date?>(null) }
+    var endDate by remember { mutableStateOf<Date?>(null) }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+
+    // Filtered expenses based on date range
+    val filteredExpenses = remember(expensesOnly, startDate, endDate) {
+        var filtered = expensesOnly
+
+        startDate?.let { start ->
+            filtered = filtered.filter { expense ->
+                try {
+                    val expenseDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expense.date)
+                    expenseDate != null && expenseDate >= start
+                } catch (e: Exception) { false }
+            }
+        }
+
+        endDate?.let { end ->
+            filtered = filtered.filter { expense ->
+                try {
+                    val expenseDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expense.date)
+                    expenseDate != null && expenseDate <= end
+                } catch (e: Exception) { false }
+            }
+        }
+
+        filtered
+    }
+
+    val dateDisplayFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
 
     Scaffold(
         topBar = {
@@ -64,45 +93,37 @@ fun ExpenseListScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Start Date Button
                     OutlinedButton(
-                        onClick = {
-                            android.widget.Toast.makeText(
-                                context,
-                                "Date picker coming soon",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        },
+                        onClick = { showStartDatePicker = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.CalendarToday, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start: ${dateFormat.format(startDate.value)}")
+                        Text("Start: ${startDate?.let { dateDisplayFormat.format(it) } ?: "Select date"}")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // End Date Button
                     OutlinedButton(
-                        onClick = {
-                            android.widget.Toast.makeText(
-                                context,
-                                "Date picker coming soon",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        },
+                        onClick = { showEndDatePicker = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Default.CalendarToday, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("End: ${dateFormat.format(endDate.value)}")
+                        Text("End: ${endDate?.let { dateDisplayFormat.format(it) } ?: "Select date"}")
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Filter Button
                     Button(
                         onClick = {
+                            // Filtering happens automatically
                             android.widget.Toast.makeText(
                                 context,
-                                "Filter: ${dateFormat.format(startDate.value)} to ${dateFormat.format(endDate.value)}",
+                                "Filter applied",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         },
@@ -112,23 +133,37 @@ fun ExpenseListScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Filter")
                     }
+
+                    // Clear Filter Button
+                    if (startDate != null || endDate != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                startDate = null
+                                endDate = null
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Clear Filter")
+                        }
+                    }
                 }
             }
 
             // Title and count
             Text(
-                text = "Recent Expenses (${expensesOnly.size})",
+                text = "Recent Expenses (${filteredExpenses.size})",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Expense List
-            if (expensesOnly.isEmpty()) {
+            // Expense List with REAL photo navigation
+            if (filteredExpenses.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No expenses found. Add some expenses first.")
+                    Text("No expenses found for selected date range")
                 }
             } else {
                 LazyColumn(
@@ -136,35 +171,44 @@ fun ExpenseListScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(expensesOnly) { expense ->
+                    items(filteredExpenses) { expense ->
                         ExpenseListItem(
                             expense = expense,
+                            navController = navController,  // Pass navController for photo viewing
                             onItemClick = {
+                                // TODO: Navigate to expense details screen
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Clicked: ${expense.category}",
+                                    "Details: ${expense.category} - R${expense.amount}",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
-                            },
-                            onPhotoClick = {
-                                if (!expense.photoPath.isNullOrBlank()) {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "Photo: ${expense.photoPath}",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                } else {
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        "No photo attached",
-                                        android.widget.Toast.LENGTH_SHORT
-                                    ).show()
-                                }
                             }
                         )
                     }
                 }
             }
         }
+    }
+
+    // Start Date Picker Dialog
+    if (showStartDatePicker) {
+        DatePickerDialog(
+            onDateSelected = { date ->
+                startDate = date
+                showStartDatePicker = false
+            },
+            onDismiss = { showStartDatePicker = false }
+        )
+    }
+
+    // End Date Picker Dialog
+    if (showEndDatePicker) {
+        DatePickerDialog(
+            onDateSelected = { date ->
+                endDate = date
+                showEndDatePicker = false
+            },
+            onDismiss = { showEndDatePicker = false }
+        )
     }
 }
