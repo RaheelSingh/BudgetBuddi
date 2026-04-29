@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -16,6 +17,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
+import group12.budgetbuddi.ui.theme.BrandGreen
+import group12.budgetbuddi.ui.theme.BrandGreenDark
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -109,7 +112,12 @@ fun CategorySummaryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Category Summary") }
+                title = { Text("Category Summary") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = BrandGreen,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { paddingValues ->
@@ -121,6 +129,7 @@ fun CategorySummaryScreen(
             // Date Filter Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium,
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(
@@ -128,7 +137,8 @@ fun CategorySummaryScreen(
                 ) {
                     Text(
                         text = "Filter by Date Range",
-                        style = MaterialTheme.typography.titleMedium
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -140,7 +150,10 @@ fun CategorySummaryScreen(
                     ) {
                         OutlinedButton(
                             onClick = { showStartDatePicker = true },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = BrandGreen
+                            )
                         ) {
                             Icon(Icons.Default.CalendarToday, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
@@ -149,7 +162,10 @@ fun CategorySummaryScreen(
 
                         OutlinedButton(
                             onClick = { showEndDatePicker = true },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = BrandGreen
+                            )
                         ) {
                             Icon(Icons.Default.CalendarToday, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
@@ -172,7 +188,11 @@ fun CategorySummaryScreen(
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = BrandGreen
+                            ),
+                            shape = MaterialTheme.shapes.small
                         ) {
                             Icon(Icons.Default.FilterList, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
@@ -181,7 +201,10 @@ fun CategorySummaryScreen(
 
                         OutlinedButton(
                             onClick = { showCategorySelector = true },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = BrandGreen
+                            )
                         ) {
                             Icon(Icons.Default.Checklist, contentDescription = null)
                             Spacer(modifier = Modifier.width(4.dp))
@@ -189,7 +212,7 @@ fun CategorySummaryScreen(
                         }
                     }
 
-                    // UPDATED: Clear All Filters button - resets dates AND selects all categories
+                    // Clear All Filters button
                     if (startDate != null || endDate != null || selectedCategories.size != allCategories.size) {
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(
@@ -221,7 +244,7 @@ fun CategorySummaryScreen(
                     Text(
                         text = "Showing: ${selectedCategories.size} of ${allCategories.size} categories",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
+                        color = BrandGreen
                     )
                 }
             }
@@ -259,6 +282,7 @@ fun CategorySummaryScreen(
 
                         Card(
                             modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
                             elevation = CardDefaults.cardElevation(2.dp)
                         ) {
                             Column(
@@ -273,13 +297,13 @@ fun CategorySummaryScreen(
                                         text = category.uppercase(),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = BrandGreen
                                     )
                                     Text(
                                         text = "R${String.format("%.2f", categoryTotal)}",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                        color = BrandGreenDark
                                     )
                                 }
 
@@ -309,13 +333,14 @@ fun CategorySummaryScreen(
                         }
                     }
 
-                    // Total Spent Card
+                    // Total Spent Card - Brand Green background
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
                             elevation = CardDefaults.cardElevation(4.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                containerColor = BrandGreen
                             )
                         ) {
                             Row(
@@ -327,12 +352,14 @@ fun CategorySummaryScreen(
                                 Text(
                                     text = "TOTAL SPENT",
                                     style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                                 Text(
                                     text = "R${String.format("%.2f", totalSpent)}",
                                     style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             }
                         }

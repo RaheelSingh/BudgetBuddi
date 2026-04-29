@@ -15,7 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
+import group12.budgetbuddi.ui.theme.BrandGreen
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -69,7 +71,12 @@ fun ExpenseListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Expense List") }
+                title = { Text("Expense List") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = BrandGreen,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { paddingValues ->
@@ -120,7 +127,6 @@ fun ExpenseListScreen(
                     // Filter Button
                     Button(
                         onClick = {
-                            // Filtering happens automatically
                             android.widget.Toast.makeText(
                                 context,
                                 "Filter applied",
@@ -157,7 +163,7 @@ fun ExpenseListScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Expense List with REAL photo navigation
+            // Expense List
             if (filteredExpenses.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -174,9 +180,8 @@ fun ExpenseListScreen(
                     items(filteredExpenses) { expense ->
                         ExpenseListItem(
                             expense = expense,
-                            navController = navController,  // Pass navController for photo viewing
+                            navController = navController,
                             onItemClick = {
-                                // TODO: Navigate to expense details screen
                                 android.widget.Toast.makeText(
                                     context,
                                     "Details: ${expense.category} - R${expense.amount}",
