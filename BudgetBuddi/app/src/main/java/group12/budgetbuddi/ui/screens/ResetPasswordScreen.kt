@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import group12.budgetbuddi.utils.PasswordUtils
 import group12.budgetbuddi.viewmodel.AuthViewModel
 
 // Colors
@@ -48,6 +49,17 @@ fun ResetPasswordScreen(
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+
+    // Password validation state
+    var passwordErrors by remember { mutableStateOf(listOf<String>()) }
+    var isPasswordValid by remember { mutableStateOf(false) }
+
+    // Validate password when it changes
+    LaunchedEffect(newPassword) {
+        val validation = PasswordUtils.isValidPassword(newPassword)
+        passwordErrors = validation.errors
+        isPasswordValid = validation.isValid
+    }
 
     // Animation states
     var contentVisible by remember { mutableStateOf(false) }
@@ -258,10 +270,14 @@ fun ResetPasswordScreen(
                                 Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp, color = linkGreenReset)
                             }
                         },
-                        isError = newPassword.isNotEmpty() && newPassword.length < 6,
+                        isError = newPassword.isNotEmpty() && passwordErrors.isNotEmpty(),
                         supportingText = {
-                            if (newPassword.isNotEmpty() && newPassword.length < 6) {
-                                Text("Password must be at least 6 characters")
+                            if (newPassword.isNotEmpty() && passwordErrors.isNotEmpty()) {
+                                Column {
+                                    passwordErrors.forEach { error ->
+                                        Text(error, fontSize = 11.sp, color = errorRedReset)
+                                    }
+                                }
                             }
                         }
                     )
@@ -285,7 +301,7 @@ fun ResetPasswordScreen(
                         isError = confirmPassword.isNotEmpty() && confirmPassword != newPassword,
                         supportingText = {
                             if (confirmPassword.isNotEmpty() && confirmPassword != newPassword) {
-                                Text("Passwords do not match")
+                                Text("Passwords do not match", fontSize = 11.sp, color = errorRedReset)
                             }
                         }
                     )
@@ -297,7 +313,7 @@ fun ResetPasswordScreen(
                         onClick = { authViewModel.resetPassword(enteredToken, newPassword) },
                         enabled = !resetState.isLoading &&
                                 enteredToken.isNotBlank() &&
-                                newPassword.length >= 6 &&
+                                isPasswordValid &&
                                 newPassword == confirmPassword,
                         modifier = Modifier
                             .fillMaxWidth()

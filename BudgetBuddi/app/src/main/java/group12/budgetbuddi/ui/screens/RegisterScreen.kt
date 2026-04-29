@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.R
+import group12.budgetbuddi.utils.PasswordUtils
 import group12.budgetbuddi.viewmodel.AuthViewModel
 
 // Colors
@@ -50,6 +51,16 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
+    // Password validation state
+    var passwordErrors by remember { mutableStateOf(listOf<String>()) }
+    var isPasswordValid by remember { mutableStateOf(false) }
+
+    // Validate password when it changes
+    LaunchedEffect(password) {
+        val validation = PasswordUtils.isValidPassword(password)
+        passwordErrors = validation.errors
+        isPasswordValid = validation.isValid
+    }
 
     val showBubuLooking = email.isNotBlank() && password.isBlank()
     val showBubuEyesClosed = email.isNotBlank() && password.isNotBlank()
@@ -247,7 +258,7 @@ fun RegisterScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Password Input
+                    // Password Input - UPDATED with new validation
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -268,10 +279,14 @@ fun RegisterScreen(
                                 Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp, color = linkGreenReg)
                             }
                         },
-                        isError = password.isNotEmpty() && password.length < 6,
+                        isError = password.isNotEmpty() && passwordErrors.isNotEmpty(),
                         supportingText = {
-                            if (password.isNotEmpty() && password.length < 6) {
-                                Text("Password must be at least 6 characters")
+                            if (password.isNotEmpty() && passwordErrors.isNotEmpty()) {
+                                Column {
+                                    passwordErrors.forEach { error ->
+                                        Text(error, fontSize = 11.sp, color = errorRedReg)
+                                    }
+                                }
                             }
                         }
                     )
@@ -295,20 +310,20 @@ fun RegisterScreen(
                         isError = confirmPassword.isNotEmpty() && confirmPassword != password,
                         supportingText = {
                             if (confirmPassword.isNotEmpty() && confirmPassword != password) {
-                                Text("Passwords do not match")
+                                Text("Passwords do not match", fontSize = 11.sp, color = errorRedReg)
                             }
                         }
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Register Button
+                    // Register Button - UPDATED enabled condition
                     Button(
                         onClick = { authViewModel.register(email, username, password) },
                         enabled = !registerState.isLoading &&
                                 email.isNotBlank() &&
                                 username.isNotBlank() &&
-                                password.length >= 6 &&
+                                isPasswordValid &&
                                 password == confirmPassword,
                         modifier = Modifier
                             .fillMaxWidth()
