@@ -1,3 +1,26 @@
+/*
+
+2024 Coil Contributors. “Compose - Coil.” Github.io, 2024, coil-kt.github.io/coil/compose/. Accessed 29 Apr. 2026.
+
+“Access App-Specific Files.” Android Developers, 2026, developer.android.com/training/data-storage/app-specific. Accessed 29 Apr. 2026.
+
+“Getting a Result from an Activity.” Android Developers, 1 Jan. 2026, developer.android.com/training/basics/intents/result. Accessed 29 Apr. 2026.
+
+Google. “ViewModel Overview  |  Android Developers.” Android Developers, 2019, developer.android.com/topic/libraries/architecture/viewmodel. Accessed 29 Apr. 2026.
+
+“Navigation with Compose | Jetpack Compose.” Android Developers, developer.android.com/develop/ui/compose/navigation. Accessed 29 Apr. 2026.
+
+“Photo Picker.” Android Developers, 2025, developer.android.com/training/data-storage/shared/photo-picker. Accessed 29 Apr. 2026.
+
+“Request App Permissions.” Android Developers, 2026, developer.android.com/training/permissions/requesting. Accessed 29 Apr. 2026.
+
+“SimpleDateFormat  |  API Reference  |  Android Developers.” Android Developers, 2026, developer.android.com/reference/java/text/SimpleDateFormat. Accessed 29 Apr. 2026.
+
+“State and Jetpack Compose.” Android Developers, 2024, developer.android.com/develop/ui/compose/state. Accessed 29 Apr. 2026.
+ */
+
+
+
 package group12.budgetbuddi.ui.screens
 
 import android.Manifest
@@ -110,7 +133,7 @@ fun AddTransactionScreen(
             if (selectedDate.isNotBlank()) dateError = null
         }
 
-        val photoPickerLauncher = rememberLauncherForActivityResult(
+        val photoPickerLauncher = rememberLauncherForActivityResult(  //Handles external app results safely (camera, gallery, permissions) without deprecated APIs.
             contract = ActivityResultContracts.PickVisualMedia()
         ) { uri ->
             if (uri != null) {
@@ -148,7 +171,7 @@ fun AddTransactionScreen(
         LaunchedEffect(saveSuccess) {
             if (saveSuccess) {
                 expenseViewModel.clearSaveSuccess()
-                navController.popBackStack()
+                navController.popBackStack() //Handles screen navigation in the app.
             }
         }
 
@@ -160,7 +183,7 @@ fun AddTransactionScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -404,7 +427,7 @@ fun AddTransactionScreen(
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Image(
-                    painter = rememberAsyncImagePainter(uri),
+                    painter = rememberAsyncImagePainter(uri),  //Loads and displays images efficiently from a URI.
                     contentDescription = "Selected transaction photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -507,7 +530,7 @@ fun AddTransactionScreen(
                 onClick = {
                     var isValid = true
 
-                    val parsedAmount = amountText.toDoubleOrNull()
+                    val parsedAmount = amountText.toDoubleOrNull()  //Ensures user input is: Numeric Valid
                     when {
                         amountText.isBlank() -> {
                             amountError = "Amount is required"
@@ -579,7 +602,7 @@ fun AddTransactionScreen(
                     TextButton(onClick = {
                         val millis = datePickerState.selectedDateMillis
                         if (millis != null) {
-                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) //Formats the selected date into a readable string format.
                             selectedDate = sdf.format(Date(millis))
                             dateError = null
                         } else {
@@ -732,7 +755,7 @@ fun AddTransactionScreen(
                             onClick = {
                                 showPhotoDialog = false
                                 photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)  //Allows users to select images from their device securely.
                                 )
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -751,7 +774,7 @@ fun AddTransactionScreen(
                                 if (hasPermission) {
                                     val file = createImageFile(context)
                                     pendingCameraPath = file.absolutePath
-                                    cameraUri = FileProvider.getUriForFile(
+                                    cameraUri = FileProvider.getUriForFile(  //Generates a secure URI to share a file with the camera app.
                                         context,
                                         "${context.packageName}.provider",
                                         file
@@ -820,6 +843,6 @@ private fun FormRow(
 
 private fun createImageFile(context: Context): File {
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES) //Stores images in app-specific external storage.
     return File.createTempFile("EXPENSE_${timestamp}_", ".jpg", storageDir)
 }
