@@ -1,4 +1,5 @@
 package group12.budgetbuddi
+
 import group12.budgetbuddi.ui.screens.ExpenseListScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -90,8 +91,18 @@ fun AppNavigation() {
         composable("add_transaction") {
             AddTransactionScreen(navController = navController)
         }
+
         composable("expense_list") {
             ExpenseListScreen(navController = navController)
+        }
+
+        // ADDed ROUTE FOR PHOTO VIEWER
+        composable("photo_viewer/{photoPath}") { backStackEntry ->
+            val photoPath = backStackEntry.arguments?.getString("photoPath") ?: ""
+            PhotoViewerScreen(
+                photoPath = photoPath,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }
