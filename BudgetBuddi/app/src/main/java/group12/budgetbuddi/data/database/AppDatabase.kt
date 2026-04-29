@@ -33,3 +33,10 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+
+/**
+ * reference:
+ * developer.android.com (2026) 'Room persistence library - Database setup', Android Developers.
+ * Available at: https://developer.android.com/training/data-storage/room/defining-data
+ * (Accessed: 29 April 2026).
+ */

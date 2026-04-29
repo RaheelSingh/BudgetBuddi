@@ -124,3 +124,18 @@ data class PasswordValidationResult(
     val isValid: Boolean,
     val errors: List<String>
 )
+/**
+ * references:
+ *
+ * Oracle (2026) 'MessageDigest - SHA-256 hashing', Java Platform SE Documentation.
+ *    Available at: https://docs.oracle.com/javase/8/docs/api/java/security/MessageDigest.html
+ *    (Accessed: 29 April 2026).
+ *
+ * Oracle (2026) 'SecureRandom for cryptographic salt generation', Java Platform SE Documentation.
+ *    Available at: https://docs.oracle.com/javase/8/docs/api/java/security/SecureRandom.html
+ *    (Accessed: 29 April 2026).
+ *
+ * OWASP Foundation (2026) 'Password Storage Cheat Sheet', OWASP Cheat Sheet Series.
+ *    Available at: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+ *    (Accessed: 29 April 2026).
+ */

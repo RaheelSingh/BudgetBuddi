@@ -174,3 +174,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _resetState.value = ResetUiState()
     }
 }
+
+/**
+ * references:
+ *
+ * developer.android.com(2026) 'ViewModel overview', Android Developers.
+ *    Available at: https://developer.android.com/topic/libraries/architecture/viewmodel
+ *    (Accessed: 29 April 2026).
+ *
+ * JetBrains (2026) 'Kotlin Coroutines - StateFlow', Kotlin Language Documentation.
+ *    Available at: https://kotlinlang.org/docs/flow.html
+ *    (Accessed: 29 April 2026).
+ */

@@ -31,3 +31,10 @@ class SessionManager(context: Context) {
         prefs.edit().clear().apply()
     }
 }
+
+/**
+ * references:
+ * developer.android.com (2026) 'DataStore and SharedPreferences', Android Developers.
+ * Available at: https://developer.android.com/topic/libraries/architecture/datastore
+ * (Accessed: 29 April 2026).
+ */

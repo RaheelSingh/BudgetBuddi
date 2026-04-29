@@ -123,3 +123,15 @@ data class ResetResult(
     val token: String,
     val error: String?
 )
+
+/**
+ * references:
+ *
+ * developer.android.com(2026) 'Repository pattern in Android', Android Developers.
+ *    Available at: https://developer.android.com/jetpack/guide
+ *    (Accessed: 29 April 2026).
+ *
+ * JetBrains (2026) 'Kotlin Coroutines - Dispatchers', Kotlin Language Documentation.
+ *    Available at: https://kotlinlang.org/docs/coroutines-guide.html
+ *    (Accessed: 29 April 2026).
+ */

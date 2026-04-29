@@ -349,3 +349,23 @@ fun LoginScreen(
         }
     }
 }
+
+
+/**
+ * references:
+ * developer.android.com (2026) 'State in Compose', Android Developers.
+ * Available at: https://developer.android.com/jetpack/compose/state
+ * (Accessed: 29 April 2026).
+ * developer.android.com (2026) 'Repository pattern - Result wrapper', Android Developers.
+ * Available at: https://developer.android.com/jetpack/guide
+ * (Accessed: 29 April 2026).
+ * developer.android.com (2026) 'Text fields in Compose', Android Developers.
+ *      Available at: https://developer.android.com/jetpack/compose/text
+ *      (Accessed: 29 April 2026).
+ * developer.android.com (2026) 'Navigation in Compose', Android Developers.
+ *      Available at: https://developer.android.com/jetpack/compose/navigation
+ *      (Accessed: 29 April 2026).
+ * developer.android.com (2026) 'Material Design 3 buttons', Android Developers.
+ *      Available at: https://developer.android.com/jetpack/compose/button
+ *      (Accessed: 29 April 2026).
+ */

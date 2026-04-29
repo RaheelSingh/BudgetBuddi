@@ -20,6 +20,19 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import group12.budgetbuddi.R
 
+
+
+/**
+ * references:
+ *
+ * developer.android.com (2026) 'Jetpack Compose animations', Android Developers.
+ *    Available at: https://developer.android.com/jetpack/compose/animation
+ *    (Accessed: 29 April 2026).
+ *
+ * developer.android.com (2026) 'Material Design 3 in Compose', Android Developers.
+ *    Available at: https://developer.android.com/jetpack/compose/material3
+ *    (Accessed: 29 April 2026).
+ */
 // Background color
 val backgroundColor = Color(0xFF139A43)
 

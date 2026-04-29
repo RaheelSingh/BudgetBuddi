@@ -366,3 +366,14 @@ fun ResetPasswordScreen(
         }
     }
 }
+
+
+/**
+ * references:
+ * developer.android.com (2026) 'State in Compose', Android Developers.
+ * Available at: https://developer.android.com/jetpack/compose/state
+ * (Accessed: 29 April 2026).
+ * developer.android (2026) 'Repository pattern - Result wrapper', Android Developers.
+ * Available at: https://developer.android.com/jetpack/guide
+ * (Accessed: 29 April 2026).
+ */
