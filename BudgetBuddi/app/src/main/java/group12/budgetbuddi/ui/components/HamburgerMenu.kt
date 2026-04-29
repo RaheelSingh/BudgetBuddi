@@ -17,6 +17,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+/*
+Author: Android Developers
+Description: Used as reference for creating a Material 3 drawer sheet with navigation drawer items.
+Reference: Android Developers. 2024. Navigation drawer. [Online]. Available at: https://developer.android.com/develop/ui/compose/components/drawer [Accessed 29 April 2026].
+*/
+
 @Composable
 fun HamburgerMenu(
     selectedRoute: String,
@@ -36,6 +42,7 @@ fun HamburgerMenu(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // The selected route is used to highlight the current menu item.
             NavigationDrawerItem(
                 selected = selectedRoute == "home",
                 onClick = onHomeClick,
@@ -60,6 +67,7 @@ fun HamburgerMenu(
                 label = { Text("Categories") }
             )
 
+            // Logout is not linked to a selected screen, so selected remains false.
             NavigationDrawerItem(
                 selected = false,
                 onClick = onLogoutClick,

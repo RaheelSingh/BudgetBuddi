@@ -15,44 +15,46 @@ import androidx.navigation.NavController
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 
+/*
+Author: Android Developers
+Description: Used as reference for Compose navigation actions such as navigate, popUpTo, and launchSingleTop.
+Reference: Android Developers. n.d. Navigation with Compose | Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/navigation [Accessed 29 April 2026].
+*/
 @Composable
 fun AppScaffold(
     navController: NavController,
-    selectedRoute: String, // used to highlight current tab/menu item
+    selectedRoute: String,
     authViewModel: AuthViewModel,
-    content: @Composable (Modifier) -> Unit // screen content injected here
+    content: @Composable (Modifier) -> Unit
 ) {
 
-    // Controls whether the drawer is open or closed
+    // This controls whether the side drawer is currently open or closed.
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    // For drawer to open/close asynchronously
+    // Drawer open and close functions are suspend functions, so they are launched in a coroutine.
     val scope = rememberCoroutineScope()
 
-    // Changes drawer to open from right to left
+    // This makes the drawer open from the right side.
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
 
         ModalNavigationDrawer(
             drawerState = drawerState,
 
-            // Drawer content = hamburger menu UI
             drawerContent = {
 
-                // Set the drawer content itself back to normal left-to-right text/layout
+                // The drawer opens from the right, but the menu text itself stays left-to-right.
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     HamburgerMenu(
                         selectedRoute = selectedRoute,
 
-                        // Navigate to Home
                         onHomeClick = {
-                            scope.launch { drawerState.close() } // close drawer first
+                            scope.launch { drawerState.close() }
                             navController.navigate("home") {
-                                popUpTo("home") { inclusive = true } // avoid stacking duplicates
+                                popUpTo("home") { inclusive = true }
                                 launchSingleTop = true
                             }
                         },
 
-                        // Navigate to Categories screen
                         onCategoriesClick = {
                             scope.launch { drawerState.close() }
                             navController.navigate("categories") {
@@ -60,7 +62,6 @@ fun AppScaffold(
                             }
                         },
 
-                        // Logout user and return to welcome screen
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
@@ -73,28 +74,22 @@ fun AppScaffold(
             }
         ) {
 
-            // Set the main app content back to normal left-to-right layout
+            // The main app content also stays left-to-right.
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
 
-                // Main layout structure (bottom nav and screen content)
                 Scaffold(
-
-                    // Bottom navigation bar always visible
                     bottomBar = {
                         BottomNavBar(
                             navController = navController,
                             selectedRoute = selectedRoute,
-
-                            // When hamburger icon is clicked then drawer opens
                             onMenuClick = {
                                 scope.launch { drawerState.open() }
                             }
                         )
                     }
-
                 ) { padding ->
 
-                    // Inject actual screen UI here with proper padding
+                    // The screen content is injected here so all screens can reuse the same scaffold.
                     content(Modifier.padding(padding))
                 }
             }

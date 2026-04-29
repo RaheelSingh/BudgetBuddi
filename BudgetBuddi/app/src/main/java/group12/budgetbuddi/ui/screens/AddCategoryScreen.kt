@@ -28,6 +28,24 @@ import group12.budgetbuddi.ui.components.*
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 
+/*
+Author: Android Developers
+Description: Used as reference for handling local UI state in Compose using remember and mutableStateOf.
+Reference: Android Developers. 2024. State and Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/state [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for text input fields and value changes using Material 3 text field components.
+Reference: Android Developers. 2024. Handle user input. [Online]. Available at: https://developer.android.com/develop/ui/compose/text/user-input [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for creating dropdown menu behaviour using ExposedDropdownMenuBox and menu items.
+Reference: Android Developers. 2025. Menus. [Online]. Available at: https://developer.android.com/develop/ui/compose/components/menu [Accessed 29 April 2026].
+*/
+
 private val BudgetGreen = Color(0xFF139A43)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,6 +57,7 @@ fun AddCategoryScreen(
 ) {
     val mainCategories by categoryViewModel.mainCategories.collectAsState()
 
+    // These values hold the form input before the category is saved.
     var mainCategory by remember { mutableStateOf("") }
     var subCategory by remember { mutableStateOf("") }
 
@@ -50,6 +69,7 @@ fun AddCategoryScreen(
 
     var expanded by remember { mutableStateOf(false) }
 
+    // The add buttons stay disabled until the required fields are filled in.
     val canAdd = mainCategory.isNotBlank() &&
             subCategory.isNotBlank() &&
             visualValue.isNotBlank()
@@ -125,6 +145,7 @@ fun AddCategoryScreen(
 
             Spacer(modifier = Modifier.height(22.dp))
 
+            // Users can either type a new main category or select an existing one.
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
@@ -321,6 +342,7 @@ private fun AnimatedVisualTypeToggle(
     val toggleWidth = 184.dp
     val optionWidth = 92.dp
 
+    // The green indicator moves depending on whether emoji or icon is selected.
     val indicatorOffset by animateDpAsState(
         targetValue = if (selectedType == "emoji") 0.dp else optionWidth,
         label = "visualToggleSlide"

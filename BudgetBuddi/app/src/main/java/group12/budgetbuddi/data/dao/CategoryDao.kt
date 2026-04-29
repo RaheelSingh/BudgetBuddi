@@ -9,6 +9,12 @@ import androidx.room.Update
 import group12.budgetbuddi.data.entity.CategoryEntity
 import kotlinx.coroutines.flow.Flow
 
+/*
+Author: Android Developers
+Description: Used as reference for creating a Room DAO with insert, update, delete, and custom SQL query methods.
+Reference: Android Developers. 2019. Save data in a local database using Room  |  Android Developers. [Online]. Available at: https://developer.android.com/training/data-storage/room [Accessed 29 April 2026].
+*/
+
 @Dao
 interface CategoryDao {
 

@@ -29,6 +29,24 @@ import group12.budgetbuddi.ui.components.*
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 
+/*
+Author: Android Developers
+Description: Used as reference for managing screen state in Compose using remember, mutableStateOf, and state collected from a ViewModel.
+Reference: Android Developers. 2024. State and Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/state [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for dropdown menus and menu item selection in Jetpack Compose.
+Reference: Android Developers. 2025. Menus. [Online]. Available at: https://developer.android.com/develop/ui/compose/components/menu [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for Material 3 text fields and button-based user input.
+Reference: Android Developers. 2024. Handle user input. [Online]. Available at: https://developer.android.com/develop/ui/compose/text/user-input [Accessed 29 April 2026].
+*/
+
 private val BudgetGreen = Color(0xFF139A43)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,9 +59,11 @@ fun EditDeleteCategoryScreen(
     val categories by categoryViewModel.allCategories.collectAsState()
     val mainCategories by categoryViewModel.mainCategories.collectAsState()
 
+    // These values track what the user has selected from the dropdowns.
     var selectedMainCategory by remember { mutableStateOf("") }
     var selectedSubCategory by remember { mutableStateOf<CategoryEntity?>(null) }
 
+    // These values are edited before being saved back into Room.
     var editedMainCategory by remember { mutableStateOf("") }
     var editedSubCategory by remember { mutableStateOf("") }
 
@@ -56,6 +76,7 @@ fun EditDeleteCategoryScreen(
 
     val editedOutlineColor = colorToHex(selectedColor)
 
+    // Only subcategories under the selected main category are shown.
     val filteredSubCategories = categories.filter {
         it.mainCategory == selectedMainCategory
     }
@@ -73,6 +94,7 @@ fun EditDeleteCategoryScreen(
             )
         }
 
+        // If the main category name changes, all subcategories under it are renamed too.
         if (
             selectedMainCategory.isNotBlank() &&
             editedMainCategory.isNotBlank() &&

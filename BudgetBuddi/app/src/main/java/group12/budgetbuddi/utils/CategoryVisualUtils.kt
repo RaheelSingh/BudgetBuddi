@@ -33,6 +33,24 @@ import kotlin.math.atan2
 import kotlin.math.min
 import kotlin.math.sqrt
 
+/*
+Author: Android Developers
+Description: Used as reference for custom pointer input and tap gesture detection in Compose.
+Reference: Android Developers. 2026. Pointer input in Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/touch-input/pointer-input [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for drawing custom UI with Canvas and Brush in Jetpack Compose.
+Reference: Android Developers. n.d. Graphics in Compose | Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/graphics/draw/overview [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for using state-based colour and size animations in Compose.
+Reference: Android Developers. 2025. Value-based animations. [Online]. Available at: https://developer.android.com/develop/ui/compose/animation/value-based [Accessed 29 April 2026].
+*/
+
 private val BudgetGreen = Color(0xFF139A43)
 
 data class BudgetIconOption(
@@ -40,6 +58,7 @@ data class BudgetIconOption(
     val icon: ImageVector
 )
 
+// These keys are saved in the database so the icon can be loaded again later.
 val budgetIcons = listOf(
     BudgetIconOption("restaurant", Icons.Default.Restaurant),
     BudgetIconOption("shopping", Icons.Default.ShoppingCart),
@@ -71,12 +90,14 @@ fun getBudgetIcon(key: String): ImageVector {
     return budgetIcons.find { it.key == key }?.icon ?: Icons.Default.Category
 }
 
+// Converts stored hex strings back into Compose colours.
 fun colorFromHex(hex: String): Color {
     return runCatching {
         Color(hex.toColorInt())
     }.getOrElse { Color.Gray }
 }
 
+// Converts selected Compose colours into hex strings for storing in Room.
 fun colorToHex(color: Color): String {
     return "#%06X".format(0xFFFFFF and color.toArgb())
 }
@@ -122,6 +143,7 @@ fun EmojiPicker(
         items(budgetEmojis) { emoji ->
             val isSelected = selectedEmoji == emoji
 
+            // Selected items are slightly larger and more visible.
             val animatedSize by animateDpAsState(
                 targetValue = if (isSelected) 46.dp else 40.dp,
                 label = "emojiSizeAnimation"
@@ -276,6 +298,7 @@ fun SimpleColorWheel(
 
                         val saturation = (distance / radius).coerceIn(0f, 1f)
 
+                        // Android HSV is used to turn the tap position into a real colour.
                         val androidColor = AndroidColor.HSVToColor(
                             floatArrayOf(hue, saturation, 1f)
                         )

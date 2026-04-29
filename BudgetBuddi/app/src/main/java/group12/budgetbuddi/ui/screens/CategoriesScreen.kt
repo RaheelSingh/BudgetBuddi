@@ -34,6 +34,24 @@ import group12.budgetbuddi.ui.components.CategoryVisualPreview
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 
+/*
+Author: Android Developers
+Description: Used as reference for collecting state from a ViewModel in Jetpack Compose and updating the UI when state changes.
+Reference: Android Developers. 2024. State and Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/state [Accessed 29 April 2026].
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for using lazy layouts such as LazyColumn and LazyVerticalGrid to display scrollable lists and grid content.
+Reference: Android Developers. 2024. Lists and grids. [Online]. Available at: https://developer.android.com/develop/ui/compose/lists [Accessed 29 April 2026.
+*/
+
+/*
+Author: Android Developers
+Description: Used as reference for simple Compose state-based animations such as animateFloatAsState.
+Reference: Android Developers. 2025. Value-based animations. [Online]. Available at: https://developer.android.com/develop/ui/compose/animation/value-based [Accessed 29 April 2026].
+*/
+
 private val BudgetGreen = Color(0xFF139A43)
 
 @Composable
@@ -42,9 +60,11 @@ fun CategoriesScreen(
     authViewModel: AuthViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
+    // The screen observes search text and filtered categories from the ViewModel.
     val searchQuery by categoryViewModel.searchQuery.collectAsState()
     val categories by categoryViewModel.filteredCategories.collectAsState()
 
+    // Categories are grouped so each main category can have its own section.
     val groupedCategories = categories.groupBy { it.mainCategory }
 
     AppScaffold(
@@ -235,6 +255,7 @@ fun SubCategoryGridItem(category: CategoryEntity) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    // This gives the category item a small press animation.
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
         label = "categoryPressScale"
