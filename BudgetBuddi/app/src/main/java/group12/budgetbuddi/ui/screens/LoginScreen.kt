@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -232,7 +233,7 @@ fun LoginScreen(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        visualTransformation = if (passwordVisible) PasswordVisualTransformation() else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -245,7 +246,11 @@ fun LoginScreen(
                             TextButton(
                                 onClick = { passwordVisible = !passwordVisible }
                             ) {
-                                Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp)
+                                Text(
+                                    if (passwordVisible) "Hide" else "Show",
+                                    fontSize = 12.sp,
+                                    color = linkGreen
+                                )
                             }
                         }
                     )
@@ -312,7 +317,7 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Don't have an account?",
+                            text = "Don't have an account? ",
                             color = textDark,
                             fontSize = 14.sp
                         )
@@ -327,7 +332,6 @@ fun LoginScreen(
                             )
                         }
                     }
-
 
                     TextButton(
                         onClick = { navController.popBackStack() },

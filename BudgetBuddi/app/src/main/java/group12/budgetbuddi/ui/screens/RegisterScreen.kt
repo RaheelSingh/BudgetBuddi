@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -251,7 +252,7 @@ fun RegisterScreen(
                         value = password,
                         onValueChange = { password = it },
                         label = { Text("Password") },
-                        visualTransformation = if (passwordVisible) PasswordVisualTransformation() else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -264,7 +265,7 @@ fun RegisterScreen(
                             TextButton(
                                 onClick = { passwordVisible = !passwordVisible }
                             ) {
-                                Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp)
+                                Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp, color = linkGreenReg)
                             }
                         },
                         isError = password.isNotEmpty() && password.length < 6,
@@ -282,7 +283,7 @@ fun RegisterScreen(
                         value = confirmPassword,
                         onValueChange = { confirmPassword = it },
                         label = { Text("Confirm Password") },
-                        visualTransformation = if (passwordVisible) PasswordVisualTransformation() else PasswordVisualTransformation(),
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
