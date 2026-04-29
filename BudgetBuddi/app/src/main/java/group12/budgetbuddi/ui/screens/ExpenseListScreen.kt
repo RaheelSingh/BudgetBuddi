@@ -181,10 +181,18 @@ fun ExpenseListScreen(
                         ExpenseListItem(
                             expense = expense,
                             navController = navController,
+                            expenseViewModel = expenseViewModel,  // ← ADDED THIS
                             onItemClick = {
                                 android.widget.Toast.makeText(
                                     context,
                                     "Details: ${expense.category} - R${expense.amount}",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onDeleteClick = {  // ← ADDED THIS
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Expense deleted",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
