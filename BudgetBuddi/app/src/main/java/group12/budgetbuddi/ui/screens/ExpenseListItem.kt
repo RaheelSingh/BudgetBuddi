@@ -6,9 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import group12.budgetbuddi.data.entity.ExpenseEntity
+import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.io.File
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
@@ -29,10 +31,13 @@ import java.util.*
 fun ExpenseListItem(
     expense: ExpenseEntity,
     navController: NavController,
-    onItemClick: () -> Unit
+    expenseViewModel: ExpenseViewModel,
+    onItemClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val context = LocalContext.current
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Format the date
     val displayDate = try {
@@ -43,28 +48,21 @@ fun ExpenseListItem(
         expense.date
     }
 
-    // Check if photo exists - handle both file path AND content URI
+    // Check if photo exists
     val photoUri = expense.photoPath?.let { path ->
         if (path.startsWith("content://")) {
-            // It's a content URI
             try {
                 Uri.parse(path)
-            } catch (e: Exception) {
-                null
-            }
+            } catch (e: Exception) { null }
         } else {
-            // It's a file path
             val file = File(path)
             if (file.exists()) Uri.fromFile(file) else null
         }
     }
-
     val hasPhoto = photoUri != null
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onItemClick() },
+        modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -82,13 +80,12 @@ fun ExpenseListItem(
                     .clickable {
                         if (hasPhoto && photoUri != null) {
                             try {
-                                // ENCODE the path to handle special characters
                                 val encodedPath = URLEncoder.encode(expense.photoPath, "UTF-8")
                                 navController.navigate("photo_viewer/$encodedPath")
                             } catch (e: Exception) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Error opening photo: ${e.message}",
+                                    "Error: ${e.message}",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
@@ -132,7 +129,9 @@ fun ExpenseListItem(
 
             // Expense Details
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onItemClick() },
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
@@ -162,13 +161,54 @@ fun ExpenseListItem(
                 )
             }
 
-            // Amount
-            Text(
-                text = "R${String.format("%.2f", expense.amount)}",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
-            )
+            // Amount and Delete Button
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "R${String.format("%.2f", expense.amount)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                // Delete Button
+                IconButton(
+                    onClick = { showDeleteDialog = true }
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.Red
+                    )
+                }
+            }
         }
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Expense") },
+            text = { Text("Are you sure you want to delete ${expense.category} - R${expense.amount}?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        expenseViewModel.deleteExpense(expense)
+                        showDeleteDialog = false
+                        onDeleteClick()
+                    }
+                ) {
+                    Text("Delete", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
