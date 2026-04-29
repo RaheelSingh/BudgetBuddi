@@ -20,7 +20,6 @@ import group12.budgetbuddi.viewmodel.BudgetStatus
 import group12.budgetbuddi.viewmodel.CategoryTotalItem
 import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
 import java.util.Calendar
-
 fun formatDateForDisplay(dateStr: String): String {
     if (dateStr.length < 10) return dateStr
     val parts = dateStr.split("-")
@@ -133,14 +132,42 @@ fun CategoryTotalsScreen(
                     }
                 }
             }
+
             GrandTotalCard(
                 grandTotal = state.grandTotal,
                 minGoal = state.minGoal,
                 maxGoal = state.maxGoal
             )
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(state.items) { item ->
-                    CategoryTotalRow(item = item)
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (state.items.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "No expenses found for this period",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Try adjusting the date range",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(state.items) { item ->
+                        CategoryTotalRow(item = item)
+                    }
                 }
             }
         }
