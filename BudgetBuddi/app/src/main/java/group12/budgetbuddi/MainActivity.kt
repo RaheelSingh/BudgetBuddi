@@ -95,6 +95,9 @@ fun AppNavigation() {
         composable("expense_list") {
             ExpenseListScreen(navController = navController)
         }
+        composable("category_summary") {
+            CategorySummaryScreen(navController = navController)
+        }
 
 
         composable("photo_viewer/{encodedPath}") { backStackEntry ->
