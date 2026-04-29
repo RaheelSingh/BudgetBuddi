@@ -8,7 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -17,7 +16,11 @@ import androidx.navigation.NavController
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
+import java.time.LocalDate
+import java.time.Month
+import java.time.format.TextStyle
 import java.util.Calendar
+import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -28,13 +31,6 @@ fun SetBudgetGoalScreen(
 ) {
     val goalState by categoryTotalsViewModel.goalUiState.collectAsState()
 
-    val monthNames = listOf(
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    )
-    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-    val monthName = monthNames.getOrElse(goalState.month - 1) { "Unknown" }
-
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(goalState.isSaved) {
         if (goalState.isSaved) {
@@ -42,6 +38,13 @@ fun SetBudgetGoalScreen(
             categoryTotalsViewModel.resetSavedFlag()
         }
     }
+
+    val monthNames = listOf(
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December"
+    )
+    val monthName = monthNames.getOrElse(goalState.month - 1) { "Unknown" }
+    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
 
     Box {
         AppScaffold(
@@ -120,7 +123,7 @@ fun SetBudgetGoalScreen(
 
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
         )
     }
 }
