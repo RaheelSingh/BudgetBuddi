@@ -189,29 +189,37 @@ fun CategorySummaryScreen(
                         }
                     }
 
-                    // Clear filter button
-                    if (startDate != null || endDate != null) {
+                    // UPDATED: Clear All Filters button - resets dates AND selects all categories
+                    if (startDate != null || endDate != null || selectedCategories.size != allCategories.size) {
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(
                             onClick = {
                                 startDate = null
                                 endDate = null
+                                selectedCategories = allCategories.toSet()
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Cleared all filters - showing all categories",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Clear Date Filter")
+                            Icon(Icons.Default.Clear, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Clear All Filters (Dates & Categories)")
                         }
                     }
                 }
             }
 
-            // Selected categories chips
+            // Selected categories info
             if (selectedCategories.isNotEmpty()) {
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Showing: ${selectedCategories.size} categories",
+                        text = "Showing: ${selectedCategories.size} of ${allCategories.size} categories",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
