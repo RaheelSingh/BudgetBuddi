@@ -62,6 +62,20 @@ fun AppScaffold(
                             }
                         },
 
+                        onBudgetGoalsClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("budget_goals") {
+                                launchSingleTop = true
+                            }
+                        },
+
+                        onCategoryTotalsClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("category_totals") {
+                                launchSingleTop = true
+                            }
+                        },
+
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
