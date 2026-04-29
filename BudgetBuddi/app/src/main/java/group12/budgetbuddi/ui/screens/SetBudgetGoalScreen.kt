@@ -1,0 +1,104 @@
+package group12.budgetbuddi.ui.screens
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import group12.budgetbuddi.ui.components.AppScaffold
+import group12.budgetbuddi.viewmodel.AuthViewModel
+import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
+import java.util.Calendar
+
+@Composable
+fun SetBudgetGoalScreen(
+    navController: NavController,
+    authViewModel: AuthViewModel = viewModel(),
+    categoryTotalsViewModel: CategoryTotalsViewModel = viewModel()
+) {
+    val monthNames = listOf(
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    )
+    val currentMonth = Calendar.getInstance().get(Calendar.MONTH) // 0-based
+    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+    val monthName = monthNames.getOrElse(currentMonth) { "Unknown" }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    Box {
+        AppScaffold(
+            navController = navController,
+            selectedRoute = "budget_goals",
+            authViewModel = authViewModel
+        ) { modifier ->
+
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+
+                Text(
+                    text = "Set Budget Goals",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+                Text(
+                    text = "Month: $monthName $currentYear",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = "",
+                    onValueChange = {},
+                    label = { Text("Minimum Monthly Spending (R)") },
+                    placeholder = { Text("e.g. 1000") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = "",
+                    onValueChange = {},
+                    label = { Text("Maximum Monthly Spending (R)") },
+                    placeholder = { Text("e.g. 5000") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Button(
+                    onClick = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save Goal")
+                }
+                OutlinedButton(
+                    onClick = { navController.navigate("category_totals") },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View Category Totals →")
+                }
+            }
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
