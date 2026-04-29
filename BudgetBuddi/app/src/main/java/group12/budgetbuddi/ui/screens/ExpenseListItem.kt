@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import android.net.Uri
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -41,12 +42,23 @@ fun ExpenseListItem(
         expense.date
     }
 
-    // Debug: Show photo path in logcat
-    println("DEBUG - Expense: ${expense.category}, Photo path: ${expense.photoPath}")
+    // Check if photo exists - handle both file path AND content URI
+    val photoUri = expense.photoPath?.let { path ->
+        if (path.startsWith("content://")) {
+            // It's a content URI
+            try {
+                Uri.parse(path)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            // It's a file path
+            val file = File(path)
+            if (file.exists()) Uri.fromFile(file) else null
+        }
+    }
 
-    // Check if photo exists
-    val hasPhoto = !expense.photoPath.isNullOrBlank() && File(expense.photoPath).exists()
-    println("DEBUG - Has photo: $hasPhoto")
+    val hasPhoto = photoUri != null
 
     Card(
         modifier = Modifier
@@ -67,37 +79,30 @@ fun ExpenseListItem(
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
                     .clickable {
-                        // Show toast immediately to confirm click works
-                        android.widget.Toast.makeText(
-                            context,
-                            "Photo clicked! Has photo: $hasPhoto",
-                            android.widget.Toast.LENGTH_SHORT
-                        ).show()
-
-                        if (hasPhoto) {
+                        if (hasPhoto && photoUri != null) {
                             try {
                                 navController.navigate("photo_viewer/${expense.photoPath}")
                             } catch (e: Exception) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "Error: ${e.message}",
+                                    "Error opening photo: ${e.message}",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             }
                         } else {
                             android.widget.Toast.makeText(
                                 context,
-                                "No photo attached for ${expense.category}",
+                                "No photo attached",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (hasPhoto) {
+                if (hasPhoto && photoUri != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(File(expense.photoPath))
+                            .data(photoUri)
                             .crossfade(true)
                             .build(),
                         contentDescription = "Expense photo",

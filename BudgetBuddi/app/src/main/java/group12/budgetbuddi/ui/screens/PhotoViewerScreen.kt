@@ -21,6 +21,16 @@ fun PhotoViewerScreen(
     photoPath: String,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    // Handle both file paths and content URIs
+    val uri = if (photoPath.startsWith("content://")) {
+        Uri.parse(photoPath)
+    } else {
+        val file = File(photoPath)
+        if (file.exists()) Uri.fromFile(file) else null
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -39,11 +49,10 @@ fun PhotoViewerScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            val file = File(photoPath)
-            if (file.exists()) {
+            if (uri != null) {
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(file)
+                    model = ImageRequest.Builder(context)
+                        .data(uri)
                         .crossfade(true)
                         .build(),
                     contentDescription = "Full size expense photo",
@@ -62,6 +71,12 @@ fun PhotoViewerScreen(
                     Text(
                         text = "The image file may have been moved or deleted",
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Path: $photoPath",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
