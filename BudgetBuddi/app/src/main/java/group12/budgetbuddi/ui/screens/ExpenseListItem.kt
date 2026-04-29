@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,13 @@ fun ExpenseListItem(
         expense.date
     }
 
+    // Debug: Show photo path in logcat
+    println("DEBUG - Expense: ${expense.category}, Photo path: ${expense.photoPath}")
+
+    // Check if photo exists
+    val hasPhoto = !expense.photoPath.isNullOrBlank() && File(expense.photoPath).exists()
+    println("DEBUG - Has photo: $hasPhoto")
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -51,25 +60,41 @@ fun ExpenseListItem(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Photo Thumbnail - Click to open full screen
+            // Photo Thumbnail
             Box(
                 modifier = Modifier
                     .size(60.dp)
                     .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
                     .clickable {
-                        if (!expense.photoPath.isNullOrBlank()) {
-                            navController.navigate("photo_viewer/${expense.photoPath}")
+                        // Show toast immediately to confirm click works
+                        android.widget.Toast.makeText(
+                            context,
+                            "Photo clicked! Has photo: $hasPhoto",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+
+                        if (hasPhoto) {
+                            try {
+                                navController.navigate("photo_viewer/${expense.photoPath}")
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Error: ${e.message}",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         } else {
                             android.widget.Toast.makeText(
                                 context,
-                                "No photo attached",
+                                "No photo attached for ${expense.category}",
                                 android.widget.Toast.LENGTH_SHORT
                             ).show()
                         }
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (!expense.photoPath.isNullOrBlank() && File(expense.photoPath).exists()) {
+                if (hasPhoto) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(File(expense.photoPath))
