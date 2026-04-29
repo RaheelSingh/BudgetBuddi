@@ -1,11 +1,23 @@
-package group12.budgetbuddi.ui.screens
+package group12.budgetbuddi.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import java.util.*
+import java.util.Date
 
 @Composable
 fun DatePickerDialog(
@@ -20,7 +32,7 @@ fun DatePickerDialog(
             shape = MaterialTheme.shapes.extraLarge
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.Companion.padding(16.dp)
             ) {
                 DatePicker(
                     state = datePickerState,
@@ -28,7 +40,7 @@ fun DatePickerDialog(
                 )
 
                 Row(
-                    modifier = Modifier
+                    modifier = Modifier.Companion
                         .fillMaxWidth()
                         .padding(top = 16.dp),
                     horizontalArrangement = Arrangement.End
@@ -37,7 +49,7 @@ fun DatePickerDialog(
                         Text("Cancel")
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.Companion.width(8.dp))
 
                     TextButton(
                         onClick = {
