@@ -78,12 +78,6 @@ object PasswordUtils {
         return isValidPassword(password).errors
     }
 
-    // Get single combined error message
-    fun getPasswordErrorMessage(password: String): String {
-        val errors = getPasswordErrors(password)
-        return if (errors.isEmpty()) "" else errors.joinToString("\n")
-    }
-
     // Check password strength and return score (0-4)
     fun getPasswordStrength(password: String): Int {
         var score = 0
@@ -95,29 +89,6 @@ object PasswordUtils {
         return score
     }
 
-    // Get password strength text
-    fun getPasswordStrengthText(password: String): String {
-        return when (getPasswordStrength(password)) {
-            0, 1 -> "Weak - Very Poor"
-            2 -> "Fair - Poor"
-            3 -> "Good - Could be better"
-            4 -> "Strong - Good password!"
-            5 -> "Very Strong - Excellent!"
-            else -> "Enter a password"
-        }
-    }
-
-    // Get password strength color
-    fun getPasswordStrengthColor(password: String): String {
-        return when (getPasswordStrength(password)) {
-            0, 1 -> "#D32F2F" // Red - Weak
-            2 -> "#FF9800"    // Orange - Fair
-            3 -> "#FFC107"    // Yellow - Good
-            4 -> "#4CAF50"    // Green - Strong
-            5 -> "#139A43"    // Dark Green - Very Strong
-            else -> "#9E9E9E"  // Gray - Empty
-        }
-    }
 }
 
 data class PasswordValidationResult(
