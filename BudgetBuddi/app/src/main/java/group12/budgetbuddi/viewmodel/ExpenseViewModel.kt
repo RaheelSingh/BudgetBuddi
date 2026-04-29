@@ -90,7 +90,9 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             _uiMessage.value = "Expense deleted"
         }
     }
-
+    fun setMessage(message: String) {
+        _uiMessage.value = message
+    }
     fun clearMessage() {
         _uiMessage.value = null
     }

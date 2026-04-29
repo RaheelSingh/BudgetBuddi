@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
+import group12.budgetbuddi.R
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
@@ -48,6 +50,8 @@ import java.util.Locale
 
 private val BrandGreen = Color(0xFF4CAF50)
 private val LightGreen = Color(0xFFE8F5E9)
+private val ErrorRed = Color(0xFFD32F2F)
+private val ErrorBackground = Color(0xFFFFEBEE)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,9 +78,13 @@ fun AddTransactionScreen(
         var paymentMethod by remember { mutableStateOf("Cash") }
         var isRecurring by remember { mutableStateOf(false) }
 
+        // Validation error states
+        var amountError by remember { mutableStateOf<String?>(null) }
+        var categoryError by remember { mutableStateOf<String?>(null) }
+        var dateError by remember { mutableStateOf<String?>(null) }
+
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
         var photoPath by remember { mutableStateOf<String?>(null) }
-
         var cameraUri by remember { mutableStateOf<Uri?>(null) }
         var pendingCameraPath by remember { mutableStateOf<String?>(null) }
 
@@ -90,6 +98,17 @@ fun AddTransactionScreen(
 
         val saveSuccess by expenseViewModel.saveSuccess.collectAsState()
         val uiMessage by expenseViewModel.uiMessage.collectAsState()
+
+        // Clear field errors as user corrects them
+        LaunchedEffect(amountText) {
+            if (amountText.isNotBlank()) amountError = null
+        }
+        LaunchedEffect(selectedMainCategory) {
+            if (selectedMainCategory.isNotBlank()) categoryError = null
+        }
+        LaunchedEffect(selectedDate) {
+            if (selectedDate.isNotBlank()) dateError = null
+        }
 
         val photoPickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia()
@@ -115,16 +134,14 @@ fun AddTransactionScreen(
             if (granted) {
                 val file = createImageFile(context)
                 pendingCameraPath = file.absolutePath
-
                 cameraUri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.provider",
                     file
                 )
-
-                cameraUri?.let { uri ->
-                    cameraLauncher.launch(uri)
-                }
+                cameraUri?.let { cameraLauncher.launch(it) }
+            } else {
+                expenseViewModel.setMessage("Camera permission denied. Please enable it in Settings.")
             }
         }
 
@@ -143,7 +160,7 @@ fun AddTransactionScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -156,18 +173,26 @@ fun AddTransactionScreen(
                         tint = BrandGreen
                     )
                 }
-
                 Text(
                     text = "New Transaction",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
-
                 Spacer(modifier = Modifier.width(48.dp))
             }
-
+            
             Spacer(modifier = Modifier.height(8.dp))
+            Image(
+                painter = painterResource(id = R.drawable.bb_og),
+                contentDescription = "BudgetBuddi logo",
+                modifier = Modifier
+                    .size(180.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Fit
+            )
 
+            Spacer(modifier = Modifier.height(12.dp))
+            
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -175,16 +200,17 @@ fun AddTransactionScreen(
                 Text(
                     text = "R",
                     fontSize = 28.sp,
-                    color = Color.Gray,
+                    color = if (amountError != null) ErrorRed else Color.Gray,
                     fontWeight = FontWeight.Light
                 )
-
                 Spacer(modifier = Modifier.width(4.dp))
-
                 OutlinedTextField(
                     value = amountText,
-                    onValueChange = {
-                        amountText = it.filter { c -> c.isDigit() || c == '.' }
+                    onValueChange = { input ->
+                        // Allow only valid decimal input; prevent multiple dots
+                        val filtered = input.filter { c -> c.isDigit() || c == '.' }
+                        val dotCount = filtered.count { it == '.' }
+                        if (dotCount <= 1) amountText = filtered
                     },
                     placeholder = {
                         Text("0", fontSize = 28.sp, color = Color.LightGray)
@@ -194,11 +220,24 @@ fun AddTransactionScreen(
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold
                     ),
+                    isError = amountError != null,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
+                        unfocusedBorderColor = Color.Transparent,
+                        errorBorderColor = Color.Transparent
                     ),
                     modifier = Modifier.width(180.dp)
+                )
+            }
+
+            if (amountError != null) {
+                Text(
+                    text = amountError!!,
+                    color = ErrorRed,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 4.dp, bottom = 4.dp)
                 )
             }
 
@@ -241,20 +280,42 @@ fun AddTransactionScreen(
                 },
                 placeholder = "Select category",
                 onClick = { showCategoryDialog = true },
-                trailingIcon = Icons.Default.List
+                trailingIcon = Icons.Default.List,
+                hasError = categoryError != null
             )
+            if (categoryError != null) {
+                Text(
+                    text = categoryError!!,
+                    color = ErrorRed,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 28.dp, bottom = 4.dp)
+                )
+            }
 
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
+            Divider(color = if (categoryError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
 
             FormRow(
                 icon = Icons.Default.CalendarMonth,
                 label = "Date :",
                 value = selectedDate,
                 placeholder = "Pick a date",
-                onClick = { showDatePicker = true }
+                onClick = { showDatePicker = true },
+                hasError = dateError != null
             )
+            if (dateError != null) {
+                Text(
+                    text = dateError!!,
+                    color = ErrorRed,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 28.dp, bottom = 4.dp)
+                )
+            }
 
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
+            Divider(color = if (dateError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
 
             FormRow(
                 icon = Icons.Default.CreditCard,
@@ -280,14 +341,21 @@ fun AddTransactionScreen(
                         .padding(top = 14.dp, end = 8.dp)
                         .size(20.dp)
                 )
-
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { note = it },
+                    onValueChange = { if (it.length <= 300) note = it },
                     label = { Text("Note") },
                     placeholder = { Text("Add a note...") },
                     minLines = 2,
                     maxLines = 4,
+                    supportingText = {
+                        Text(
+                            text = "${note.length}/300",
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (note.length >= 280) Color(0xFFF57C00) else Color.Gray,
+                            fontSize = 11.sp
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BrandGreen,
@@ -313,23 +381,15 @@ fun AddTransactionScreen(
                         tint = BrandGreen,
                         modifier = Modifier.size(20.dp)
                     )
-
                     Spacer(modifier = Modifier.width(8.dp))
-
                     Column {
                         Text(
                             text = if (selectedImageUri != null) "Photo attached ✓" else "Add Photo :",
                             color = if (selectedImageUri != null) BrandGreen else Color.Gray
                         )
-
-                        Text(
-                            text = "Optional",
-                            color = Color.LightGray,
-                            fontSize = 11.sp
-                        )
+                        Text(text = "Optional", color = Color.LightGray, fontSize = 11.sp)
                     }
                 }
-
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = "Add photo",
@@ -343,7 +403,6 @@ fun AddTransactionScreen(
 
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Image(
                     painter = rememberAsyncImagePainter(uri),
                     contentDescription = "Selected transaction photo",
@@ -352,15 +411,9 @@ fun AddTransactionScreen(
                         .fillMaxWidth()
                         .height(160.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .border(
-                            width = 1.dp,
-                            color = BrandGreen.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
+                        .border(1.dp, BrandGreen.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 TextButton(
                     onClick = {
                         selectedImageUri = null
@@ -369,18 +422,9 @@ fun AddTransactionScreen(
                         pendingCameraPath = null
                     }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
-
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.width(6.dp))
-
-                    Text(
-                        text = "Remove photo",
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Text("Remove photo", color = MaterialTheme.colorScheme.error)
                 }
             }
 
@@ -400,12 +444,9 @@ fun AddTransactionScreen(
                         tint = BrandGreen,
                         modifier = Modifier.size(20.dp)
                     )
-
                     Spacer(modifier = Modifier.width(8.dp))
-
                     Text("Recurring :")
                 }
-
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
@@ -431,16 +472,31 @@ fun AddTransactionScreen(
                 }
             }
 
-            uiMessage?.let {
+            uiMessage?.let { message ->
                 Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 13.sp
-                )
-
-                LaunchedEffect(it) {
+                val isSuccess = message.contains("success", ignoreCase = true)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isSuccess) LightGreen else ErrorBackground)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
+                        contentDescription = null,
+                        tint = if (isSuccess) BrandGreen else ErrorRed,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = message,
+                        color = if (isSuccess) BrandGreen else ErrorRed,
+                        fontSize = 13.sp
+                    )
+                }
+                LaunchedEffect(message) {
                     expenseViewModel.clearMessage()
                 }
             }
@@ -449,21 +505,58 @@ fun AddTransactionScreen(
 
             Button(
                 onClick = {
-                    val amount = amountText.toDoubleOrNull() ?: 0.0
+                    var isValid = true
 
-                    expenseViewModel.saveExpense(
-                        amount = amount,
-                        type = selectedType,
-                        category = selectedMainCategory,
-                        subCategory = selectedSubCategory,
-                        date = selectedDate,
-                        startTime = "",
-                        endTime = "",
-                        note = note,
-                        photoPath = photoPath,
-                        paymentMethod = paymentMethod,
-                        isRecurring = isRecurring
-                    )
+                    val parsedAmount = amountText.toDoubleOrNull()
+                    when {
+                        amountText.isBlank() -> {
+                            amountError = "Amount is required"
+                            isValid = false
+                        }
+                        parsedAmount == null -> {
+                            amountError = "Enter a valid number"
+                            isValid = false
+                        }
+                        parsedAmount <= 0.0 -> {
+                            amountError = "Amount must be greater than zero"
+                            isValid = false
+                        }
+                        parsedAmount > 9_999_999.99 -> {
+                            amountError = "Amount is too large"
+                            isValid = false
+                        }
+                        else -> amountError = null
+                    }
+
+                    if (selectedMainCategory.isBlank()) {
+                        categoryError = "Please select a category"
+                        isValid = false
+                    } else {
+                        categoryError = null
+                    }
+
+                    if (selectedDate.isBlank()) {
+                        dateError = "Please select a date"
+                        isValid = false
+                    } else {
+                        dateError = null
+                    }
+
+                    if (isValid) {
+                        expenseViewModel.saveExpense(
+                            amount = parsedAmount!!,
+                            type = selectedType,
+                            category = selectedMainCategory,
+                            subCategory = selectedSubCategory,
+                            date = selectedDate,
+                            startTime = "",
+                            endTime = "",
+                            note = note.trim(),
+                            photoPath = photoPath,
+                            paymentMethod = paymentMethod,
+                            isRecurring = isRecurring
+                        )
+                    }
                 },
                 modifier = Modifier
                     .width(160.dp)
@@ -472,11 +565,7 @@ fun AddTransactionScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                 border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
             ) {
-                Text(
-                    text = "Save",
-                    color = Color.Black,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = "Save", color = Color.Black, fontWeight = FontWeight.Medium)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -484,20 +573,20 @@ fun AddTransactionScreen(
 
         if (showDatePicker) {
             val datePickerState = rememberDatePickerState()
-
             DatePickerDialog(
                 onDismissRequest = { showDatePicker = false },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
-                            datePickerState.selectedDateMillis?.let { millis ->
-                                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                                selectedDate = sdf.format(Date(millis))
-                            }
-
-                            showDatePicker = false
+                    TextButton(onClick = {
+                        val millis = datePickerState.selectedDateMillis
+                        if (millis != null) {
+                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            selectedDate = sdf.format(Date(millis))
+                            dateError = null
+                        } else {
+                            dateError = "Please select a date"
                         }
-                    ) {
+                        showDatePicker = false
+                    }) {
                         Text("OK", color = BrandGreen)
                     }
                 },
@@ -513,7 +602,6 @@ fun AddTransactionScreen(
 
         if (showCategoryDialog) {
             var expandedMain by remember { mutableStateOf("") }
-
             AlertDialog(
                 onDismissRequest = { showCategoryDialog = false },
                 confirmButton = {
@@ -528,73 +616,69 @@ fun AddTransactionScreen(
                             .heightIn(max = 400.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        mainCategories.forEach { main ->
-                            Row(
+                        if (mainCategories.isEmpty()) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        expandedMain = if (expandedMain == main) "" else main
-                                    }
-                                    .padding(vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(vertical = 24.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text(main, fontWeight = FontWeight.SemiBold)
-
-                                Icon(
-                                    imageVector = if (expandedMain == main) {
-                                        Icons.Default.ExpandLess
-                                    } else {
-                                        Icons.Default.ExpandMore
-                                    },
-                                    contentDescription = null,
-                                    tint = BrandGreen
-                                )
+                                Text("No categories available", color = Color.Gray)
                             }
-
-                            if (expandedMain == main) {
-                                val subs = allCategories.filter { it.mainCategory == main }
-
-                                subs.forEach { cat ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                selectedMainCategory = main
-                                                selectedSubCategory = cat.subCategory
-                                                showCategoryDialog = false
-                                            }
-                                            .padding(
-                                                start = 16.dp,
-                                                top = 6.dp,
-                                                bottom = 6.dp
-                                            ),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+                        } else {
+                            mainCategories.forEach { main ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            expandedMain = if (expandedMain == main) "" else main
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(main, fontWeight = FontWeight.SemiBold)
+                                    Icon(
+                                        imageVector = if (expandedMain == main) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                        contentDescription = null,
+                                        tint = BrandGreen
+                                    )
+                                }
+                                if (expandedMain == main) {
+                                    val subs = allCategories.filter { it.mainCategory == main }
+                                    if (subs.isEmpty()) {
                                         Text(
-                                            text = cat.visualValue,
-                                            modifier = Modifier.width(28.dp)
+                                            text = "No subcategories",
+                                            color = Color.Gray,
+                                            fontSize = 13.sp,
+                                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp)
                                         )
-
-                                        Text(cat.subCategory)
-
-                                        if (
-                                            selectedSubCategory == cat.subCategory &&
-                                            selectedMainCategory == main
-                                        ) {
-                                            Spacer(modifier = Modifier.weight(1f))
-
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = BrandGreen
-                                            )
+                                    } else {
+                                        subs.forEach { cat ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedMainCategory = main
+                                                        selectedSubCategory = cat.subCategory
+                                                        categoryError = null
+                                                        showCategoryDialog = false
+                                                    }
+                                                    .padding(start = 16.dp, top = 6.dp, bottom = 6.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(text = cat.visualValue, modifier = Modifier.width(28.dp))
+                                                Text(cat.subCategory)
+                                                if (selectedSubCategory == cat.subCategory && selectedMainCategory == main) {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = BrandGreen)
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                                Divider()
                             }
-
-                            Divider()
                         }
                     }
                 }
@@ -603,7 +687,6 @@ fun AddTransactionScreen(
 
         if (showPaymentDialog) {
             val methods = listOf("Cash", "Card", "Bank Transfer", "Other")
-
             AlertDialog(
                 onDismissRequest = { showPaymentDialog = false },
                 confirmButton = {
@@ -627,16 +710,10 @@ fun AddTransactionScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(method)
-
                                 if (paymentMethod == method) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = BrandGreen
-                                    )
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = BrandGreen)
                                 }
                             }
-
                             Divider()
                         }
                     }
@@ -654,62 +731,40 @@ fun AddTransactionScreen(
                         TextButton(
                             onClick = {
                                 showPhotoDialog = false
-
                                 photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                                    )
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Photo,
-                                contentDescription = null,
-                                tint = BrandGreen
-                            )
-
+                            Icon(Icons.Default.Photo, contentDescription = null, tint = BrandGreen)
                             Spacer(modifier = Modifier.width(8.dp))
-
                             Text("Choose from Gallery", color = Color.Black)
                         }
-
                         TextButton(
                             onClick = {
                                 showPhotoDialog = false
-
                                 val hasPermission = ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.CAMERA
+                                    context, Manifest.permission.CAMERA
                                 ) == PackageManager.PERMISSION_GRANTED
 
                                 if (hasPermission) {
                                     val file = createImageFile(context)
                                     pendingCameraPath = file.absolutePath
-
                                     cameraUri = FileProvider.getUriForFile(
                                         context,
                                         "${context.packageName}.provider",
                                         file
                                     )
-
-                                    cameraUri?.let { uri ->
-                                        cameraLauncher.launch(uri)
-                                    }
+                                    cameraUri?.let { cameraLauncher.launch(it) }
                                 } else {
                                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = null,
-                                tint = BrandGreen
-                            )
-
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = BrandGreen)
                             Spacer(modifier = Modifier.width(8.dp))
-
                             Text("Take Photo", color = Color.Black)
                         }
                     }
@@ -726,7 +781,8 @@ private fun FormRow(
     value: String,
     placeholder: String,
     onClick: () -> Unit,
-    trailingIcon: ImageVector? = null
+    trailingIcon: ImageVector? = null,
+    hasError: Boolean = false
 ) {
     Row(
         modifier = Modifier
@@ -740,34 +796,24 @@ private fun FormRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = BrandGreen,
+                tint = if (hasError) ErrorRed else BrandGreen,
                 modifier = Modifier.size(20.dp)
             )
-
             Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = label,
-                color = Color.DarkGray,
-                fontSize = 14.sp
-            )
-
+            Text(text = label, color = if (hasError) ErrorRed else Color.DarkGray, fontSize = 14.sp)
             Spacer(modifier = Modifier.width(4.dp))
-
             Text(
                 text = value.ifBlank { placeholder },
-                color = if (value.isBlank()) Color.LightGray else Color.Black,
+                color = when {
+                    hasError -> ErrorRed
+                    value.isBlank() -> Color.LightGray
+                    else -> Color.Black
+                },
                 fontSize = 14.sp
             )
         }
-
         trailingIcon?.let {
-            Icon(
-                imageVector = it,
-                contentDescription = null,
-                tint = BrandGreen,
-                modifier = Modifier.size(18.dp)
-            )
+            Icon(imageVector = it, contentDescription = null, tint = if (hasError) ErrorRed else BrandGreen, modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -775,10 +821,5 @@ private fun FormRow(
 private fun createImageFile(context: Context): File {
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
     val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-
-    return File.createTempFile(
-        "EXPENSE_${timestamp}_",
-        ".jpg",
-        storageDir
-    )
+    return File.createTempFile("EXPENSE_${timestamp}_", ".jpg", storageDir)
 }
