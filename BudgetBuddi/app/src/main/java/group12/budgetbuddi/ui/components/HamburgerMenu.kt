@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
@@ -24,6 +25,7 @@ fun HamburgerMenu(
     onHomeClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     onExpensesClick: () -> Unit,
+    onCategorySummaryClick: () -> Unit,  // NEW PARAMETER
     onLogoutClick: () -> Unit
 ) {
     ModalDrawerSheet {
@@ -73,6 +75,25 @@ fun HamburgerMenu(
                 },
                 label = { Text("Transactions") }
             )
+
+            // NEW: Category Summary Menu Item
+            NavigationDrawerItem(
+                selected = selectedRoute == "category_summary",
+                onClick = onCategorySummaryClick,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.PieChart,
+                        contentDescription = "Category Summary"
+                    )
+                },
+                label = { Text("Category Summary") }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            HorizontalDivider()
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             NavigationDrawerItem(
                 selected = false,

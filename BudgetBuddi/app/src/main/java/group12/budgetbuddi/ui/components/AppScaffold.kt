@@ -55,6 +55,13 @@ fun AppScaffold(
                             }
                         },
 
+                        onCategorySummaryClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("category_summary") {
+                                launchSingleTop = true
+                            }
+                        },
+
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
