@@ -133,10 +133,60 @@ fun CategoryTotalsScreen(
                     }
                 }
             }
+            GrandTotalCard(
+                grandTotal = state.grandTotal,
+                minGoal = state.minGoal,
+                maxGoal = state.maxGoal
+            )
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(state.items) { item ->
                     CategoryTotalRow(item = item)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun GrandTotalCard(grandTotal: Double, minGoal: Double, maxGoal: Double) {
+    val overBudget = maxGoal > 0 && grandTotal > maxGoal
+    val underBudget = minGoal > 0 && grandTotal < minGoal
+
+    val statusText = when {
+        overBudget -> "Over maximum goal!"
+        underBudget -> "Below minimum goal"
+        else -> "Within budget"
+    }
+    val statusColor = when {
+        overBudget -> MaterialTheme.colorScheme.error
+        underBudget -> Color(0xFFF57C00)
+        else -> Color(0xFF388E3C)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Total Spending", style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = "R %.2f".format(grandTotal),
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            if (minGoal > 0 || maxGoal > 0) {
+                Text(
+                    text = "Goal: R %.2f – R %.2f".format(minGoal, maxGoal),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = statusColor
+                )
             }
         }
     }
