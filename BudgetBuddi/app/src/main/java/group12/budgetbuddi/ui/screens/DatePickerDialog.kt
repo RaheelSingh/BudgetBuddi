@@ -1,4 +1,4 @@
-package group12.budgetbuddi.ui.components
+package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

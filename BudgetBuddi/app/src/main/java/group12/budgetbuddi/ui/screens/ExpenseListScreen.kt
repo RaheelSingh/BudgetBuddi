@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.navigation.NavController
 import androidx.compose.foundation.layout.*
@@ -16,7 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
-import group12.budgetbuddi.ui.components.DatePickerDialog
+import group12.budgetbuddi.ui.screens.DatePickerDialog
+import group12.budgetbuddi.ui.screens.ExpenseListItem
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import group12.budgetbuddi.ui.theme.BrandGreen
 import java.text.SimpleDateFormat
@@ -184,17 +186,17 @@ fun ExpenseListScreen(
                             navController = navController,
                             expenseViewModel = expenseViewModel,  // ← ADDED THIS
                             onItemClick = {
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     context,
                                     "Details: ${expense.category} - R${expense.amount}",
-                                    android.widget.Toast.LENGTH_SHORT
+                                    Toast.LENGTH_SHORT
                                 ).show()
                             },
                             onDeleteClick = {  // ← ADDED THIS
-                                android.widget.Toast.makeText(
+                                Toast.makeText(
                                     context,
                                     "Expense deleted",
-                                    android.widget.Toast.LENGTH_SHORT
+                                    Toast.LENGTH_SHORT
                                 ).show()
                             }
                         )

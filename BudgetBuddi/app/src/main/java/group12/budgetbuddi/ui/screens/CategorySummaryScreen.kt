@@ -16,7 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.data.entity.ExpenseEntity
-import group12.budgetbuddi.ui.components.DatePickerDialog
+import group12.budgetbuddi.ui.screens.CategorySelectorDialog
+import group12.budgetbuddi.ui.screens.DatePickerDialog
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import group12.budgetbuddi.ui.theme.BrandGreen
 import group12.budgetbuddi.ui.theme.BrandGreenDark
