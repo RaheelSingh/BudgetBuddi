@@ -1,8 +1,6 @@
 package group12.budgetbuddi.viewmodel
 
 import android.app.Application
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import group12.budgetbuddi.data.database.AppDatabase
@@ -12,8 +10,7 @@ import group12.budgetbuddi.repository.ExpenseRepository
 import group12.budgetbuddi.utils.SessionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
 data class CategoryTotalItem(
     val categoryName: String,
@@ -33,16 +30,15 @@ data class CategoryTotalsUiState(
     val isLoading: Boolean = false
 )
 
-data class BudgetGoalUiState @RequiresApi(Build.VERSION_CODES.O) constructor(
+data class BudgetGoalUiState(
     val minGoal: String = "",
     val maxGoal: String = "",
-    val month: Int = LocalDate.now().monthValue,
-    val year: Int = LocalDate.now().year,
+    val month: Int = Calendar.getInstance().get(Calendar.MONTH) + 1,
+    val year: Int = Calendar.getInstance().get(Calendar.YEAR),
     val isSaved: Boolean = false,
     val error: String? = null
 )
 
-@RequiresApi(Build.VERSION_CODES.O)
 class CategoryTotalsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getInstance(application)
@@ -50,22 +46,22 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
     private val budgetGoalRepository = BudgetGoalRepository(db.budgetGoalDao())
     private val sessionManager = SessionManager(application)
     private val userEmail: String = sessionManager.getUserEmail() ?: ""
-    @RequiresApi(Build.VERSION_CODES.O)
-    private val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
     private val _totalsUiState = MutableStateFlow(CategoryTotalsUiState())
     val totalsUiState: StateFlow<CategoryTotalsUiState> = _totalsUiState.asStateFlow()
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private val _goalUiState = MutableStateFlow(BudgetGoalUiState())
     val goalUiState: StateFlow<BudgetGoalUiState> = _goalUiState.asStateFlow()
 
     init {
-        val today = LocalDate.now()
-        val firstDay = today.withDayOfMonth(1).format(fmt)
-        val lastDay = today.withDayOfMonth(today.lengthOfMonth()).format(fmt)
-        _totalsUiState.update { it.copy(fromDate = firstDay, toDate = lastDay) }
+        val cal = Calendar.getInstance()
+        val year = cal.get(Calendar.YEAR)
+        val month = cal.get(Calendar.MONTH) + 1
+        val firstDay = "%04d-%02d-01".format(year, month)
+        val lastDayOfMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val lastDay = "%04d-%02d-%02d".format(year, month, lastDayOfMonth)
 
+        _totalsUiState.update { it.copy(fromDate = firstDay, toDate = lastDay) }
         loadGoalForCurrentMonth()
         loadTotalsForPeriod(firstDay, lastDay)
     }
@@ -97,10 +93,8 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
                 .combine(_totalsUiState) { expenses, state -> Pair(expenses, state) }
                 .collect { (expenses, state) ->
 
-                    // Only expenses (not income)
                     val expensesOnly = expenses.filter { it.type == "expense" }
 
-                    // Group by main category and sum amounts — sorted highest first
                     val grouped = expensesOnly
                         .groupBy { it.category }
                         .map { (cat, list) ->
@@ -127,12 +121,13 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
-
     private fun loadGoalForCurrentMonth() {
-        val today = LocalDate.now()
+        val cal = Calendar.getInstance()
+        val month = cal.get(Calendar.MONTH) + 1
+        val year = cal.get(Calendar.YEAR)
         viewModelScope.launch {
             budgetGoalRepository
-                .getGoalForMonth(userEmail, today.monthValue, today.year)
+                .getGoalForMonth(userEmail, month, year)
                 .collect { goal ->
                     if (goal != null) {
                         _goalUiState.update {
