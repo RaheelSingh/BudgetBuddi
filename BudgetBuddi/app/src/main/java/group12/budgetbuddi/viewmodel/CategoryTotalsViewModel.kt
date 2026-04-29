@@ -1,6 +1,7 @@
 package group12.budgetbuddi.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import group12.budgetbuddi.data.database.AppDatabase
@@ -8,6 +9,7 @@ import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.repository.BudgetGoalRepository
 import group12.budgetbuddi.repository.ExpenseRepository
 import group12.budgetbuddi.utils.SessionManager
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -47,6 +49,8 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
     private val sessionManager = SessionManager(application)
     private val userEmail: String = sessionManager.getUserEmail() ?: ""
 
+    private val TAG = "CategoryTotalsVM"
+
     private val _totalsUiState = MutableStateFlow(CategoryTotalsUiState())
     val totalsUiState: StateFlow<CategoryTotalsUiState> = _totalsUiState.asStateFlow()
 
@@ -62,10 +66,10 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
         val lastDay = "%04d-%02d-%02d".format(year, month, lastDayOfMonth)
 
         _totalsUiState.update { it.copy(fromDate = firstDay, toDate = lastDay) }
+
         loadGoalForCurrentMonth()
         loadTotalsForPeriod(firstDay, lastDay)
     }
-
 
     fun setFromDate(date: String) {
         _totalsUiState.update { it.copy(fromDate = date) }
@@ -88,36 +92,39 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             _totalsUiState.update { it.copy(isLoading = true) }
 
-            expenseRepository
-                .getExpensesByDateRange(userEmail, fromDate, toDate)
-                .combine(_totalsUiState) { expenses, state -> Pair(expenses, state) }
-                .collect { (expenses, state) ->
+            try {
+                expenseRepository.getExpensesByDateRange(userEmail, fromDate, toDate)
+                    .collect { expenses ->
+                        val expensesOnly = expenses.filter { it.type == "expense" }
+                        val currentState = _totalsUiState.value
 
-                    val expensesOnly = expenses.filter { it.type == "expense" }
-
-                    val grouped = expensesOnly
-                        .groupBy { it.category }
-                        .map { (cat, list) ->
-                            val total = list.sumOf { it.amount }
-                            val status = when {
-                                state.maxGoal > 0 && total > state.maxGoal -> BudgetStatus.OVER
-                                state.minGoal > 0 && total < state.minGoal -> BudgetStatus.UNDER
-                                else -> BudgetStatus.OK
+                        val grouped = expensesOnly
+                            .groupBy { it.category }
+                            .map { (cat, list) ->
+                                val total = list.sumOf { it.amount }
+                                val status = when {
+                                    currentState.maxGoal > 0 && total > currentState.maxGoal -> BudgetStatus.OVER
+                                    currentState.minGoal > 0 && total < currentState.minGoal -> BudgetStatus.UNDER
+                                    else -> BudgetStatus.OK
+                                }
+                                CategoryTotalItem(cat, total, status)
                             }
-                            CategoryTotalItem(cat, total, status)
+                            .sortedByDescending { it.totalSpent }
+
+                        val grand = expensesOnly.sumOf { it.amount }
+
+                        _totalsUiState.update {
+                            it.copy(
+                                items = grouped,
+                                grandTotal = grand,
+                                isLoading = false
+                            )
                         }
-                        .sortedByDescending { it.totalSpent }
-
-                    val grand = expensesOnly.sumOf { it.amount }
-
-                    _totalsUiState.update {
-                        it.copy(
-                            items = grouped,
-                            grandTotal = grand,
-                            isLoading = false
-                        )
                     }
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading totals: ${e.message}")
+                _totalsUiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 
@@ -125,24 +132,46 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
         val cal = Calendar.getInstance()
         val month = cal.get(Calendar.MONTH) + 1
         val year = cal.get(Calendar.YEAR)
+
         viewModelScope.launch {
-            budgetGoalRepository
-                .getGoalForMonth(userEmail, month, year)
-                .collect { goal ->
-                    if (goal != null) {
-                        _goalUiState.update {
-                            it.copy(
-                                minGoal = goal.minGoal.toString(),
-                                maxGoal = goal.maxGoal.toString(),
-                                month = goal.month,
-                                year = goal.year
-                            )
-                        }
-                        _totalsUiState.update {
-                            it.copy(minGoal = goal.minGoal, maxGoal = goal.maxGoal)
+            try {
+                budgetGoalRepository.getGoalForMonth(userEmail, month, year)
+                    .collect { goal ->
+                        Log.d(TAG, "Goal flow emitted: ${goal?.minGoal}, ${goal?.maxGoal}")
+
+                        if (goal != null) {
+                            _goalUiState.update {
+                                it.copy(
+                                    minGoal = goal.minGoal.toString(),
+                                    maxGoal = goal.maxGoal.toString(),
+                                    month = goal.month,
+                                    year = goal.year,
+                                    isSaved = false,
+                                    error = null
+                                )
+                            }
+                            _totalsUiState.update {
+                                it.copy(minGoal = goal.minGoal, maxGoal = goal.maxGoal)
+                            }
+                        } else {
+                            _goalUiState.update {
+                                it.copy(
+                                    minGoal = "",
+                                    maxGoal = "",
+                                    month = month,
+                                    year = year,
+                                    isSaved = false,
+                                    error = null
+                                )
+                            }
+                            _totalsUiState.update {
+                                it.copy(minGoal = 0.0, maxGoal = 0.0)
+                            }
                         }
                     }
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading goal: ${e.message}")
+            }
         }
     }
 
@@ -156,29 +185,62 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
 
     fun saveBudgetGoal() {
         val state = _goalUiState.value
-        val min = state.minGoal.toDoubleOrNull()
-        val max = state.maxGoal.toDoubleOrNull()
+
+        val minValue = if (state.minGoal.isEmpty()) "0" else state.minGoal
+        val maxValue = if (state.maxGoal.isEmpty()) "0" else state.maxGoal
+
+        val min = minValue.toDoubleOrNull()
+        val max = maxValue.toDoubleOrNull()
+
+        Log.d(TAG, "Saving goal - min: $min, max: $max, month: ${state.month}, year: ${state.year}")
 
         when {
             min == null || max == null ->
                 _goalUiState.update { it.copy(error = "Please enter valid numbers") }
             min < 0 || max < 0 ->
                 _goalUiState.update { it.copy(error = "Values cannot be negative") }
-            min > max ->
+            min > max && max != 0.0 ->
                 _goalUiState.update { it.copy(error = "Minimum cannot exceed maximum") }
             else -> {
                 viewModelScope.launch {
-                    budgetGoalRepository.saveGoal(
-                        BudgetGoalEntity(
+                    try {
+                        val goal = BudgetGoalEntity(
                             userEmail = userEmail,
                             month = state.month,
                             year = state.year,
                             minGoal = min,
                             maxGoal = max
                         )
-                    )
-                    _goalUiState.update { it.copy(isSaved = true, error = null) }
-                    _totalsUiState.update { it.copy(minGoal = min, maxGoal = max) }
+                        _goalUiState.update { it.copy(error = null) }
+
+                        budgetGoalRepository.saveGoal(goal)
+
+                        Log.d(TAG, "Goal saved successfully - Expected: min=$min, max=$max")
+
+                        _goalUiState.update {
+                            it.copy(
+                                minGoal = min.toString(),
+                                maxGoal = max.toString(),
+                                isSaved = true,
+                                error = null
+                            )
+                        }
+
+                        _totalsUiState.update {
+                            it.copy(minGoal = min, maxGoal = max)
+                        }
+
+                        val currentState = _totalsUiState.value
+                        if (currentState.fromDate.isNotEmpty() && currentState.toDate.isNotEmpty()) {
+                            loadTotalsForPeriod(currentState.fromDate, currentState.toDate)
+                        }
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error saving goal: ${e.message}")
+                        _goalUiState.update {
+                            it.copy(error = "Failed to save budget goal: ${e.message}")
+                        }
+                    }
                 }
             }
         }
@@ -186,5 +248,10 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
 
     fun resetSavedFlag() {
         _goalUiState.update { it.copy(isSaved = false) }
+    }
+
+    // Add this function to manually refresh the goal (useful for debugging)
+    fun refreshGoal() {
+        loadGoalForCurrentMonth()
     }
 }

@@ -13,6 +13,9 @@ interface BudgetGoalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrReplace(goal: BudgetGoalEntity)
 
+    @Query("DELETE FROM budget_goals WHERE userEmail = :userEmail AND month = :month AND year = :year")
+    suspend fun deleteGoalForMonth(userEmail: String, month: Int, year: Int)
+
     @Query("""
         SELECT * FROM budget_goals
         WHERE userEmail = :userEmail

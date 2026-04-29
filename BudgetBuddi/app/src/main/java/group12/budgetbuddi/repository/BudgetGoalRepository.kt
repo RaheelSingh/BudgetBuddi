@@ -6,8 +6,10 @@ import kotlinx.coroutines.flow.Flow
 
 class BudgetGoalRepository(private val budgetGoalDao: BudgetGoalDao) {
 
-    suspend fun saveGoal(goal: BudgetGoalEntity) =
+    suspend fun saveGoal(goal: BudgetGoalEntity) {
+        budgetGoalDao.deleteGoalForMonth(goal.userEmail, goal.month, goal.year)
         budgetGoalDao.insertOrReplace(goal)
+    }
 
     fun getGoalForMonth(userEmail: String, month: Int, year: Int): Flow<BudgetGoalEntity?> =
         budgetGoalDao.getGoalForMonth(userEmail, month, year)

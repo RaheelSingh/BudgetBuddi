@@ -16,11 +16,7 @@ import androidx.navigation.NavController
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
-import java.time.LocalDate
-import java.time.Month
-import java.time.format.TextStyle
 import java.util.Calendar
-import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -32,6 +28,8 @@ fun SetBudgetGoalScreen(
     val goalState by categoryTotalsViewModel.goalUiState.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show snackbar when saved
     LaunchedEffect(goalState.isSaved) {
         if (goalState.isSaved) {
             snackbarHostState.showSnackbar("Budget goal saved!")
@@ -71,9 +69,22 @@ fun SetBudgetGoalScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
 
+                var minGoalInput by remember { mutableStateOf(goalState.minGoal) }
+                var maxGoalInput by remember { mutableStateOf(goalState.maxGoal) }
+
+                LaunchedEffect(goalState.minGoal) {
+                    minGoalInput = goalState.minGoal
+                }
+                LaunchedEffect(goalState.maxGoal) {
+                    maxGoalInput = goalState.maxGoal
+                }
+
                 OutlinedTextField(
-                    value = goalState.minGoal,
-                    onValueChange = { categoryTotalsViewModel.updateMinGoal(it) },
+                    value = minGoalInput,
+                    onValueChange = { newValue ->
+                        minGoalInput = newValue
+                        categoryTotalsViewModel.updateMinGoal(newValue)
+                    },
                     label = { Text("Minimum Monthly Spending (R)") },
                     placeholder = { Text("e.g. 1000") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -82,9 +93,14 @@ fun SetBudgetGoalScreen(
                     isError = goalState.error != null
                 )
 
+                Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedTextField(
-                    value = goalState.maxGoal,
-                    onValueChange = { categoryTotalsViewModel.updateMaxGoal(it) },
+                    value = maxGoalInput,
+                    onValueChange = { newValue ->
+                        maxGoalInput = newValue
+                        categoryTotalsViewModel.updateMaxGoal(newValue)
+                    },
                     label = { Text("Maximum Monthly Spending (R)") },
                     placeholder = { Text("e.g. 5000") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -102,7 +118,9 @@ fun SetBudgetGoalScreen(
                 }
 
                 Button(
-                    onClick = { categoryTotalsViewModel.saveBudgetGoal() },
+                    onClick = {
+                        categoryTotalsViewModel.saveBudgetGoal()
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
