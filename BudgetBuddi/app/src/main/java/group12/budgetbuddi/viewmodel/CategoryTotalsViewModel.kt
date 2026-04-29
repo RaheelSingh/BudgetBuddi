@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-/** One row shown in the Category Totals list */
 data class CategoryTotalItem(
     val categoryName: String,
     val totalSpent: Double,
@@ -63,5 +62,60 @@ class CategoryTotalsViewModel(application: Application) : AndroidViewModel(appli
         val lastDay = "%04d-%02d-%02d".format(year, month, lastDayOfMonth)
 
         _totalsUiState.update { it.copy(fromDate = firstDay, toDate = lastDay) }
+        loadTotalsForPeriod(firstDay, lastDay)
+    }
+
+    fun setFromDate(date: String) {
+        _totalsUiState.update { it.copy(fromDate = date) }
+        refreshTotals()
+    }
+
+    fun setToDate(date: String) {
+        _totalsUiState.update { it.copy(toDate = date) }
+        refreshTotals()
+    }
+
+    private fun refreshTotals() {
+        val state = _totalsUiState.value
+        if (state.fromDate.isNotEmpty() && state.toDate.isNotEmpty()) {
+            loadTotalsForPeriod(state.fromDate, state.toDate)
+        }
+    }
+
+     private fun loadTotalsForPeriod(fromDate: String, toDate: String) {
+        viewModelScope.launch {
+            _totalsUiState.update { it.copy(isLoading = true) }
+
+            expenseRepository
+                .getExpensesByDateRange(userEmail, fromDate, toDate)
+                .combine(_totalsUiState) { expenses, state -> Pair(expenses, state) }
+                .collect { (expenses, state) ->
+
+                    val expensesOnly = expenses.filter { it.type == "expense" }
+
+                    val grouped = expensesOnly
+                        .groupBy { it.category }
+                        .map { (cat, list) ->
+                            val total = list.sumOf { it.amount }
+                            val status = when {
+                                state.maxGoal > 0 && total > state.maxGoal -> BudgetStatus.OVER
+                                state.minGoal > 0 && total < state.minGoal -> BudgetStatus.UNDER
+                                else -> BudgetStatus.OK
+                            }
+                            CategoryTotalItem(cat, total, status)
+                        }
+                        .sortedByDescending { it.totalSpent }
+
+                    val grand = expensesOnly.sumOf { it.amount }
+
+                    _totalsUiState.update {
+                        it.copy(
+                            items = grouped,
+                            grandTotal = grand,
+                            isLoading = false
+                        )
+                    }
+                }
+        }
     }
 }
