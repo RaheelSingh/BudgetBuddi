@@ -1,3 +1,23 @@
+//  Code Attribtions
+
+/* Title: How to Use Null as Default Value in Compose MutableState
+* Author: Stack Overflow Community
+* Date Accessed: 29 April 2026
+* Available: https://stackoverflow.com/questions/75425433/how-to-use-null-as-default-value-compose-mutablestate
+*
+* Title: Jetpack Compose Button Alignment
+* Author: Stack Overflow Community
+* Date Accessed: 29 April 2026
+* Available: https://stackoverflow.com/questions/79085592/jetpack-compose-button-alignment
+*
+* Title: Compose Lists
+* Author: Android Developers
+* Date Accessed: 29 April 2026
+* Available: https://developer.android.com/develop/ui/compose/lists
+*/
+
+
+
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
@@ -92,7 +112,7 @@ fun CategorySelectorDialog(
 
                 HorizontalDivider()
 
-                // Category list with checkboxes
+
                 LazyColumn(
                     modifier = Modifier.Companion.weight(1f)
                 ) {
@@ -128,7 +148,7 @@ fun CategorySelectorDialog(
 
                 Spacer(modifier = Modifier.Companion.height(16.dp))
 
-                // Action buttons
+
                 Row(
                     modifier = Modifier.Companion.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End

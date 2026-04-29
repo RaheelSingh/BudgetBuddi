@@ -1,3 +1,19 @@
+// Code Attributions
+
+/* Stack Overflow (2023). How to Use Null as Default Value in Compose MutableState [Online].
+* Available at: https://stackoverflow.com/questions/75425433/how-to-use-null-as-default-value-compose-mutablestate
+* (Accessed: 29 April 2026)
+*
+* Stack Overflow (2024). Jetpack Compose Button Alignment [Online].
+* Available at: https://stackoverflow.com/questions/79085592/jetpack-compose-button-alignment
+* (Accessed: 29 April 2026)
+*
+* Android Developers (2024). Lists and Grids in Jetpack Compose [Online].
+* Available at: https://developer.android.com/develop/ui/compose/lists
+* (Accessed: 29 April 2026)
+*/
+
+
 package group12.budgetbuddi.ui.screens
 
 import android.widget.Toast
@@ -88,7 +104,7 @@ fun ExpenseListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Date Filter Card
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(4.dp)
@@ -115,7 +131,7 @@ fun ExpenseListScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // End Date Button
+
                     OutlinedButton(
                         onClick = { showEndDatePicker = true },
                         modifier = Modifier.fillMaxWidth()
@@ -143,7 +159,7 @@ fun ExpenseListScreen(
                         Text("Filter")
                     }
 
-                    // Clear Filter Button
+
                     if (startDate != null || endDate != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(
@@ -159,14 +175,14 @@ fun ExpenseListScreen(
                 }
             }
 
-            // Title and count
+
             Text(
                 text = "Recent Expenses (${filteredExpenses.size})",
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Expense List
+
             if (filteredExpenses.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -206,7 +222,7 @@ fun ExpenseListScreen(
         }
     }
 
-    // Start Date Picker Dialog
+ // Date Picker Dialog
     if (showStartDatePicker) {
         DatePickerDialog(
             onDateSelected = { date ->
@@ -217,8 +233,7 @@ fun ExpenseListScreen(
         )
     }
 
-    // End Date Picker Dialog
-    if (showEndDatePicker) {
+        if (showEndDatePicker) {
         DatePickerDialog(
             onDateSelected = { date ->
                 endDate = date

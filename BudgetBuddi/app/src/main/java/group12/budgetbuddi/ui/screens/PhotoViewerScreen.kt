@@ -1,3 +1,19 @@
+// Code Attributions
+
+/* Stack Overflow (2023). How to Use Null as Default Value in Compose MutableState [Online].
+* Available at: https://stackoverflow.com/questions/75425433/how-to-use-null-as-default-value-compose-mutablestate
+* (Accessed: 29 April 2026)
+*
+* Stack Overflow (2024). Jetpack Compose Button Alignment [Online].
+* Available at: https://stackoverflow.com/questions/79085592/jetpack-compose-button-alignment
+* (Accessed: 29 April 2026)
+*
+* Android Developers (2024). Lists and Grids in Jetpack Compose [Online].
+* Available at: https://developer.android.com/develop/ui/compose/lists
+* (Accessed: 29 April 2026)
+*/
+
+
 package group12.budgetbuddi.ui.screens
 
 import android.net.Uri

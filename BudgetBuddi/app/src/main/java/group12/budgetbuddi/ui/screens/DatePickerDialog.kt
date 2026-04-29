@@ -1,3 +1,10 @@
+/* Code Attribution
+*
+* JetBrains (2024). DatePickerDialog - Compose Multiplatform [Online].
+* Available at: https://kotlinlang.org/api/compose-multiplatform/material3/androidx.compose.material3/-date-picker-dialog.html
+* (Accessed: 29 April 2026)
+*/
+
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement

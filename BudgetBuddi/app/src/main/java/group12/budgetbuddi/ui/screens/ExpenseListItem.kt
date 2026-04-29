@@ -1,3 +1,13 @@
+//  Code Attributions
+
+
+/* Stack Overflow (2010). Get Content URI from File Path in Android [Online].
+* Available at: https://stackoverflow.com/questions/3004713/get-content-uri-from-file-path-in-android
+* (Accessed: 29 April 2026)
+*/
+
+
+
 package group12.budgetbuddi.ui.screens
 
 import android.net.Uri
