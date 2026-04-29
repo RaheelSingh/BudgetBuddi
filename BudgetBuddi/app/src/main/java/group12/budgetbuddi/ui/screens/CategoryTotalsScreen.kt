@@ -1,16 +1,23 @@
 package group12.budgetbuddi.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
+import group12.budgetbuddi.viewmodel.BudgetStatus
+import group12.budgetbuddi.viewmodel.CategoryTotalItem
 import group12.budgetbuddi.viewmodel.CategoryTotalsViewModel
 import java.util.Calendar
 
@@ -126,6 +133,54 @@ fun CategoryTotalsScreen(
                     }
                 }
             }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.items) { item ->
+                    CategoryTotalRow(item = item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CategoryTotalRow(item: CategoryTotalItem) {
+    val indicatorColor = when (item.budgetStatus) {
+        BudgetStatus.OVER -> MaterialTheme.colorScheme.error
+        BudgetStatus.UNDER -> Color(0xFFF57C00)
+        BudgetStatus.OK -> Color(0xFF388E3C)
+    }
+    val statusLabel = when (item.budgetStatus) {
+        BudgetStatus.OVER -> "Over"
+        BudgetStatus.UNDER -> "Under"
+        BudgetStatus.OK -> "OK"
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(6.dp)
+                    .height(48.dp)
+                    .background(indicatorColor, shape = MaterialTheme.shapes.small)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.categoryName, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    statusLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = indicatorColor
+                )
+            }
+            Text(
+                "R %.2f".format(item.totalSpent),
+                style = MaterialTheme.typography.titleMedium
+            )
         }
     }
 }
