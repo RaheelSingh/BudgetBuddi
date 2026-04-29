@@ -35,3 +35,10 @@ interface UserDao {
     @Query("DELETE FROM password_reset_tokens WHERE expiresAt < :currentTime")
     suspend fun deleteExpiredTokens(currentTime: Long)
 }
+
+/**
+ * reference:
+ * developer.android.com (2026) 'Room persistence library - Data Access Object', Android Developers.
+ * Available at: https://developer.android.com/training/data-storage/room/accessing-data
+ * (Accessed: 29 April 2026).
+ */

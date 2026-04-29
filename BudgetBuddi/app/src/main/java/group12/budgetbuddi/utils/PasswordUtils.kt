@@ -42,7 +42,71 @@ object PasswordUtils {
         return email.matches(emailRegex.toRegex())
     }
 
+    // Keep old method for backward compatibility
     fun isStrongPassword(password: String): Boolean {
         return password.length >= 6
     }
+
+    // Comprehensive password validation
+    fun isValidPassword(password: String): PasswordValidationResult {
+        val errors = mutableListOf<String>()
+
+        if (password.length < 6) {
+            errors.add("• Password must be at least 6 characters long")
+        }
+        if (!password.any { it.isUpperCase() }) {
+            errors.add("• Password must contain at least 1 uppercase letter (A-Z)")
+        }
+        if (!password.any { it.isLowerCase() }) {
+            errors.add("• Password must contain at least 1 lowercase letter (a-z)")
+        }
+        if (!password.any { it.isDigit() }) {
+            errors.add("• Password must contain at least 1 number (0-9)")
+        }
+        if (!password.any { it in "!@#$%^&*()_+-=[]{}|;':\",./<>?`~" }) {
+            errors.add("• Password must contain at least 1 special character (!@#$%^&* etc.)")
+        }
+
+        return PasswordValidationResult(
+            isValid = errors.isEmpty(),
+            errors = errors
+        )
+    }
+
+    // Get all errors as a list
+    fun getPasswordErrors(password: String): List<String> {
+        return isValidPassword(password).errors
+    }
+
+    // Check password strength and return score (0-4)
+    fun getPasswordStrength(password: String): Int {
+        var score = 0
+        if (password.length >= 8) score++
+        if (password.any { it.isUpperCase() }) score++
+        if (password.any { it.isLowerCase() }) score++
+        if (password.any { it.isDigit() }) score++
+        if (password.any { it in "!@#$%^&*()_+-=[]{}|;':\",./<>?`~" }) score++
+        return score
+    }
+
 }
+
+data class PasswordValidationResult(
+    val isValid: Boolean,
+    val errors: List<String>
+)
+/**
+ * references:
+ *
+ * Oracle (2026) 'MessageDigest - SHA-256 hashing', Java Platform SE Documentation.
+ *    Available at: https://docs.oracle.com/javase/8/docs/api/java/security/MessageDigest.html
+ *    (Accessed: 29 April 2026).
+ *
+ * Oracle (2026) 'SecureRandom for cryptographic salt generation', Java Platform SE Documentation.
+ *    Available at: https://docs.oracle.com/javase/8/docs/api/java/security/SecureRandom.html
+ *    (Accessed: 29 April 2026).
+ *
+ * OWASP Foundation (2026) 'Password Storage Cheat Sheet', OWASP Cheat Sheet Series.
+ *    Available at: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+ *    (Accessed: 29 April 2026).
+ */

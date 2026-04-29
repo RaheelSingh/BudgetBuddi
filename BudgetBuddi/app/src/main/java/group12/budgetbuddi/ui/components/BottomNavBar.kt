@@ -12,6 +12,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavController
 
+/*
+Author: Android Developers
+Description: Used as reference for implementing a Material 3 bottom navigation bar using NavigationBar and NavigationBarItem.
+Reference: Android Developers. 2026. Navigation bar. [Online]. Available at: https://developer.android.com/develop/ui/compose/components/navigation-bar [Accessed 29 April 2026].
+*/
+
 @Composable
 fun BottomNavBar(
     navController: NavController,
@@ -23,6 +29,7 @@ fun BottomNavBar(
         NavigationBarItem(
             selected = selectedRoute == "home",
             onClick = {
+                // launchSingleTop avoids creating repeated copies of the same screen.
                 navController.navigate("home") {
                     launchSingleTop = true
                 }
@@ -68,6 +75,7 @@ fun BottomNavBar(
             label = { Text("Add") }
         )
 
+        // This item opens the drawer instead of navigating to a normal screen.
         NavigationBarItem(
             selected = selectedRoute == "menu",
             onClick = onMenuClick,

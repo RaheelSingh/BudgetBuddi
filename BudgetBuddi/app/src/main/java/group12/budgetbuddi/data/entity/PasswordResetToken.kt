@@ -11,3 +11,9 @@ data class PasswordResetToken(
     val token: String,
     val expiresAt: Long
 )
+/**
+ * reference:
+ * developer.android.com (2026) 'Room persistence library - Defining entities', Android Developers.
+ * Available at: https://developer.android.com/training/data-storage/room/defining-data
+ * (Accessed: 29 April 2026).
+ */

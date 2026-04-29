@@ -4,9 +4,15 @@ import group12.budgetbuddi.data.dao.CategoryDao
 import group12.budgetbuddi.data.entity.CategoryEntity
 import kotlinx.coroutines.flow.Flow
 
+/*
+Author: Android Developers
+Description: Used as reference for separating database access from the UI layer using a repository-style data layer.
+Reference: Android Developers. 2019. Data layer. [Online]. Available at: https://developer.android.com/topic/architecture/data-layer [Accessed 29 April 2026].
+*/
+
 class CategoryRepository(private val categoryDao: CategoryDao) {
 
-    // Read
+    // Read functions keep the ViewModel away from direct SQL or DAO details.
     fun getAllCategories(userEmail: String): Flow<List<CategoryEntity>> {
         return categoryDao.getAllCategories(userEmail)
     }
@@ -54,6 +60,7 @@ class CategoryRepository(private val categoryDao: CategoryDao) {
         return categoryDao.getCategoryCountForUser(userEmail)
     }
 
+    // Adds starter categories only once for each user.
     suspend fun seedDefaultCategoriesIfNeeded(userEmail: String) {
         if (categoryDao.getCategoryCountForUser(userEmail) > 0) return
 
