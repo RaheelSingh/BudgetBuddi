@@ -1,9 +1,11 @@
 package group12.budgetbuddi
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -17,6 +19,7 @@ import group12.budgetbuddi.ui.screens.*
 import group12.budgetbuddi.ui.theme.BudgetBuddiTheme
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -34,6 +37,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavigation() {
 
@@ -88,6 +92,14 @@ fun AppNavigation() {
 
         composable("add_transaction") {
             AddTransactionScreen(navController)
+        }
+
+        composable("budget_goals") {
+            SetBudgetGoalScreen(navController)
+        }
+
+        composable("category_totals") {
+            CategoryTotalsScreen(navController)
         }
 
     }
