@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "750440739455",
+    "project_id": "budgetbuddi-b22ec",
+    "storage_bucket": "budgetbuddi-b22ec.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:750440739455:android:7a82c029fddf170e51c54a",
+        "android_client_info": {
+          "package_name": "group12.budgetbuddi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZxesK---Qq1KRgvNo5JQhKfXlm6UJ8N4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
