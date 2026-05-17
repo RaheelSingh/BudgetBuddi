@@ -19,20 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import group12.budgetbuddi.R
+import kotlinx.coroutines.delay
 
-
-
-/**
- * references:
- *
- * developer.android.com (2026) 'Jetpack Compose animations', Android Developers.
- *    Available at: https://developer.android.com/jetpack/compose/animation
- *    (Accessed: 29 April 2026).
- *
- * developer.android.com (2026) 'Material Design 3 in Compose', Android Developers.
- *    Available at: https://developer.android.com/jetpack/compose/material3
- *    (Accessed: 29 April 2026).
- */
 // Background color
 val backgroundColor = Color(0xFF139A43)
 
@@ -45,9 +33,9 @@ fun WelcomeScreen(navController: NavController) {
 
     LaunchedEffect(Unit) {
         headingVisible = true
-        kotlinx.coroutines.delay(200)
+        delay(200)
         cardVisible = true
-        kotlinx.coroutines.delay(300)
+        delay(300)
         imageVisible = true
     }
 
@@ -107,14 +95,12 @@ fun WelcomeScreen(navController: NavController) {
             .fillMaxSize()
             .background(backgroundColor)
     ) {
-
         Column(
             modifier = Modifier
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-
             Column(
                 modifier = Modifier
                     .padding(top = 250.dp)
@@ -163,8 +149,8 @@ fun WelcomeScreen(navController: NavController) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp, bottomStart = 0.dp, bottomEnd = 0.dp)),
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp)),
                 colors = CardDefaults.cardColors(
                     containerColor = Color.White
                 ),
@@ -173,12 +159,14 @@ fun WelcomeScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 32.dp, vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Bottom
+                        .padding(horizontal = 32.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // Login Button
                     Button(
-                        onClick = { navController.navigate("login") },
+                        onClick = {
+                            navController.navigate("login")
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -198,8 +186,11 @@ fun WelcomeScreen(navController: NavController) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Register Button
                     OutlinedButton(
-                        onClick = { navController.navigate("register") },
+                        onClick = {
+                            navController.navigate("register")
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -207,9 +198,7 @@ fun WelcomeScreen(navController: NavController) {
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = backgroundColor
                         ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            width = 2.dp
-                        )
+                        border = ButtonDefaults.outlinedButtonBorder
                     ) {
                         Text(
                             text = "Register",

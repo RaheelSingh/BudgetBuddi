@@ -19,13 +19,14 @@ fun HomeScreen(
     authViewModel: AuthViewModel = viewModel()
 ) {
 
-    // Get username from ViewModel
-    val username by authViewModel.username.collectAsState()
+    // Get user from ViewModel instead of username
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val displayName = currentUser?.username ?: "User"
 
     // Wrap everything inside AppScaffold
     AppScaffold(
         navController = navController,
-        selectedRoute = "home", // tells bottom nav which tab is active
+        selectedRoute = "home",
         authViewModel = authViewModel
     ) { modifier ->
 
@@ -39,7 +40,7 @@ fun HomeScreen(
         ) {
 
             Text(
-                text = "Welcome, ${username.ifEmpty { "User" }}!",
+                text = "Welcome, $displayName!",
                 style = MaterialTheme.typography.headlineMedium
             )
 
@@ -53,14 +54,13 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Your data is stored securely in Room Database.",
+                text = "Your data will be stored securely in Firebase.",
                 style = MaterialTheme.typography.bodyMedium
             )
 
             Spacer(modifier = Modifier.height(48.dp))
 
-
-            // Still keeping logout button for now (even though menu also has logout)
+            // Logout button
             Button(
                 onClick = {
                     authViewModel.logout()

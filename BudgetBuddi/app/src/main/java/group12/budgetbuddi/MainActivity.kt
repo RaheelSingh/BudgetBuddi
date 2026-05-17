@@ -49,10 +49,8 @@ fun AppNavigation() {
     val authViewModel: AuthViewModel = viewModel()
     val currentUser by authViewModel.currentUser.collectAsState()
 
-    // Determine start destination based on auth state
     val startDestination = if (currentUser != null) "home" else "welcome"
 
-    // Auto-navigate to home if user is logged in
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
             navController.navigate("home") {
@@ -68,60 +66,46 @@ fun AppNavigation() {
         composable("welcome") {
             WelcomeScreen(navController)
         }
-
         composable("login") {
             LoginScreen(navController)
         }
-
         composable("register") {
             RegisterScreen(navController)
         }
-
         composable("forgot") {
             ForgotPasswordScreen(navController)
         }
-
         composable("reset/{token}") { backStackEntry ->
             val token = backStackEntry.arguments?.getString("token") ?: ""
             ResetPasswordScreen(navController = navController, token = token)
         }
-
         composable("home") {
             HomeScreen(navController)
         }
-
         composable("categories") {
             CategoriesScreen(navController)
         }
-
         composable("add_category") {
             AddCategoryScreen(navController)
         }
-
         composable("edit_delete_category") {
             EditDeleteCategoryScreen(navController)
         }
-
         composable("daily_report") {
             DailyReportScreen(navController)
         }
-
         composable("expenses") {
             ExpensesScreen(navController)
         }
-
         composable("add_transaction") {
             AddTransactionScreen(navController)
         }
-
         composable("expense_list") {
             ExpenseListScreen(navController = navController)
         }
-
         composable("category_summary") {
             CategorySummaryScreen(navController = navController)
         }
-
         composable("photo_viewer/{encodedPath}") { backStackEntry ->
             val encodedPath = backStackEntry.arguments?.getString("encodedPath") ?: ""
             val photoPath = URLDecoder.decode(encodedPath, "UTF-8")
@@ -130,11 +114,9 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() }
             )
         }
-
         composable("budget_goals") {
             SetBudgetGoalScreen(navController)
         }
-
         composable("category_totals") {
             CategoryTotalsScreen(navController)
         }
