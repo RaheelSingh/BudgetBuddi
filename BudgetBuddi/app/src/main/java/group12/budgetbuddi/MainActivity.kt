@@ -1,10 +1,6 @@
 package group12.budgetbuddi
 
-
-import group12.budgetbuddi.ui.screens.ExpenseListScreen
-
 import android.os.Build
-
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -21,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import group12.budgetbuddi.ui.screens.*
 import group12.budgetbuddi.ui.theme.BudgetBuddiTheme
+import group12.budgetbuddi.viewmodel.AuthViewModel
 import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
@@ -45,16 +45,26 @@ class MainActivity : ComponentActivity() {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavigation() {
-
     val navController = rememberNavController()
-    // TEMP: replace later with real logged-in user
-    val userEmail = "test@budgetbuddi.com"
+    val authViewModel: AuthViewModel = viewModel()
+    val currentUser by authViewModel.currentUser.collectAsState()
+
+    // Determine start destination based on auth state
+    val startDestination = if (currentUser != null) "home" else "welcome"
+
+    // Auto-navigate to home if user is logged in
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
+            navController.navigate("home") {
+                popUpTo("welcome") { inclusive = true }
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
-        startDestination = "welcome"
+        startDestination = startDestination
     ) {
-
         composable("welcome") {
             WelcomeScreen(navController)
         }
@@ -104,14 +114,13 @@ fun AppNavigation() {
             AddTransactionScreen(navController)
         }
 
-
         composable("expense_list") {
             ExpenseListScreen(navController = navController)
         }
+
         composable("category_summary") {
             CategorySummaryScreen(navController = navController)
         }
-
 
         composable("photo_viewer/{encodedPath}") { backStackEntry ->
             val encodedPath = backStackEntry.arguments?.getString("encodedPath") ?: ""
@@ -129,8 +138,5 @@ fun AppNavigation() {
         composable("category_totals") {
             CategoryTotalsScreen(navController)
         }
-
-
     }
 }
-
