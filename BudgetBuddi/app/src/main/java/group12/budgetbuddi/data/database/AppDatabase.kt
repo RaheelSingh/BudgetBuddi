@@ -10,17 +10,16 @@ import group12.budgetbuddi.data.dao.ExpenseDao
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.data.entity.ExpenseEntity
-import group12.budgetbuddi.data.entity.PasswordResetToken
 
 @Database(
     entities = [
 
-        PasswordResetToken::class,
+
         CategoryEntity::class,
         ExpenseEntity::class,
         BudgetGoalEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

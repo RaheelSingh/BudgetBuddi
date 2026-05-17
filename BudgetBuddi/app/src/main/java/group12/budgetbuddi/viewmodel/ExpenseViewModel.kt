@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import group12.budgetbuddi.data.database.AppDatabase
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.ExpenseRepository
-import group12.budgetbuddi.utils.SessionManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 

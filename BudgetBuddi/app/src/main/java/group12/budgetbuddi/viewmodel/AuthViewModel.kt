@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import group12.budgetbuddi.repository.AuthResult
-import group12.budgetbuddi.repository.FirebaseAuthRepository  // ← Use THIS
+import group12.budgetbuddi.repository.FirebaseAuthRepository
 import group12.budgetbuddi.repository.FirebaseUser
 import group12.budgetbuddi.repository.PasswordResetResult
 import group12.budgetbuddi.utils.PasswordUtils
@@ -163,11 +163,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun resetPassword(token: String, newPassword: String) {
-        _resetState.update {
-            it.copy(error = "Please use the link sent to your email to reset your password ")
-        }
-    }
 
     fun logout() {
         viewModelScope.launch {
@@ -188,7 +183,7 @@ class AuthViewModel : ViewModel() {
         _resetState.update { ResetUiState() }
     }
 
-    fun isLoggedIn(): Boolean = _currentUser.value != null
+
 }
 
 data class LoginUiState(

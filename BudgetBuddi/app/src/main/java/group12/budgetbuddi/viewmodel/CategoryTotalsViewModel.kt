@@ -8,7 +8,6 @@ import group12.budgetbuddi.data.database.AppDatabase
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.repository.BudgetGoalRepository
 import group12.budgetbuddi.repository.ExpenseRepository
-import group12.budgetbuddi.utils.SessionManager
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch

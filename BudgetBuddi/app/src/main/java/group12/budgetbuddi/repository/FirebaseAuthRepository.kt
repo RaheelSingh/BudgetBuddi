@@ -80,11 +80,7 @@ class FirebaseAuthRepository {
         }
     }
 
-    fun getCurrentUser(): FirebaseUser? {
-        return auth.currentUser?.let {
-            FirebaseUser(it.uid, it.email ?: "", it.displayName ?: "")
-        }
-    }
+
 
     suspend fun signOut(): Boolean {
         return try {
