@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -15,9 +16,11 @@ import kotlinx.coroutines.tasks.await
 class FirebaseAuthRepository {
 
     private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
 
     companion object {
         private const val TAG = "FirebaseAuthRepo"
+        private const val USERS_COLLECTION = "users"
     }
 
     suspend fun registerUser(
@@ -37,6 +40,9 @@ class FirebaseAuthRepository {
                     .build()
                 it.updateProfile(profileUpdates).await()
                 Log.d(TAG, "Username set: $username")
+
+                // Create Firestore user document
+                createUserDocument(user.uid, email, username)
             }
 
             AuthResult.Success(user?.uid ?: "", user?.email ?: "", user?.displayName ?: username)
@@ -57,6 +63,11 @@ class FirebaseAuthRepository {
 
             val authResult = auth.signInWithEmailAndPassword(email, password).await()
             val user = authResult.user
+
+            // Sync existing user to Firestore (for users registered before Firestore existed)
+            user?.let {
+                ensureUserDocumentExists(it.uid, it.email ?: "", it.displayName ?: "")
+            }
 
             AuthResult.Success(user?.uid ?: "", user?.email ?: "", user?.displayName ?: "")
         } catch (e: FirebaseAuthInvalidUserException) {
@@ -79,8 +90,6 @@ class FirebaseAuthRepository {
             PasswordResetResult.Error("Failed to send reset email. Please try again.")
         }
     }
-
-
 
     suspend fun signOut(): Boolean {
         return try {
@@ -105,6 +114,57 @@ class FirebaseAuthRepository {
         }
         auth.addAuthStateListener(listener)
         awaitClose { auth.removeAuthStateListener(listener) }
+    }
+
+    // ==================== FIRESTORE USER METHODS ====================
+
+    private suspend fun createUserDocument(uid: String, email: String, username: String) {
+        try {
+            val userData = hashMapOf(
+                "email" to email.lowercase(),
+                "username" to username,
+                "createdAt" to System.currentTimeMillis(),
+                "lastLogin" to System.currentTimeMillis()
+            )
+            firestore.collection(USERS_COLLECTION).document(uid).set(userData).await()
+            Log.d(TAG, "Firestore user document created for: $email")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create Firestore user document: ${e.message}", e)
+        }
+    }
+
+    private suspend fun ensureUserDocumentExists(uid: String, email: String, username: String) {
+        try {
+            val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
+            val snapshot = userDocRef.get().await()
+
+            if (!snapshot.exists()) {
+                val userData = hashMapOf(
+                    "email" to email.lowercase(),
+                    "username" to username,
+                    "createdAt" to System.currentTimeMillis(),
+                    "lastLogin" to System.currentTimeMillis(),
+                    "migrated" to true
+                )
+                userDocRef.set(userData).await()
+                Log.d(TAG, "Firestore user document created for existing user: $email")
+            } else {
+                userDocRef.update("lastLogin", System.currentTimeMillis()).await()
+                Log.d(TAG, "Updated last login for: $email")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to ensure Firestore user document: ${e.message}", e)
+        }
+    }
+
+    suspend fun getUserData(uid: String): Map<String, Any>? {
+        return try {
+            val snapshot = firestore.collection(USERS_COLLECTION).document(uid).get().await()
+            snapshot.data
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get user data: ${e.message}", e)
+            null
+        }
     }
 }
 
