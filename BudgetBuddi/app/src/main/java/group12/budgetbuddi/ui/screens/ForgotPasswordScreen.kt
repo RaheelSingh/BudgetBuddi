@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.viewmodel.AuthViewModel
+import kotlinx.coroutines.delay
 
 // Colors
 val backgroundColorForgot = Color(0xFF139A43)
@@ -35,15 +38,16 @@ fun ForgotPasswordScreen(
     navController: NavController,
     authViewModel: AuthViewModel = viewModel()
 ) {
+    val context = LocalContext.current
+
     // Animation states
     var contentVisible by remember { mutableStateOf(false) }
     var cardVisible by remember { mutableStateOf(false) }
-
     var resetEmail by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         contentVisible = true
-        kotlinx.coroutines.delay(200)
+        delay(200)
         cardVisible = true
     }
 
@@ -63,7 +67,7 @@ fun ForgotPasswordScreen(
         label = "contentOffset"
     )
 
-    // Card animation (centered, so different animation)
+    // Card animation
     val cardScale by animateFloatAsState(
         targetValue = if (cardVisible) 1f else 0.8f,
         animationSpec = spring(
@@ -81,9 +85,12 @@ fun ForgotPasswordScreen(
 
     val resetState by authViewModel.resetState.collectAsState()
 
+    // When reset email is sent successfully, show toast and go back to login
     LaunchedEffect(resetState.isCodeSent) {
-        if (resetState.isCodeSent && resetState.resetToken.isNotBlank()) {
-            navController.navigate("reset/${resetState.resetToken}")
+        if (resetState.isCodeSent) {
+            Toast.makeText(context, resetState.message, Toast.LENGTH_LONG).show()
+            delay(2000)
+            navController.popBackStack()  // Go back to login screen
             authViewModel.resetResetState()
         }
     }
@@ -115,7 +122,7 @@ fun ForgotPasswordScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Enter your email to receive a reset code",
+                text = "Enter your email to receive a reset link",
                 fontSize = 18.sp,
                 color = textLightForgot.copy(alpha = 0.9f),
                 letterSpacing = 1.sp
@@ -166,7 +173,7 @@ fun ForgotPasswordScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Send Reset Code Button
+                    // Send Reset Link Button
                     Button(
                         onClick = { authViewModel.sendResetCode(resetEmail) },
                         enabled = !resetState.isLoading && resetEmail.isNotBlank(),
@@ -185,7 +192,7 @@ fun ForgotPasswordScreen(
                             )
                         } else {
                             Text(
-                                text = "Send Reset Code",
+                                text = "Send Reset Link",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = textLightForgot

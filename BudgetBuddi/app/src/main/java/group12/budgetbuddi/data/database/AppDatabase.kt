@@ -7,16 +7,14 @@ import androidx.room.RoomDatabase
 import group12.budgetbuddi.data.dao.BudgetGoalDao
 import group12.budgetbuddi.data.dao.CategoryDao
 import group12.budgetbuddi.data.dao.ExpenseDao
-import group12.budgetbuddi.data.dao.UserDao
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.data.entity.PasswordResetToken
-import group12.budgetbuddi.data.entity.User
 
 @Database(
     entities = [
-        User::class,
+
         PasswordResetToken::class,
         CategoryEntity::class,
         ExpenseEntity::class,
@@ -27,7 +25,7 @@ import group12.budgetbuddi.data.entity.User
 )
 abstract class AppDatabase : RoomDatabase() {
 
-    abstract fun userDao(): UserDao
+
     abstract fun categoryDao(): CategoryDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun budgetGoalDao(): BudgetGoalDao
