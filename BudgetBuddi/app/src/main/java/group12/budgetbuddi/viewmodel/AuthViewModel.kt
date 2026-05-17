@@ -1,20 +1,213 @@
 package group12.budgetbuddi.viewmodel
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import android.util.Log
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import group12.budgetbuddi.repository.AuthRepository
-import group12.budgetbuddi.utils.SessionManager
+import group12.budgetbuddi.repository.AuthResult
+import group12.budgetbuddi.repository.FirebaseAuthRepository
+import group12.budgetbuddi.repository.FirebaseUser
+import group12.budgetbuddi.repository.PasswordResetResult
+import group12.budgetbuddi.utils.PasswordUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+class AuthViewModel : ViewModel() {
 
+    companion object {
+        private const val TAG = "AuthViewModel"
+    }
+
+    private val authRepository = FirebaseAuthRepository()
+
+    // UI State for Login
+    private val _loginState = MutableStateFlow(LoginUiState())
+    val loginState: StateFlow<LoginUiState> = _loginState.asStateFlow()
+
+    // UI State for Register
+    private val _registerState = MutableStateFlow(RegisterUiState())
+    val registerState: StateFlow<RegisterUiState> = _registerState.asStateFlow()
+
+    // UI State for Password Reset
+    private val _resetState = MutableStateFlow(ResetUiState())
+    val resetState: StateFlow<ResetUiState> = _resetState.asStateFlow()
+
+    // Current user session
+    private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
+    init {
+        // Start observing auth state changes
+        viewModelScope.launch {
+            authRepository.observeAuthState().collect { user ->
+                _currentUser.update { user }
+                Log.d(TAG, "Auth state changed: ${user?.email ?: "No user"}")
+            }
+        }
+    }
+
+    fun login(email: String, password: String) {
+        viewModelScope.launch {
+            _loginState.update { it.copy(isLoading = true, error = null) }
+
+            // Local validation
+            if (email.isBlank()) {
+                _loginState.update { it.copy(isLoading = false, error = "Email is required") }
+                return@launch
+            }
+            if (password.isBlank()) {
+                _loginState.update { it.copy(isLoading = false, error = "Password is required") }
+                return@launch
+            }
+            if (!PasswordUtils.isValidEmail(email)) {
+                _loginState.update { it.copy(isLoading = false, error = "Invalid email format") }
+                return@launch
+            }
+
+            val result = authRepository.loginUser(email.trim(), password)
+
+            when (result) {
+                is AuthResult.Success -> {
+                    Log.d(TAG, "Login success: ${result.email}")
+                    _loginState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                            userEmail = result.email,
+                            username = result.username
+                        )
+                    }
+                }
+                is AuthResult.Error -> {
+                    Log.e(TAG, "Login failed: ${result.message}")
+                    _loginState.update {
+                        it.copy(isLoading = false, error = result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    fun register(email: String, username: String, password: String) {
+        viewModelScope.launch {
+            _registerState.update { it.copy(isLoading = true, error = null) }
+
+            // Local validation
+            if (email.isBlank()) {
+                _registerState.update { it.copy(isLoading = false, error = "Email is required") }
+                return@launch
+            }
+            if (username.isBlank()) {
+                _registerState.update { it.copy(isLoading = false, error = "Username is required") }
+                return@launch
+            }
+            if (password.isBlank()) {
+                _registerState.update { it.copy(isLoading = false, error = "Password is required") }
+                return@launch
+            }
+            if (!PasswordUtils.isValidEmail(email)) {
+                _registerState.update { it.copy(isLoading = false, error = "Invalid email format") }
+                return@launch
+            }
+
+            val passwordValidation = PasswordUtils.isValidPassword(password)
+            if (!passwordValidation.isValid) {
+                _registerState.update { it.copy(isLoading = false, error = passwordValidation.errors.first()) }
+                return@launch
+            }
+
+            val result = authRepository.registerUser(email.trim(), password, username.trim())
+
+            when (result) {
+                is AuthResult.Success -> {
+                    Log.d(TAG, "Register success: ${result.email}")
+                    _registerState.update { it.copy(isLoading = false, isSuccess = true) }
+                }
+                is AuthResult.Error -> {
+                    Log.e(TAG, "Register failed: ${result.message}")
+                    _registerState.update { it.copy(isLoading = false, error = result.message) }
+                }
+            }
+        }
+    }
+
+    fun sendResetCode(email: String) {
+        viewModelScope.launch {
+            _resetState.update { it.copy(isLoading = true, error = null) }
+
+            if (email.isBlank()) {
+                _resetState.update { it.copy(isLoading = false, error = "Email is required") }
+                return@launch
+            }
+            if (!PasswordUtils.isValidEmail(email)) {
+                _resetState.update { it.copy(isLoading = false, error = "Invalid email format") }
+                return@launch
+            }
+
+            val result = authRepository.sendPasswordResetEmail(email.trim())
+
+            when (result) {
+                is PasswordResetResult.Success -> {
+                    Log.d(TAG, "Reset email sent successfully")
+                    _resetState.update {
+                        it.copy(
+                            isLoading = false,
+                            isCodeSent = true,
+                            message = result.message
+                        )
+                    }
+                }
+                is PasswordResetResult.Error -> {
+                    Log.e(TAG, "Reset email failed: ${result.message}")
+                    _resetState.update {
+                        it.copy(isLoading = false, error = result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    fun resetPassword(token: String, newPassword: String) {
+        // For Firebase, password reset is handled via email link
+        // This method is kept for compatibility but now just informs user
+        _resetState.update {
+            it.copy(error = "Please use the link sent to your email to reset your password")
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            authRepository.signOut()
+            _currentUser.update { null }
+        }
+    }
+
+    fun resetLoginState() {
+        _loginState.update { LoginUiState() }
+    }
+
+    fun resetRegisterState() {
+        _registerState.update { RegisterUiState() }
+    }
+
+    fun resetResetState() {
+        _resetState.update { ResetUiState() }
+    }
+
+    fun isLoggedIn(): Boolean {
+        return _currentUser.value != null
+    }
+}
+
+// UI State classes
 data class LoginUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val userEmail: String = "",
+    val username: String = ""
 )
 
 data class RegisterUiState(
@@ -27,153 +220,10 @@ data class ResetUiState(
     val isLoading: Boolean = false,
     val isCodeSent: Boolean = false,
     val isResetComplete: Boolean = false,
-    val resetToken: String = "",
-    val error: String? = null
+    val message: String = "",
+    val error: String? = null,
+    val resetToken: String = ""
 )
-
-class AuthViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository = AuthRepository(application)
-    private val sessionManager = SessionManager(application)
-
-    private val _loginState = MutableStateFlow(LoginUiState())
-    val loginState: StateFlow<LoginUiState> = _loginState.asStateFlow()
-
-    private val _registerState = MutableStateFlow(RegisterUiState())
-    val registerState: StateFlow<RegisterUiState> = _registerState.asStateFlow()
-
-    private val _resetState = MutableStateFlow(ResetUiState())
-    val resetState: StateFlow<ResetUiState> = _resetState.asStateFlow()
-
-
-    private val _isLoggedIn = MutableStateFlow(false)
-    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
-
-    private val _username = MutableStateFlow("")
-    val username: StateFlow<String> = _username.asStateFlow()
-
-
-    fun logout() {
-        viewModelScope.launch {
-            sessionManager.clearSession()
-            _isLoggedIn.value = false
-            _username.value = ""
-            _loginState.value = LoginUiState()
-            _registerState.value = RegisterUiState()
-            _resetState.value = ResetUiState()
-        }
-    }
-
-
-    fun login(email: String, password: String) {
-        viewModelScope.launch {
-            _loginState.value = _loginState.value.copy(isLoading = true, error = null)
-            val result = repository.login(email, password)
-            if (result.isSuccess) {
-                result.user?.let { user ->
-                    sessionManager.saveSession(user.email, user.username)
-                    _isLoggedIn.value = true
-                    _username.value = user.username
-                    _loginState.value = _loginState.value.copy(
-                        isLoading = false,
-                        isSuccess = true,
-                        error = null
-                    )
-                }
-            } else {
-                _loginState.value = _loginState.value.copy(
-                    isLoading = false,
-                    isSuccess = false,
-                    error = result.message
-                )
-            }
-        }
-    }
-
-    init {
-        checkLoginStatus()
-    }
-
-    private fun checkLoginStatus() {
-        viewModelScope.launch {
-            _isLoggedIn.value = sessionManager.isLoggedIn()
-            _username.value = sessionManager.getUsername() ?: ""
-        }
-    }
-
-    fun register(email: String, username: String, password: String) {
-        viewModelScope.launch {
-            _registerState.value = _registerState.value.copy(isLoading = true, error = null)
-            val result = repository.register(email, username, password)
-            if (result.isSuccess) {
-                _registerState.value = _registerState.value.copy(
-                    isLoading = false,
-                    isSuccess = true,
-                    error = null
-                )
-            } else {
-                _registerState.value = _registerState.value.copy(
-                    isLoading = false,
-                    isSuccess = false,
-                    error = result.message
-                )
-            }
-        }
-    }
-
-    fun sendResetCode(email: String) {
-        viewModelScope.launch {
-            _resetState.value = _resetState.value.copy(isLoading = true, error = null)
-            val result = repository.sendPasswordResetCode(email)
-            if (result.isSuccess) {
-                _resetState.value = _resetState.value.copy(
-                    isLoading = false,
-                    isCodeSent = true,
-                    resetToken = result.token,
-                    error = null
-                )
-            } else {
-                _resetState.value = _resetState.value.copy(
-                    isLoading = false,
-                    isCodeSent = false,
-                    error = result.message
-                )
-            }
-        }
-    }
-
-    fun resetPassword(token: String, newPassword: String) {
-        viewModelScope.launch {
-            _resetState.value = _resetState.value.copy(isLoading = true, error = null)
-            val result = repository.resetPassword(token, newPassword)
-            if (result.isSuccess) {
-                _resetState.value = _resetState.value.copy(
-                    isLoading = false,
-                    isResetComplete = true,
-                    error = null
-                )
-            } else {
-                _resetState.value = _resetState.value.copy(
-                    isLoading = false,
-                    isResetComplete = false,
-                    error = result.message
-                )
-            }
-        }
-    }
-
-    fun resetLoginState() {
-        _loginState.value = LoginUiState()
-    }
-
-    fun resetRegisterState() {
-        _registerState.value = RegisterUiState()
-    }
-
-    fun resetResetState() {
-        _resetState.value = ResetUiState()
-    }
-}
 
 /**
  * references:
