@@ -20,7 +20,6 @@ class AuthViewModel : ViewModel() {
         private const val TAG = "AuthViewModel"
     }
 
-
     private val authRepository = FirebaseAuthRepository()
 
     private val _loginState = MutableStateFlow(LoginUiState())
@@ -115,6 +114,14 @@ class AuthViewModel : ViewModel() {
             when (result) {
                 is AuthResult.Success -> {
                     Log.d(TAG, "Register success: ${result.email}")
+
+                    // Sign out immediately after registration
+                    // This prevents auto-login and ensures Firestore document is created
+                    // before the user is logged out, and they must explicitly log in
+                    kotlinx.coroutines.delay(500) // Small delay to ensure Firestore write completes
+                    authRepository.signOut()
+                    _currentUser.update { null }
+
                     _registerState.update { it.copy(isLoading = false, isSuccess = true) }
                 }
                 is AuthResult.Error -> {
@@ -163,7 +170,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-
     fun logout() {
         viewModelScope.launch {
             authRepository.signOut()
@@ -182,8 +188,6 @@ class AuthViewModel : ViewModel() {
     fun resetResetState() {
         _resetState.update { ResetUiState() }
     }
-
-
 }
 
 data class LoginUiState(
