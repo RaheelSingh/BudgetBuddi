@@ -7,24 +7,18 @@ import androidx.room.RoomDatabase
 import group12.budgetbuddi.data.dao.BudgetGoalDao
 import group12.budgetbuddi.data.dao.ExpenseDao
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
-import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.data.entity.ExpenseEntity
 
 @Database(
     entities = [
-
-
-        CategoryEntity::class,
         ExpenseEntity::class,
         BudgetGoalEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 
-
-    abstract fun categoryDao(): CategoryDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun budgetGoalDao(): BudgetGoalDao
 
@@ -53,5 +47,5 @@ abstract class AppDatabase : RoomDatabase() {
  * reference:
  * developer.android.com (2026) 'Room persistence library - Database setup', Android Developers.
  * Available at: https://developer.android.com/training/data-storage/room/defining-data
- * (Accessed: 29 April 2026).
+ * Accessed: 29 April 2026.
  */
