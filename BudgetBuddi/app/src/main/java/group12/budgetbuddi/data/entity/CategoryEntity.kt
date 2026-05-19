@@ -1,23 +1,21 @@
 package group12.budgetbuddi.data.entity
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
-
 /*
-Author: Android Developers
-Description: Used as reference for implementing a Room entity with a table name and auto-generated primary key.
-Reference: Android Developers. 2019. Save data in a local database using Room  |  Android Developers. [Online]. Available at: https://developer.android.com/training/data-storage/room [Accessed 29 April 2026].
+Author: Firebase / Google Developers
+Description: Used as a plain Kotlin data model for category documents stored in Cloud Firestore.
+Reference: Firebase. 2026. Cloud Firestore data model. [Online].
+Available at: https://firebase.google.com/docs/firestore/data-model
+Accessed: 19 May 2026.
 */
 
-@Entity(tableName = "categories")
 data class CategoryEntity(
-
-    @PrimaryKey(autoGenerate = true)
-    val id: Int = 0,
-    val userEmail: String,
-    val mainCategory: String,
-    val subCategory: String,
-    val visualType: String,
-    val visualValue: String,
-    val outlineColor: String
+    val id: String = "",
+    val userId: String = "",
+    val mainCategory: String = "",
+    val subCategory: String = "",
+    val visualType: String = "emoji",
+    val visualValue: String = "🍳",
+    val outlineColor: String = "#139A43",
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
