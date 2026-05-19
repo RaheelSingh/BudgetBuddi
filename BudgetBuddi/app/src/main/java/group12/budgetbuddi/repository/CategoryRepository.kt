@@ -1,6 +1,5 @@
 package group12.budgetbuddi.repository
 
-import group12.budgetbuddi.data.dao.CategoryDao
 import group12.budgetbuddi.data.entity.CategoryEntity
 import kotlinx.coroutines.flow.Flow
 

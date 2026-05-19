@@ -5,7 +5,6 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import group12.budgetbuddi.data.dao.BudgetGoalDao
-import group12.budgetbuddi.data.dao.CategoryDao
 import group12.budgetbuddi.data.dao.ExpenseDao
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.data.entity.CategoryEntity
