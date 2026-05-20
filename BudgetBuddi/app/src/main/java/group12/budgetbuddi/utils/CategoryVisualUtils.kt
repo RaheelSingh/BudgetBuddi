@@ -97,7 +97,7 @@ fun colorFromHex(hex: String): Color {
     }.getOrElse { Color.Gray }
 }
 
-// Converts selected Compose colours into hex strings for storing in Room.
+// Converts selected Compose colours into hex strings for storing in Firestore.
 fun colorToHex(color: Color): String {
     return "#%06X".format(0xFFFFFF and color.toArgb())
 }
