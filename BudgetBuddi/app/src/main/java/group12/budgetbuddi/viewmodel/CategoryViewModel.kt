@@ -41,6 +41,9 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     val mainCategories: StateFlow<List<String>>
 
     init {
+        Log.d(TAG, "CategoryViewModel created")
+        Log.d(TAG, "Current Firebase userId = $currentUserId")
+
         if (currentUserId == null) {
             Log.e(TAG, "No logged-in Firebase user found")
 
@@ -65,16 +68,37 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
             }
 
             allCategories = repository.observeAllCategories(currentUserId)
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+                .onEach { categories ->
+                    Log.d(TAG, "allCategories emitted ${categories.size} categories")
+                    categories.forEach {
+                        Log.d(
+                            TAG,
+                            "Category emitted: id=${it.id}, main=${it.mainCategory}, sub=${it.subCategory}"
+                        )
+                    }
+                }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList()
+                )
 
             mainCategories = allCategories
                 .map { categories ->
                     categories
                         .map { it.mainCategory }
+                        .filter { it.isNotBlank() }
                         .distinct()
                         .sorted()
                 }
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+                .onEach { mainCategories ->
+                    Log.d(TAG, "mainCategories emitted ${mainCategories.size}: $mainCategories")
+                }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList()
+                )
 
             filteredCategories = combine(
                 allCategories,
@@ -88,7 +112,15 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                                 it.subCategory.contains(query, ignoreCase = true)
                     }
                 }
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+            }
+                .onEach { categories ->
+                    Log.d(TAG, "filteredCategories emitted ${categories.size} categories")
+                }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList()
+                )
         }
     }
 
@@ -107,6 +139,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         if (userId == null) {
             _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot add category because currentUserId is null")
             return
         }
 
@@ -126,6 +159,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Adding category: ${newCategory.mainCategory} / ${newCategory.subCategory}")
                 repository.insertCategory(userId, newCategory)
                 _uiMessage.value = "Category added"
             } catch (e: Exception) {
@@ -140,6 +174,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         if (userId == null) {
             _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot update category because currentUserId is null")
             return
         }
 
@@ -150,6 +185,11 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
+                Log.d(
+                    TAG,
+                    "Updating category id=${updatedCategory.id}: ${updatedCategory.mainCategory} / ${updatedCategory.subCategory}"
+                )
+
                 repository.updateCategory(
                     userId,
                     updatedCategory.copy(
@@ -158,6 +198,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                         subCategory = updatedCategory.subCategory.trim()
                     )
                 )
+
                 _uiMessage.value = "Category updated"
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update category: ${e.message}", e)
@@ -175,6 +216,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         if (userId == null) {
             _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot rename category because currentUserId is null")
             return
         }
 
@@ -190,6 +232,11 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
+                Log.d(
+                    TAG,
+                    "Updating/renaming category. oldMain=$oldMainCategory, newMain=$newMainCategory, selectedId=${selectedCategory?.id}"
+                )
+
                 repository.updateCategoryAndMaybeRenameMainCategory(
                     userId = userId,
                     oldMainCategory = oldMainCategory,
@@ -214,11 +261,13 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         if (userId == null) {
             _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot delete subcategory because currentUserId is null")
             return
         }
 
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Deleting subcategory id=${category.id}")
                 repository.deleteCategory(userId, category)
                 _uiMessage.value = "Subcategory deleted"
             } catch (e: Exception) {
@@ -233,6 +282,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         if (userId == null) {
             _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot delete whole category because currentUserId is null")
             return
         }
 
@@ -243,6 +293,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Deleting whole category: $mainCategory")
                 repository.deleteWholeMainCategory(userId, mainCategory)
                 _uiMessage.value = "Category deleted"
             } catch (e: Exception) {

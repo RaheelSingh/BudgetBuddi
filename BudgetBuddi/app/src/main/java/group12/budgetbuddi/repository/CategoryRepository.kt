@@ -39,35 +39,67 @@ class CategoryRepository {
             .collection(CATEGORIES_COLLECTION)
 
     fun observeAllCategories(userId: String): Flow<List<CategoryEntity>> = callbackFlow {
+        Log.d(TAG, "Starting category listener for userId=$userId")
+
         val listener = categoriesCollection(userId)
-            .orderBy("mainCategory")
-            .orderBy("subCategory")
             .addSnapshotListener { snapshot, error ->
 
                 if (error != null) {
                     Log.e(TAG, "Error observing categories: ${error.message}", error)
-                    trySend(emptyList())
+
+                    /*
+                     Do NOT send emptyList() here.
+
+                     If Firestore has a temporary permission/index/network issue,
+                     sending emptyList() wipes the UI and makes it look like the user
+                     has no categories, which is misleading.
+                    */
                     return@addSnapshotListener
                 }
 
-                val categories = snapshot?.documents?.map { document ->
+                if (snapshot == null) {
+                    Log.w(TAG, "Category snapshot is null for userId=$userId")
+                    return@addSnapshotListener
+                }
+
+                Log.d(TAG, "Raw category documents found: ${snapshot.documents.size}")
+
+                val categories = snapshot.documents.mapNotNull { document ->
+                    val mainCategory = document.getString("mainCategory") ?: ""
+                    val subCategory = document.getString("subCategory") ?: ""
+
+                    if (mainCategory.isBlank() || subCategory.isBlank()) {
+                        Log.w(
+                            TAG,
+                            "Skipping invalid category document ${document.id}. mainCategory='$mainCategory', subCategory='$subCategory'"
+                        )
+                        return@mapNotNull null
+                    }
+
                     CategoryEntity(
                         id = document.id,
                         userId = document.getString("userId") ?: userId,
-                        mainCategory = document.getString("mainCategory") ?: "",
-                        subCategory = document.getString("subCategory") ?: "",
+                        mainCategory = mainCategory,
+                        subCategory = subCategory,
                         visualType = document.getString("visualType") ?: "emoji",
                         visualValue = document.getString("visualValue") ?: "🍳",
                         outlineColor = document.getString("outlineColor") ?: "#139A43",
                         createdAt = document.getLong("createdAt") ?: 0L,
                         updatedAt = document.getLong("updatedAt") ?: 0L
                     )
-                } ?: emptyList()
+                }
+                    .sortedWith(
+                        compareBy<CategoryEntity> { it.mainCategory.lowercase() }
+                            .thenBy { it.subCategory.lowercase() }
+                    )
+
+                Log.d(TAG, "Observed valid categories: ${categories.size} for userId=$userId")
 
                 trySend(categories)
             }
 
         awaitClose {
+            Log.d(TAG, "Closing category listener for userId=$userId")
             listener.remove()
         }
     }
@@ -79,6 +111,11 @@ class CategoryRepository {
         if (cleanMainCategory.isBlank() || cleanSubCategory.isBlank()) {
             throw IllegalArgumentException("Category and subcategory cannot be empty")
         }
+
+        Log.d(
+            TAG,
+            "Attempting to insert category for userId=$userId: $cleanMainCategory / $cleanSubCategory"
+        )
 
         val duplicateSnapshot = categoriesCollection(userId)
             .whereEqualTo("mainCategory", cleanMainCategory)
@@ -107,22 +144,31 @@ class CategoryRepository {
 
         documentRef.set(categoryData).await()
 
-        Log.d(TAG, "Category inserted: ${documentRef.id}")
+        Log.d(TAG, "Category inserted with documentId=${documentRef.id}")
     }
 
     suspend fun insertCategories(userId: String, categories: List<CategoryEntity>) {
         if (categories.isEmpty()) return
 
+        Log.d(TAG, "Attempting to insert ${categories.size} default categories for userId=$userId")
+
         val batch = firestore.batch()
         val now = System.currentTimeMillis()
 
         categories.forEach { category ->
+            val cleanMainCategory = category.mainCategory.trim()
+            val cleanSubCategory = category.subCategory.trim()
+
+            if (cleanMainCategory.isBlank() || cleanSubCategory.isBlank()) {
+                return@forEach
+            }
+
             val documentRef = categoriesCollection(userId).document()
 
             val categoryData = hashMapOf(
                 "userId" to userId,
-                "mainCategory" to category.mainCategory.trim(),
-                "subCategory" to category.subCategory.trim(),
+                "mainCategory" to cleanMainCategory,
+                "subCategory" to cleanSubCategory,
                 "visualType" to category.visualType,
                 "visualValue" to category.visualValue,
                 "outlineColor" to category.outlineColor,
@@ -135,7 +181,7 @@ class CategoryRepository {
 
         batch.commit().await()
 
-        Log.d(TAG, "Inserted ${categories.size} default categories")
+        Log.d(TAG, "Inserted default categories for userId=$userId")
     }
 
     suspend fun updateCategory(userId: String, category: CategoryEntity) {
@@ -143,9 +189,17 @@ class CategoryRepository {
             throw IllegalArgumentException("Cannot update category without Firestore document ID")
         }
 
+        val cleanMainCategory = category.mainCategory.trim()
+        val cleanSubCategory = category.subCategory.trim()
+
+        if (cleanMainCategory.isBlank() || cleanSubCategory.isBlank()) {
+            throw IllegalArgumentException("Category and subcategory cannot be empty")
+        }
+
         val updates = mapOf(
-            "mainCategory" to category.mainCategory.trim(),
-            "subCategory" to category.subCategory.trim(),
+            "userId" to userId,
+            "mainCategory" to cleanMainCategory,
+            "subCategory" to cleanSubCategory,
             "visualType" to category.visualType,
             "visualValue" to category.visualValue,
             "outlineColor" to category.outlineColor,
@@ -175,28 +229,54 @@ class CategoryRepository {
 
         val now = System.currentTimeMillis()
 
+        /*
+         If the main category name did not change, only update the selected subcategory.
+        */
         if (cleanOldMain == cleanNewMain) {
             selectedCategory?.let {
-                updateCategory(userId, it.copy(mainCategory = cleanNewMain))
+                updateCategory(
+                    userId = userId,
+                    category = it.copy(
+                        userId = userId,
+                        mainCategory = cleanNewMain,
+                        subCategory = it.subCategory.trim()
+                    )
+                )
             }
             return
         }
 
+        /*
+         If the main category name changed, rename all subcategories under it.
+         If the user also selected one subcategory, update its visual fields too.
+        */
         val snapshot = categoriesCollection(userId)
             .whereEqualTo("mainCategory", cleanOldMain)
             .get()
             .await()
 
+        if (snapshot.isEmpty) {
+            Log.w(TAG, "No documents found when renaming main category: $cleanOldMain")
+            return
+        }
+
         val batch = firestore.batch()
 
         snapshot.documents.forEach { document ->
             val updates = mutableMapOf<String, Any>(
+                "userId" to userId,
                 "mainCategory" to cleanNewMain,
                 "updatedAt" to now
             )
 
             if (selectedCategory != null && document.id == selectedCategory.id) {
-                updates["subCategory"] = selectedCategory.subCategory.trim()
+                val cleanSubCategory = selectedCategory.subCategory.trim()
+
+                if (cleanSubCategory.isBlank()) {
+                    throw IllegalArgumentException("Subcategory cannot be empty")
+                }
+
+                updates["subCategory"] = cleanSubCategory
                 updates["visualType"] = selectedCategory.visualType
                 updates["visualValue"] = selectedCategory.visualValue
                 updates["outlineColor"] = selectedCategory.outlineColor
@@ -207,7 +287,7 @@ class CategoryRepository {
 
         batch.commit().await()
 
-        Log.d(TAG, "Renamed main category from $cleanOldMain to $cleanNewMain")
+        Log.d(TAG, "Renamed main category from '$cleanOldMain' to '$cleanNewMain'")
     }
 
     suspend fun deleteCategory(userId: String, category: CategoryEntity) {
@@ -226,12 +306,19 @@ class CategoryRepository {
     suspend fun deleteWholeMainCategory(userId: String, mainCategory: String) {
         val cleanMainCategory = mainCategory.trim()
 
+        if (cleanMainCategory.isBlank()) {
+            throw IllegalArgumentException("Main category cannot be empty")
+        }
+
         val snapshot = categoriesCollection(userId)
             .whereEqualTo("mainCategory", cleanMainCategory)
             .get()
             .await()
 
-        if (snapshot.isEmpty) return
+        if (snapshot.isEmpty) {
+            Log.w(TAG, "No documents found for whole category delete: $cleanMainCategory")
+            return
+        }
 
         val batch = firestore.batch()
 
@@ -250,11 +337,18 @@ class CategoryRepository {
             .get()
             .await()
 
+        Log.d(TAG, "Category count check for userId=$userId found ${snapshot.size()} document(s)")
+
         return snapshot.size()
     }
 
     suspend fun seedDefaultCategoriesIfNeeded(userId: String) {
-        if (getCategoryCountForUser(userId) > 0) return
+        val count = getCategoryCountForUser(userId)
+
+        if (count > 0) {
+            Log.d(TAG, "Default seeding skipped. User already has categories.")
+            return
+        }
 
         val defaultCategories = listOf(
             CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Breakfast", visualType = "emoji", visualValue = "🍳", outlineColor = "#4CAF50"),
