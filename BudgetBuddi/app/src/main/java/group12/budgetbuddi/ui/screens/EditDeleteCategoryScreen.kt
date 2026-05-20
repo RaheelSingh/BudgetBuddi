@@ -82,30 +82,19 @@ fun EditDeleteCategoryScreen(
     }
 
     fun saveChanges() {
-        selectedSubCategory?.let {
-            categoryViewModel.updateCategory(
-                it.copy(
-                    mainCategory = editedMainCategory,
-                    subCategory = editedSubCategory,
-                    visualType = editedVisualType,
-                    visualValue = editedVisualValue,
-                    outlineColor = editedOutlineColor
-                )
-            )
-        }
+        val selectedUpdatedCategory = selectedSubCategory?.copy(
+            mainCategory = editedMainCategory.trim(),
+            subCategory = editedSubCategory.trim(),
+            visualType = editedVisualType,
+            visualValue = editedVisualValue,
+            outlineColor = editedOutlineColor
+        )
 
-        // If the main category name changes, all subcategories under it are renamed too.
-        if (
-            selectedMainCategory.isNotBlank() &&
-            editedMainCategory.isNotBlank() &&
-            editedMainCategory != selectedMainCategory
-        ) {
-            filteredSubCategories.forEach {
-                categoryViewModel.updateCategory(
-                    it.copy(mainCategory = editedMainCategory)
-                )
-            }
-        }
+        categoryViewModel.updateCategoryAndMaybeRenameMainCategory(
+            oldMainCategory = selectedMainCategory,
+            newMainCategory = editedMainCategory,
+            selectedCategory = selectedUpdatedCategory
+        )
 
         navController.popBackStack()
     }
