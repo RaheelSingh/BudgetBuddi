@@ -5,6 +5,9 @@
     <!-- Camera permission -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- Internet permission -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Optional: declare camera feature (not required, avoids crashes on devices without camera) -->
     <uses-feature
         android:name="android.hardware.camera"
