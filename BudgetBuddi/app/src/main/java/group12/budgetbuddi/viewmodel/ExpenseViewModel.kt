@@ -3,8 +3,6 @@ package group12.budgetbuddi.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import group12.budgetbuddi.data.database.AppDatabase
-import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.ExpenseRepository
 import group12.budgetbuddi.utils.SessionManager
 import kotlinx.coroutines.flow.*

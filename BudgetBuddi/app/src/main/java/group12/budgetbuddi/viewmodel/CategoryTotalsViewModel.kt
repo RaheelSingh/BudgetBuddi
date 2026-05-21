@@ -4,7 +4,6 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import group12.budgetbuddi.data.database.AppDatabase
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.repository.BudgetGoalRepository
 import group12.budgetbuddi.repository.ExpenseRepository

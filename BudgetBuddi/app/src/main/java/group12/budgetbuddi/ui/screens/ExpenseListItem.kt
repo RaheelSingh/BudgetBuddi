@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.io.File
 import java.net.URLEncoder

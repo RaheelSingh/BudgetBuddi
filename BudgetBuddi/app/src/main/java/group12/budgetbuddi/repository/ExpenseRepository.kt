@@ -1,7 +1,5 @@
 package group12.budgetbuddi.repository
 
-import group12.budgetbuddi.data.dao.ExpenseDao
-import group12.budgetbuddi.data.entity.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
 
 class ExpenseRepository(private val expenseDao: ExpenseDao) {

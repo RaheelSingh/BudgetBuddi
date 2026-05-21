@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
