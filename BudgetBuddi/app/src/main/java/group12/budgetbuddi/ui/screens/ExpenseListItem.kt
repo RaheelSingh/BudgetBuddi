@@ -43,20 +43,20 @@ fun ExpenseListItem(
     onDeleteClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Format the date — identical to original
-    val displayDate = try {
-        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val parsedDate = inputFormat.parse(expense.date)
-        if (parsedDate != null) dateFormat.format(parsedDate) else expense.date
-    } catch (e: Exception) {
-        expense.date
+    val displayDate = remember(expense.date) {
+        try {
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val parsedDate = inputFormat.parse(expense.date)
+            if (parsedDate != null) dateFormat.format(parsedDate) else expense.date
+        } catch (e: Exception) {
+            expense.date
+        }
     }
 
-    // ─── CHANGED: resolve photoPath into a displayable model for Coil
-    // Now handles: Supabase URLs (https://), content:// URIs, legacy file paths
+
     val imageModel: Any? = remember(expense.photoPath) {
         val path = expense.photoPath
         when {
@@ -111,7 +111,6 @@ fun ExpenseListItem(
                 contentAlignment = Alignment.Center
             ) {
                 if (hasPhoto) {
-                    // ─── CHANGED: pass imageModel (URL string or Uri) directly to Coil
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(imageModel)
@@ -139,7 +138,6 @@ fun ExpenseListItem(
                 }
             }
 
-            // Expense Details — identical to original
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -173,7 +171,6 @@ fun ExpenseListItem(
                 )
             }
 
-            // Amount and Delete Button — identical to original
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.SpaceBetween

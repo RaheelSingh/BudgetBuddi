@@ -85,7 +85,7 @@ fun ExpenseListScreen(
         filtered
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+    val dateDisplayFormat = remember { SimpleDateFormat("MM/dd/yyyy", Locale.getDefault()) }
 
     Scaffold(
         topBar = {
