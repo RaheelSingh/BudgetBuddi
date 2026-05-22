@@ -44,6 +44,7 @@ import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
+import group12.budgetbuddi.data.entity.ExpenseEntity
 
 private val BrandGreen = Color(0xFF4CAF50)
 private val IncomeGreen = Color(0xFF2E7D32)
