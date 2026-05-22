@@ -19,8 +19,6 @@ Google. “ViewModel Overview  |  Android Developers.” Android Developers, 201
 “State and Jetpack Compose.” Android Developers, 2024, developer.android.com/develop/ui/compose/state. Accessed 29 Apr. 2026.
  */
 
-
-
 package group12.budgetbuddi.ui.screens
 
 import android.Manifest
@@ -101,15 +99,14 @@ fun AddTransactionScreen(
         var paymentMethod by remember { mutableStateOf("Cash") }
         var isRecurring by remember { mutableStateOf(false) }
 
-        // Validation error states
         var amountError by remember { mutableStateOf<String?>(null) }
         var categoryError by remember { mutableStateOf<String?>(null) }
         var dateError by remember { mutableStateOf<String?>(null) }
 
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-        var photoPath by remember { mutableStateOf<String?>(null) }
+        // The ViewModel handles uploading it to Supabase on save.
+        var photoUriString by remember { mutableStateOf<String?>(null) }
         var cameraUri by remember { mutableStateOf<Uri?>(null) }
-        var pendingCameraPath by remember { mutableStateOf<String?>(null) }
 
         var showDatePicker by remember { mutableStateOf(false) }
         var showCategoryDialog by remember { mutableStateOf(false) }
@@ -121,8 +118,8 @@ fun AddTransactionScreen(
 
         val saveSuccess by expenseViewModel.saveSuccess.collectAsState()
         val uiMessage by expenseViewModel.uiMessage.collectAsState()
+        val isUploadingImage by expenseViewModel.isUploadingImage.collectAsState()
 
-        // Clear field errors as user corrects them
         LaunchedEffect(amountText) {
             if (amountText.isNotBlank()) amountError = null
         }
@@ -133,21 +130,22 @@ fun AddTransactionScreen(
             if (selectedDate.isNotBlank()) dateError = null
         }
 
-        val photoPickerLauncher = rememberLauncherForActivityResult(  //Handles external app results safely (camera, gallery, permissions) without deprecated APIs.
+        val photoPickerLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia()
         ) { uri ->
             if (uri != null) {
                 selectedImageUri = uri
-                photoPath = uri.toString()
+                photoUriString = uri.toString()
             }
         }
 
         val cameraLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.TakePicture()
         ) { success ->
-            if (success) {
+            if (success && cameraUri != null) {
                 selectedImageUri = cameraUri
-                photoPath = pendingCameraPath
+                // FileProvider URIs they work the same as gallery
+                photoUriString = cameraUri.toString()
             }
         }
 
@@ -156,7 +154,6 @@ fun AddTransactionScreen(
         ) { granted ->
             if (granted) {
                 val file = createImageFile(context)
-                pendingCameraPath = file.absolutePath
                 cameraUri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.provider",
@@ -171,7 +168,7 @@ fun AddTransactionScreen(
         LaunchedEffect(saveSuccess) {
             if (saveSuccess) {
                 expenseViewModel.clearSaveSuccess()
-                navController.popBackStack() //Handles screen navigation in the app.
+                navController.popBackStack()
             }
         }
 
@@ -203,7 +200,7 @@ fun AddTransactionScreen(
                 )
                 Spacer(modifier = Modifier.width(48.dp))
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
             Image(
                 painter = painterResource(id = R.drawable.bb_og),
@@ -215,7 +212,7 @@ fun AddTransactionScreen(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -230,7 +227,6 @@ fun AddTransactionScreen(
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { input ->
-                        // Allow only valid decimal input; prevent multiple dots
                         val filtered = input.filter { c -> c.isDigit() || c == '.' }
                         val dotCount = filtered.count { it == '.' }
                         if (dotCount <= 1) amountText = filtered
@@ -427,7 +423,7 @@ fun AddTransactionScreen(
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Image(
-                    painter = rememberAsyncImagePainter(uri),  //Loads and displays images efficiently from a URI.
+                    painter = rememberAsyncImagePainter(uri),
                     contentDescription = "Selected transaction photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -440,9 +436,8 @@ fun AddTransactionScreen(
                 TextButton(
                     onClick = {
                         selectedImageUri = null
-                        photoPath = null
+                        photoUriString = null
                         cameraUri = null
-                        pendingCameraPath = null
                     }
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
@@ -526,11 +521,31 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // ─── CHANGED: Show loading indicator during image upload
+            if (isUploadingImage) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = BrandGreen,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Uploading photo...", color = Color.Gray, fontSize = 13.sp)
+                }
+            }
+
             Button(
+                enabled = !isUploadingImage,
                 onClick = {
                     var isValid = true
 
-                    val parsedAmount = amountText.toDoubleOrNull()  //Ensures user input is: Numeric Valid
+                    val parsedAmount = amountText.toDoubleOrNull()
                     when {
                         amountText.isBlank() -> {
                             amountError = "Amount is required"
@@ -566,6 +581,8 @@ fun AddTransactionScreen(
                     }
 
                     if (isValid) {
+                        // ─── CHANGED: pass photoUriString instead of photoPath
+                        // Everything else is identical to your original
                         expenseViewModel.saveExpense(
                             amount = parsedAmount!!,
                             type = selectedType,
@@ -575,7 +592,7 @@ fun AddTransactionScreen(
                             startTime = "",
                             endTime = "",
                             note = note.trim(),
-                            photoPath = photoPath,
+                            photoPath = photoUriString,   // URI string → ViewModel uploads to Supabase
                             paymentMethod = paymentMethod,
                             isRecurring = isRecurring
                         )
@@ -594,6 +611,7 @@ fun AddTransactionScreen(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
+
         if (showDatePicker) {
             val datePickerState = rememberDatePickerState()
             DatePickerDialog(
@@ -602,7 +620,7 @@ fun AddTransactionScreen(
                     TextButton(onClick = {
                         val millis = datePickerState.selectedDateMillis
                         if (millis != null) {
-                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) //Formats the selected date into a readable string format.
+                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
                             selectedDate = sdf.format(Date(millis))
                             dateError = null
                         } else {
@@ -755,7 +773,7 @@ fun AddTransactionScreen(
                             onClick = {
                                 showPhotoDialog = false
                                 photoPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)  //Allows users to select images from their device securely.
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             },
                             modifier = Modifier.fillMaxWidth()
@@ -773,8 +791,7 @@ fun AddTransactionScreen(
 
                                 if (hasPermission) {
                                     val file = createImageFile(context)
-                                    pendingCameraPath = file.absolutePath
-                                    cameraUri = FileProvider.getUriForFile(  //Generates a secure URI to share a file with the camera app.
+                                    cameraUri = FileProvider.getUriForFile(
                                         context,
                                         "${context.packageName}.provider",
                                         file
@@ -836,13 +853,19 @@ private fun FormRow(
             )
         }
         trailingIcon?.let {
-            Icon(imageVector = it, contentDescription = null, tint = if (hasError) ErrorRed else BrandGreen, modifier = Modifier.size(18.dp))
+            Icon(
+                imageVector = it,
+                contentDescription = null,
+                tint = if (hasError) ErrorRed else BrandGreen,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
 
+
 private fun createImageFile(context: Context): File {
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES) //Stores images in app-specific external storage.
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
     return File.createTempFile("EXPENSE_${timestamp}_", ".jpg", storageDir)
 }
