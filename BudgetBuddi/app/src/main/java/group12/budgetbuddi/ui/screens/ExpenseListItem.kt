@@ -1,12 +1,9 @@
 //  Code Attributions
 
-
 /* Stack Overflow (2010). Get Content URI from File Path in Android [Online].
 * Available at: https://stackoverflow.com/questions/3004713/get-content-uri-from-file-path-in-android
 * (Accessed: 29 April 2026)
 */
-
-
 
 package group12.budgetbuddi.ui.screens
 
@@ -30,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.io.File
 import java.net.URLEncoder
@@ -48,7 +46,7 @@ fun ExpenseListItem(
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Format the date
+    // Format the date — identical to original
     val displayDate = try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val parsedDate = inputFormat.parse(expense.date)
@@ -57,18 +55,21 @@ fun ExpenseListItem(
         expense.date
     }
 
-    // Check if photo exists
-    val photoUri = expense.photoPath?.let { path ->
-        if (path.startsWith("content://")) {
-            try {
-                Uri.parse(path)
-            } catch (e: Exception) { null }
-        } else {
-            val file = File(path)
-            if (file.exists()) Uri.fromFile(file) else null
+    // ─── CHANGED: resolve photoPath into a displayable model for Coil
+    // Now handles: Supabase URLs (https://), content:// URIs, legacy file paths
+    val imageModel: Any? = remember(expense.photoPath) {
+        val path = expense.photoPath
+        when {
+            path.isNullOrBlank() -> null
+            path.startsWith("https://") || path.startsWith("http://") -> path  // Supabase public URL
+            path.startsWith("content://") -> Uri.parse(path)                  // Gallery / FileProvider URI
+            else -> {                                                           // Legacy local file path
+                val file = File(path)
+                if (file.exists()) Uri.fromFile(file) else null
+            }
         }
     }
-    val hasPhoto = photoUri != null
+    val hasPhoto = imageModel != null
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -87,8 +88,9 @@ fun ExpenseListItem(
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
                     .clickable {
-                        if (hasPhoto && photoUri != null) {
+                        if (hasPhoto && expense.photoPath != null) {
                             try {
+                                // ─── CHANGED: encode the photoPath (works for both URLs and URIs)
                                 val encodedPath = URLEncoder.encode(expense.photoPath, "UTF-8")
                                 navController.navigate("photo_viewer/$encodedPath")
                             } catch (e: Exception) {
@@ -108,10 +110,11 @@ fun ExpenseListItem(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                if (hasPhoto && photoUri != null) {
+                if (hasPhoto) {
+                    // ─── CHANGED: pass imageModel (URL string or Uri) directly to Coil
                     AsyncImage(
                         model = ImageRequest.Builder(context)
-                            .data(photoUri)
+                            .data(imageModel)
                             .crossfade(true)
                             .build(),
                         contentDescription = "Expense photo",
@@ -136,7 +139,7 @@ fun ExpenseListItem(
                 }
             }
 
-            // Expense Details
+            // Expense Details — identical to original
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -170,7 +173,7 @@ fun ExpenseListItem(
                 )
             }
 
-            // Amount and Delete Button
+            // Amount and Delete Button — identical to original
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.SpaceBetween
@@ -182,7 +185,6 @@ fun ExpenseListItem(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                // Delete Button
                 IconButton(
                     onClick = { showDeleteDialog = true }
                 ) {
@@ -196,7 +198,7 @@ fun ExpenseListItem(
         }
     }
 
-    // Delete Confirmation Dialog
+    // Delete Confirmation Dialog — identical to original
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
