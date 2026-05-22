@@ -16,7 +16,6 @@
 
 package group12.budgetbuddi.ui.screens
 
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -29,7 +28,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,12 +37,15 @@ fun PhotoViewerScreen(
 ) {
     val context = LocalContext.current
 
-    // Handle both file paths and content URIs
-    val uri = if (photoPath.startsWith("content://")) {
-        Uri.parse(photoPath)
-    } else {
-        val file = File(photoPath)
-        if (file.exists()) Uri.fromFile(file) else null
+    // Now photoPath is either a Supabase URL (https://...) or empty
+    val imageModel: Any? = when {
+        photoPath.startsWith("https://") || photoPath.startsWith("http://") -> photoPath
+        photoPath.startsWith("content://") -> android.net.Uri.parse(photoPath)
+        photoPath.isNotBlank() -> {
+            val file = java.io.File(photoPath)
+            if (file.exists()) android.net.Uri.fromFile(file) else null
+        }
+        else -> null
     }
 
     Scaffold(
@@ -65,10 +66,10 @@ fun PhotoViewerScreen(
                 .padding(paddingValues),
             contentAlignment = Alignment.Center
         ) {
-            if (uri != null) {
+            if (imageModel != null) {
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(uri)
+                        .data(imageModel)
                         .crossfade(true)
                         .build(),
                     contentDescription = "Full size expense photo",
@@ -76,23 +77,15 @@ fun PhotoViewerScreen(
                     contentScale = ContentScale.Fit
                 )
             } else {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "Photo not found",
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "The image file may have been moved or deleted",
+                        text = "The image may have been removed",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Path: $photoPath",
-                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
