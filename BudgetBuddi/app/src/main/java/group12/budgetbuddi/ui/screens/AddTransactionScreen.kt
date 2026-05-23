@@ -40,6 +40,7 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import group12.budgetbuddi.R
 import group12.budgetbuddi.ui.components.AppScaffold
+import group12.budgetbuddi.ui.components.CategoryVisualPreview
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
@@ -92,6 +93,12 @@ fun AddTransactionScreen(
         var showPaymentDialog by remember { mutableStateOf(false) }
         var showPhotoDialog by remember { mutableStateOf(false) }
 
+        var expandedMainCategoryInDialog by remember { mutableStateOf<String?>(null) }
+
+        // This prevents the first click from closing the dialog and immediately returning "denied"
+        // before Android has a clean chance to show the permission popup.
+        var pendingCameraPermissionRequest by remember { mutableStateOf(false) }
+
         val allCategories by categoryViewModel.allCategories.collectAsState()
 
         val categoriesForSelectedType = remember(allCategories, selectedType) {
@@ -140,10 +147,8 @@ fun AddTransactionScreen(
             }
         }
 
-        val cameraPermissionLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            if (granted) {
+        fun launchCameraCapture() {
+            try {
                 val file = createImageFile(context)
 
                 cameraUri = FileProvider.getUriForFile(
@@ -152,9 +157,38 @@ fun AddTransactionScreen(
                     file
                 )
 
-                cameraUri?.let { cameraLauncher.launch(it) }
+                cameraUri?.let { uri ->
+                    cameraLauncher.launch(uri)
+                }
+            } catch (e: Exception) {
+                expenseViewModel.setMessage("Unable to open camera: ${e.message}")
+            }
+        }
+
+        val cameraPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                launchCameraCapture()
             } else {
                 expenseViewModel.setMessage("Camera permission denied. Please enable it in Settings.")
+            }
+        }
+
+        LaunchedEffect(pendingCameraPermissionRequest) {
+            if (pendingCameraPermissionRequest) {
+                pendingCameraPermissionRequest = false
+
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.CAMERA
+                ) == PackageManager.PERMISSION_GRANTED
+
+                if (hasPermission) {
+                    launchCameraCapture()
+                } else {
+                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
             }
         }
 
@@ -284,6 +318,7 @@ fun AddTransactionScreen(
                                 selectedMainCategory = ""
                                 selectedSubCategory = ""
                                 categoryError = null
+                                expandedMainCategoryInDialog = null
                             }
                             .padding(horizontal = 28.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -675,7 +710,10 @@ fun AddTransactionScreen(
 
         if (showCategoryDialog) {
             AlertDialog(
-                onDismissRequest = { showCategoryDialog = false },
+                onDismissRequest = {
+                    showCategoryDialog = false
+                    expandedMainCategoryInDialog = null
+                },
                 title = {
                     Text(
                         text = if (selectedType == "income") {
@@ -695,32 +733,117 @@ fun AddTransactionScreen(
                             }
                         )
                     } else {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 420.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
                             mainCategoriesForSelectedType.forEach { main ->
-                                Text(
-                                    text = main,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BrandGreen,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                )
+                                val isExpanded = expandedMainCategoryInDialog == main
 
                                 val subs = categoriesForSelectedType
                                     .filter { it.mainCategory == main }
                                     .sortedBy { it.subCategory }
 
-                                subs.forEach { category ->
-                                    Text(
-                                        text = category.subCategory,
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFFE8F5E9))
                                             .clickable {
-                                                selectedMainCategory = category.mainCategory
-                                                selectedSubCategory = category.subCategory
-                                                showCategoryDialog = false
-                                                categoryError = null
+                                                expandedMainCategoryInDialog =
+                                                    if (isExpanded) null else main
                                             }
-                                            .padding(vertical = 8.dp)
-                                    )
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = main,
+                                            fontWeight = FontWeight.Bold,
+                                            color = BrandGreen,
+                                            fontSize = 15.sp,
+                                            modifier = Modifier.weight(1f)
+                                        )
+
+                                        Icon(
+                                            imageVector = if (isExpanded) {
+                                                Icons.Default.KeyboardArrowUp
+                                            } else {
+                                                Icons.Default.KeyboardArrowDown
+                                            },
+                                            contentDescription = if (isExpanded) {
+                                                "Collapse category"
+                                            } else {
+                                                "Expand category"
+                                            },
+                                            tint = BrandGreen
+                                        )
+                                    }
+
+                                    if (isExpanded) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        subs.forEach { category ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable {
+                                                        selectedMainCategory = category.mainCategory
+                                                        selectedSubCategory = category.subCategory
+                                                        showCategoryDialog = false
+                                                        categoryError = null
+                                                        expandedMainCategoryInDialog = null
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                CategoryVisualPreview(
+                                                    visualType = category.visualType,
+                                                    visualValue = category.visualValue,
+                                                    outlineColor = category.outlineColor,
+                                                    modifier = Modifier.size(42.dp)
+                                                )
+
+                                                Spacer(modifier = Modifier.width(12.dp))
+
+                                                Column(
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(
+                                                        text = category.subCategory,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color.DarkGray,
+                                                        fontSize = 14.sp
+                                                    )
+
+                                                    Text(
+                                                        text = category.mainCategory,
+                                                        color = Color.Gray,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+
+                                                if (
+                                                    selectedMainCategory == category.mainCategory &&
+                                                    selectedSubCategory == category.subCategory
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.CheckCircle,
+                                                        contentDescription = "Selected",
+                                                        tint = BrandGreen,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -728,7 +851,10 @@ fun AddTransactionScreen(
                 },
                 confirmButton = {
                     TextButton(
-                        onClick = { showCategoryDialog = false }
+                        onClick = {
+                            showCategoryDialog = false
+                            expandedMainCategoryInDialog = null
+                        }
                     ) {
                         Text("Cancel")
                     }
@@ -800,25 +926,7 @@ fun AddTransactionScreen(
                         OutlinedButton(
                             onClick = {
                                 showPhotoDialog = false
-
-                                val permissionGranted = ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.CAMERA
-                                ) == PackageManager.PERMISSION_GRANTED
-
-                                if (permissionGranted) {
-                                    val file = createImageFile(context)
-
-                                    cameraUri = FileProvider.getUriForFile(
-                                        context,
-                                        "${context.packageName}.provider",
-                                        file
-                                    )
-
-                                    cameraUri?.let { cameraLauncher.launch(it) }
-                                } else {
-                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                                }
+                                pendingCameraPermissionRequest = true
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {

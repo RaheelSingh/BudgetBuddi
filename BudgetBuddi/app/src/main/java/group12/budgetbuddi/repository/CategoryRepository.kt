@@ -209,10 +209,10 @@ class CategoryRepository {
             return
         }
 
-        var query = categoriesCollection(userId)
+        val snapshot = categoriesCollection(userId)
             .whereEqualTo("mainCategory", cleanOldMain)
-
-        val snapshot = query.get().await()
+            .get()
+            .await()
 
         if (snapshot.isEmpty) {
             Log.w(TAG, "No documents found when renaming main category: $cleanOldMain")
@@ -296,6 +296,7 @@ class CategoryRepository {
         }
 
         val batch = firestore.batch()
+
         snapshot.documents.forEach { document ->
             batch.delete(document.reference)
         }
@@ -312,12 +313,15 @@ class CategoryRepository {
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Dinner", visualType = "emoji", visualValue = "🍽️", outlineColor = "#4CAF50"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Snacks", visualType = "emoji", visualValue = "🍪", outlineColor = "#4CAF50"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Restaurant", visualType = "emoji", visualValue = "🍴", outlineColor = "#4CAF50"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Eating Out", visualType = "emoji", visualValue = "🛍️", outlineColor = "#4CAF50"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Drinks", visualType = "emoji", visualValue = "🥤", outlineColor = "#4CAF50"),
 
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Bus", visualType = "emoji", visualValue = "🚌", outlineColor = "#2196F3"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Subway", visualType = "emoji", visualValue = "🚇", outlineColor = "#2196F3"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Taxi", visualType = "emoji", visualValue = "🚕", outlineColor = "#2196F3"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Train", visualType = "emoji", visualValue = "🚆", outlineColor = "#2196F3"),
 
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Groceries", visualType = "emoji", visualValue = "🛒", outlineColor = "#795548"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Rent", visualType = "emoji", visualValue = "🏠", outlineColor = "#795548"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Water", visualType = "emoji", visualValue = "💧", outlineColor = "#795548"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Electricity", visualType = "emoji", visualValue = "⚡", outlineColor = "#795548"),
@@ -325,6 +329,7 @@ class CategoryRepository {
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Movie", visualType = "emoji", visualValue = "🎬", outlineColor = "#9C27B0"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Games", visualType = "emoji", visualValue = "🎮", outlineColor = "#9C27B0"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Music", visualType = "emoji", visualValue = "🎵", outlineColor = "#9C27B0"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Party", visualType = "emoji", visualValue = "🎉", outlineColor = "#9C27B0"),
 
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Education", subCategory = "School", visualType = "emoji", visualValue = "🏫", outlineColor = "#FF9800"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Education", subCategory = "Self-development", visualType = "emoji", visualValue = "📚", outlineColor = "#FF9800"),
@@ -335,20 +340,20 @@ class CategoryRepository {
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Car", subCategory = "Fuel", visualType = "emoji", visualValue = "⛽", outlineColor = "#607D8B"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Car", subCategory = "Parking", visualType = "emoji", visualValue = "🅿️", outlineColor = "#607D8B"),
 
-            // Income defaults
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Monthly Salary", visualType = "emoji", visualValue = "💼", outlineColor = "#139A43"),
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Part-time Job", visualType = "emoji", visualValue = "🕒", outlineColor = "#139A43"),
+            // Income defaults with varied outline colours
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Monthly Salary", visualType = "emoji", visualValue = "💼", outlineColor = "#2E7D32"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Part-time Job", visualType = "emoji", visualValue = "🕒", outlineColor = "#388E3C"),
 
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Investments", subCategory = "Dividends", visualType = "emoji", visualValue = "📈", outlineColor = "#2E7D32"),
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Investments", subCategory = "Interest", visualType = "emoji", visualValue = "🏦", outlineColor = "#2E7D32"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Investments", subCategory = "Dividends", visualType = "emoji", visualValue = "📈", outlineColor = "#1565C0"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Investments", subCategory = "Interest", visualType = "emoji", visualValue = "🏦", outlineColor = "#1976D2"),
 
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Allowance", subCategory = "Family Allowance", visualType = "emoji", visualValue = "🤝", outlineColor = "#00A86B"),
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Allowance", subCategory = "Student Allowance", visualType = "emoji", visualValue = "🎓", outlineColor = "#00A86B"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Allowance", subCategory = "Family Allowance", visualType = "emoji", visualValue = "🤝", outlineColor = "#00897B"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Allowance", subCategory = "Student Allowance", visualType = "emoji", visualValue = "🎓", outlineColor = "#00ACC1"),
 
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Bonus", subCategory = "Work Bonus", visualType = "emoji", visualValue = "🎁", outlineColor = "#43A047"),
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Bonus", subCategory = "Gift Bonus", visualType = "emoji", visualValue = "💝", outlineColor = "#43A047"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Bonus", subCategory = "Work Bonus", visualType = "emoji", visualValue = "🎁", outlineColor = "#F9A825"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Bonus", subCategory = "Gift Bonus", visualType = "emoji", visualValue = "💝", outlineColor = "#FB8C00"),
 
-            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Other", subCategory = "Other Income", visualType = "emoji", visualValue = "➕", outlineColor = "#607D8B")
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Other", subCategory = "Other Income", visualType = "emoji", visualValue = "➕", outlineColor = "#6A1B9A")
         )
 
         defaultCategories.forEach { category ->
