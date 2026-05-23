@@ -68,6 +68,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 private val BrandGreen = Color(0xFF4CAF50)
 private val LightGreen = Color(0xFFE8F5E9)
@@ -515,6 +516,7 @@ fun AddTransactionScreen(
                     )
                 }
                 LaunchedEffect(message) {
+                    delay(3500)
                     expenseViewModel.clearMessage()
                 }
             }

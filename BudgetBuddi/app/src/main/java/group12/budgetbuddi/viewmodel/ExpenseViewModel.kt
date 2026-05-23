@@ -79,7 +79,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             repository.getAllExpenses(userId)
                 .catch { error ->
                     Log.e(TAG, "Failed to observe expenses: ${error.message}", error)
-                    _uiMessage.value = "Failed to load expenses"
+                    _uiMessage.value = "Failed to load expenses: ${error.message}"
                     _allExpenses.value = emptyList()
                 }
                 .collect { expenses ->
@@ -92,25 +92,32 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         context: Context,
         userId: String,
         imageUri: Uri
-    ): String? {
-        return try {
+    ): String {
+        try {
             _isUploadingImage.value = true
+            _uiMessage.value = "Uploading image..."
+
+            Log.d(TAG, "Starting Supabase upload for URI: $imageUri")
 
             val imageBytes = context.contentResolver
                 .openInputStream(imageUri)
-                ?.use { it.readBytes() }
+                ?.use { inputStream ->
+                    inputStream.readBytes()
+                }
 
-            if (imageBytes == null) {
-                Log.e(TAG, "Could not read image bytes from URI: $imageUri")
-                _uiMessage.value = "Could not read the selected image"
-                return null
+            if (imageBytes == null || imageBytes.isEmpty()) {
+                throw IllegalStateException("Could not read selected image")
             }
+
+            Log.d(TAG, "Image bytes read successfully. Size=${imageBytes.size}")
 
             val mimeType = context.contentResolver.getType(imageUri) ?: "image/jpeg"
 
             val extension = when (mimeType) {
                 "image/png" -> "png"
                 "image/webp" -> "webp"
+                "image/jpeg" -> "jpeg"
+                "image/jpg" -> "jpg"
                 else -> "jpg"
             }
 
@@ -119,11 +126,12 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             /*
              Supabase storage path:
 
-             expense-receipts/{uid}/receipt_timestamp.jpg
-
-             Using uid is better than email because Firebase UID is stable.
+             Bucket: expense-receipts
+             Path:   {uid}/receipt_timestamp.jpeg
             */
             val filePath = "$userId/$filename"
+
+            Log.d(TAG, "Uploading to bucket=$BUCKET_NAME path=$filePath mimeType=$mimeType")
 
             val bucket = SupabaseClient.client.storage.from(BUCKET_NAME)
 
@@ -137,14 +145,13 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
             val publicUrl = bucket.publicUrl(filePath)
 
-            Log.d(TAG, "Image uploaded successfully: $publicUrl")
+            Log.d(TAG, "Supabase upload successful. Public URL=$publicUrl")
 
-            publicUrl
+            return publicUrl
 
         } catch (e: Exception) {
             Log.e(TAG, "Supabase upload failed: ${e.message}", e)
-            _uiMessage.value = "Image upload failed: ${e.message}"
-            null
+            throw e
 
         } finally {
             _isUploadingImage.value = false
@@ -168,7 +175,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
         if (userId.isNullOrBlank()) {
             _uiMessage.value = "No logged-in user found"
-            Log.e(TAG, "Cannot save expense because Firebase userId is null")
+            Log.e(TAG, "Cannot save transaction because Firebase userId is null")
             return
         }
 
@@ -194,18 +201,28 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             try {
+                _uiMessage.value = "Saving transaction..."
+
                 val finalPhotoPath: String? = if (!photoPath.isNullOrBlank()) {
                     val context = getApplication<Application>().applicationContext
                     val uri = Uri.parse(photoPath)
 
-                    uploadImageToSupabase(
-                        context = context,
-                        userId = userId,
-                        imageUri = uri
-                    )
+                    try {
+                        uploadImageToSupabase(
+                            context = context,
+                            userId = userId,
+                            imageUri = uri
+                        )
+                    } catch (uploadError: Exception) {
+                        _uiMessage.value = "Image upload failed: ${uploadError.message}"
+                        Log.e(TAG, "Stopping transaction save because image upload failed", uploadError)
+                        return@launch
+                    }
                 } else {
                     null
                 }
+
+                Log.d(TAG, "Final photoPath before Firestore save: $finalPhotoPath")
 
                 val now = System.currentTimeMillis()
 
@@ -235,8 +252,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 _saveSuccess.value = true
 
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to save expense: ${e.message}", e)
-                _uiMessage.value = "Failed to save: ${e.message}"
+                Log.e(TAG, "Failed to save transaction: ${e.message}", e)
+                _uiMessage.value = "Failed to save transaction: ${e.message}"
             }
         }
     }
