@@ -39,8 +39,6 @@ class ExpenseRepository {
             category = data["category"] as? String ?: "",
             subCategory = data["subCategory"] as? String ?: "",
             date = data["date"] as? String ?: "",
-            startTime = data["startTime"] as? String ?: "",
-            endTime = data["endTime"] as? String ?: "",
             note = data["note"] as? String ?: "",
             photoPath = data["photoPath"] as? String,
             paymentMethod = data["paymentMethod"] as? String ?: "",
@@ -58,8 +56,6 @@ class ExpenseRepository {
             "category" to expense.category,
             "subCategory" to expense.subCategory,
             "date" to expense.date,
-            "startTime" to expense.startTime,
-            "endTime" to expense.endTime,
             "note" to expense.note,
             "photoPath" to expense.photoPath,
             "paymentMethod" to expense.paymentMethod,
@@ -82,7 +78,6 @@ class ExpenseRepository {
         val listenerRegistration = expensesCollection(userId)
             .orderBy("date", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
-
                 if (error != null) {
                     Log.e(TAG, "Error listening to expenses: ${error.message}", error)
                     return@addSnapshotListener
@@ -95,7 +90,6 @@ class ExpenseRepository {
 
                 val expenses = snapshot.documents.mapNotNull { document ->
                     val data = document.data ?: return@mapNotNull null
-
                     mapToExpense(
                         id = document.id,
                         userId = userId,
@@ -104,7 +98,6 @@ class ExpenseRepository {
                 }
 
                 Log.d(TAG, "Observed ${expenses.size} expenses for userId=$userId")
-
                 trySend(expenses)
             }
 
@@ -130,9 +123,7 @@ class ExpenseRepository {
         toDate: String
     ): Flow<List<ExpenseEntity>> =
         getAllExpenses(userId).map { list ->
-            list.filter {
-                it.date >= fromDate && it.date <= toDate
-            }
+            list.filter { it.date >= fromDate && it.date <= toDate }
         }
 
     fun getExpensesByCategory(
@@ -140,9 +131,7 @@ class ExpenseRepository {
         category: String
     ): Flow<List<ExpenseEntity>> =
         getAllExpenses(userId).map { list ->
-            list.filter {
-                it.category == category
-            }
+            list.filter { it.category == category }
         }
 
     fun getExpensesByCategoryAndDateRange(
@@ -182,6 +171,12 @@ class ExpenseRepository {
 
             val cleanExpense = expense.copy(
                 userId = userId,
+                type = expense.type.trim().lowercase(),
+                category = expense.category.trim(),
+                subCategory = expense.subCategory.trim(),
+                date = expense.date.trim(),
+                note = expense.note.trim(),
+                paymentMethod = expense.paymentMethod.trim(),
                 createdAt = if (expense.createdAt == 0L) now else expense.createdAt,
                 updatedAt = now
             )
@@ -191,9 +186,7 @@ class ExpenseRepository {
                 .await()
 
             Log.d(TAG, "Expense inserted with ID: ${documentRef.id} for userId=$userId")
-
             documentRef.id
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to insert expense: ${e.message}", e)
             throw e
@@ -215,6 +208,12 @@ class ExpenseRepository {
         try {
             val cleanExpense = expense.copy(
                 userId = userId,
+                type = expense.type.trim().lowercase(),
+                category = expense.category.trim(),
+                subCategory = expense.subCategory.trim(),
+                date = expense.date.trim(),
+                note = expense.note.trim(),
+                paymentMethod = expense.paymentMethod.trim(),
                 updatedAt = System.currentTimeMillis()
             )
 
@@ -224,7 +223,6 @@ class ExpenseRepository {
                 .await()
 
             Log.d(TAG, "Expense updated: ${expense.id} for userId=$userId")
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update expense: ${e.message}", e)
             throw e
@@ -250,7 +248,6 @@ class ExpenseRepository {
                 .await()
 
             Log.d(TAG, "Expense deleted: ${expense.id} for userId=$userId")
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete expense: ${e.message}", e)
             throw e
@@ -278,7 +275,6 @@ class ExpenseRepository {
                 userId = userId,
                 data = data
             )
-
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get expense by ID: ${e.message}", e)
             null
