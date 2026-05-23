@@ -6,7 +6,6 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
 import group12.budgetbuddi.SupabaseClient
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.ExpenseRepository
@@ -23,10 +22,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private val repository = ExpenseRepository()
-    private val auth = FirebaseAuth.getInstance()
-
-    private val currentUserId: String?
-        get() = auth.currentUser?.uid
+    private val authRepository = group12.budgetbuddi.repository.CategoryRepository()
+    private val currentUserId: String? = authRepository.getCurrentUserId()
 
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
@@ -40,27 +37,25 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
     private val _allExpenses = MutableStateFlow<List<ExpenseEntity>>(emptyList())
     val allExpenses: StateFlow<List<ExpenseEntity>> = _allExpenses.asStateFlow()
 
-    val expensesOnly: StateFlow<List<ExpenseEntity>> =
-        allExpenses
-            .map { expenses ->
-                expenses.filter { it.type == "expense" }
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
+    val expensesOnly: StateFlow<List<ExpenseEntity>> = allExpenses
+        .map { expenses ->
+            expenses.filter { it.type == "expense" }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
-    val incomeOnly: StateFlow<List<ExpenseEntity>> =
-        allExpenses
-            .map { expenses ->
-                expenses.filter { it.type == "income" }
-            }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
+    val incomeOnly: StateFlow<List<ExpenseEntity>> = allExpenses
+        .map { expenses ->
+            expenses.filter { it.type == "income" }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     init {
         observeExpensesForCurrentUser()
@@ -101,9 +96,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
             val imageBytes = context.contentResolver
                 .openInputStream(imageUri)
-                ?.use { inputStream ->
-                    inputStream.readBytes()
-                }
+                ?.use { inputStream -> inputStream.readBytes() }
 
             if (imageBytes == null || imageBytes.isEmpty()) {
                 throw IllegalStateException("Could not read selected image")
@@ -122,13 +115,6 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             }
 
             val filename = "receipt_${System.currentTimeMillis()}.$extension"
-
-            /*
-             Supabase storage path:
-
-             Bucket: expense-receipts
-             Path:   {uid}/receipt_timestamp.jpeg
-            */
             val filePath = "$userId/$filename"
 
             Log.d(TAG, "Uploading to bucket=$BUCKET_NAME path=$filePath mimeType=$mimeType")
@@ -144,15 +130,12 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             }
 
             val publicUrl = bucket.publicUrl(filePath)
-
             Log.d(TAG, "Supabase upload successful. Public URL=$publicUrl")
 
             return publicUrl
-
         } catch (e: Exception) {
             Log.e(TAG, "Supabase upload failed: ${e.message}", e)
             throw e
-
         } finally {
             _isUploadingImage.value = false
         }
@@ -164,8 +147,6 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         category: String,
         subCategory: String,
         date: String,
-        startTime: String,
-        endTime: String,
         note: String,
         photoPath: String?,
         paymentMethod: String,
@@ -179,13 +160,13 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        if (amount <= 0.0) {
-            _uiMessage.value = "Please enter a valid amount"
-            return
+        val cleanType = when (type.trim().lowercase()) {
+            "income" -> "income"
+            else -> "expense"
         }
 
-        if (type.isBlank()) {
-            _uiMessage.value = "Please select transaction type"
+        if (amount <= 0.0) {
+            _uiMessage.value = "Please enter a valid amount"
             return
         }
 
@@ -229,12 +210,10 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 val expense = ExpenseEntity(
                     userId = userId,
                     amount = amount,
-                    type = type.trim().lowercase(),
+                    type = cleanType,
                     category = category.trim(),
                     subCategory = subCategory.trim(),
                     date = date.trim(),
-                    startTime = startTime.trim(),
-                    endTime = endTime.trim(),
                     note = note.trim(),
                     photoPath = finalPhotoPath,
                     paymentMethod = paymentMethod.trim(),
@@ -250,7 +229,6 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
                 _uiMessage.value = "Saved successfully"
                 _saveSuccess.value = true
-
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save transaction: ${e.message}", e)
                 _uiMessage.value = "Failed to save transaction: ${e.message}"
@@ -273,9 +251,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                     userId = userId,
                     expense = expense.copy(userId = userId)
                 )
-
                 _uiMessage.value = "Expense updated"
-
             } catch (e: Exception) {
                 Log.e(TAG, "Update failed: ${e.message}", e)
                 _uiMessage.value = "Failed to update: ${e.message}"
@@ -298,9 +274,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                     userId = userId,
                     expense = expense
                 )
-
                 _uiMessage.value = "Expense deleted"
-
             } catch (e: Exception) {
                 Log.e(TAG, "Delete failed: ${e.message}", e)
                 _uiMessage.value = "Failed to delete: ${e.message}"
