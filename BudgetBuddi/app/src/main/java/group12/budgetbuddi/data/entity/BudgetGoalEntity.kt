@@ -2,7 +2,7 @@ package group12.budgetbuddi.data.entity
 
 data class BudgetGoalEntity(
     val id: String = "",
-    val userEmail: String = "",
+    val userId: String = "",
     val month: Int = 0,
     val year: Int = 0,
     val minGoal: Double = 0.0,
