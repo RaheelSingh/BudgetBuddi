@@ -79,6 +79,7 @@ class CategoryRepository {
                     CategoryEntity(
                         id = document.id,
                         userId = document.getString("userId") ?: userId,
+                        categoryType = document.getString("categoryType") ?: "expense",
                         mainCategory = mainCategory,
                         subCategory = subCategory,
                         visualType = document.getString("visualType") ?: "emoji",
