@@ -52,34 +52,47 @@ private val BudgetGreen = Color(0xFF139A43)
 @Composable
 fun AddCategoryScreen(
     navController: NavController,
+    initialCategoryType: String = "expense",
     authViewModel: AuthViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    val mainCategories by categoryViewModel.mainCategories.collectAsState()
+    val allCategories by categoryViewModel.allCategories.collectAsState()
 
-    // These values hold the form input before the category is saved.
+    var selectedCategoryType by remember {
+        mutableStateOf(
+            if (initialCategoryType == "income") "income" else "expense"
+        )
+    }
+
     var mainCategory by remember { mutableStateOf("") }
     var subCategory by remember { mutableStateOf("") }
-
     var visualType by remember { mutableStateOf("emoji") }
     var visualValue by remember { mutableStateOf("🍳") }
-
     var selectedColor by remember { mutableStateOf(colorFromHex("#139A43")) }
-    val outlineColor = colorToHex(selectedColor)
-
     var expanded by remember { mutableStateOf(false) }
 
-    // The add buttons stay disabled until the required fields are filled in.
-    val canAdd = mainCategory.isNotBlank() &&
-            subCategory.isNotBlank() &&
-            visualValue.isNotBlank()
+    val outlineColor = colorToHex(selectedColor)
+
+    val filteredMainCategories = remember(allCategories, selectedCategoryType) {
+        allCategories
+            .filter { it.categoryType == selectedCategoryType }
+            .map { it.mainCategory }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+
+    val canAdd =
+        selectedCategoryType.isNotBlank() &&
+                mainCategory.isNotBlank() &&
+                subCategory.isNotBlank() &&
+                visualValue.isNotBlank()
 
     AppScaffold(
         navController = navController,
         selectedRoute = "add_category",
         authViewModel = authViewModel
     ) { modifier ->
-
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -115,6 +128,7 @@ fun AddCategoryScreen(
                 IconButton(
                     onClick = {
                         categoryViewModel.addCategory(
+                            categoryType = selectedCategoryType,
                             mainCategory = mainCategory,
                             subCategory = subCategory,
                             visualType = visualType,
@@ -145,7 +159,34 @@ fun AddCategoryScreen(
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            // Users can either type a new main category or select an existing one.
+            TabRow(
+                selectedTabIndex = if (selectedCategoryType == "expense") 0 else 1,
+                containerColor = Color.White,
+                contentColor = BudgetGreen
+            ) {
+                Tab(
+                    selected = selectedCategoryType == "expense",
+                    onClick = {
+                        selectedCategoryType = "expense"
+                        mainCategory = ""
+                        subCategory = ""
+                    },
+                    text = { Text("Expense") }
+                )
+
+                Tab(
+                    selected = selectedCategoryType == "income",
+                    onClick = {
+                        selectedCategoryType = "income"
+                        mainCategory = ""
+                        subCategory = ""
+                    },
+                    text = { Text("Income") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             ExposedDropdownMenuBox(
                 expanded = expanded,
                 onExpandedChange = { expanded = !expanded }
@@ -153,7 +194,7 @@ fun AddCategoryScreen(
                 OutlinedTextField(
                     value = mainCategory,
                     onValueChange = { mainCategory = it },
-                    label = { Text("Name") },
+                    label = { Text("Main Category") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BudgetGreen,
@@ -181,7 +222,7 @@ fun AddCategoryScreen(
                         }
                     )
 
-                    mainCategories.forEach { category ->
+                    filteredMainCategories.forEach { category ->
                         DropdownMenuItem(
                             text = { Text(category) },
                             onClick = {
@@ -305,6 +346,7 @@ fun AddCategoryScreen(
             OutlinedButton(
                 onClick = {
                     categoryViewModel.addCategory(
+                        categoryType = selectedCategoryType,
                         mainCategory = mainCategory,
                         subCategory = subCategory,
                         visualType = visualType,
@@ -342,7 +384,6 @@ private fun AnimatedVisualTypeToggle(
     val toggleWidth = 184.dp
     val optionWidth = 92.dp
 
-    // The green indicator moves depending on whether emoji or icon is selected.
     val indicatorOffset by animateDpAsState(
         targetValue = if (selectedType == "emoji") 0.dp else optionWidth,
         label = "visualToggleSlide"

@@ -25,27 +25,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.R
 import group12.budgetbuddi.data.entity.CategoryEntity
-import group12.budgetbuddi.ui.components.*
+import group12.budgetbuddi.ui.components.CategoryVisualPreview
+import group12.budgetbuddi.ui.components.EmojiPicker
+import group12.budgetbuddi.ui.components.IconPicker
+import group12.budgetbuddi.ui.components.SimpleColorWheel
+import group12.budgetbuddi.ui.components.colorFromHex
+import group12.budgetbuddi.ui.components.colorToHex
+import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
-
-/*
-Author: Android Developers
-Description: Used as reference for managing screen state in Compose using remember, mutableStateOf, and state collected from a ViewModel.
-Reference: Android Developers. 2024. State and Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/state [Accessed 29 April 2026].
-*/
-
-/*
-Author: Android Developers
-Description: Used as reference for dropdown menus and menu item selection in Jetpack Compose.
-Reference: Android Developers. 2025. Menus. [Online]. Available at: https://developer.android.com/develop/ui/compose/components/menu [Accessed 29 April 2026].
-*/
-
-/*
-Author: Android Developers
-Description: Used as reference for Material 3 text fields and button-based user input.
-Reference: Android Developers. 2024. Handle user input. [Online]. Available at: https://developer.android.com/develop/ui/compose/text/user-input [Accessed 29 April 2026].
-*/
 
 private val BudgetGreen = Color(0xFF139A43)
 
@@ -57,16 +45,14 @@ fun EditDeleteCategoryScreen(
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
     val categories by categoryViewModel.allCategories.collectAsState()
-    val mainCategories by categoryViewModel.mainCategories.collectAsState()
 
-    // These values track what the user has selected from the dropdowns.
+    var selectedCategoryType by remember { mutableStateOf("expense") }
+
     var selectedMainCategory by remember { mutableStateOf("") }
     var selectedSubCategory by remember { mutableStateOf<CategoryEntity?>(null) }
 
-    // These values are edited before being saved back into Room.
     var editedMainCategory by remember { mutableStateOf("") }
     var editedSubCategory by remember { mutableStateOf("") }
-
     var editedVisualType by remember { mutableStateOf("emoji") }
     var editedVisualValue by remember { mutableStateOf("🍳") }
     var selectedColor by remember { mutableStateOf(colorFromHex("#139A43")) }
@@ -76,13 +62,76 @@ fun EditDeleteCategoryScreen(
 
     val editedOutlineColor = colorToHex(selectedColor)
 
-    // Only subcategories under the selected main category are shown.
-    val filteredSubCategories = categories.filter {
-        it.mainCategory == selectedMainCategory
+    val categoriesForSelectedType = remember(categories, selectedCategoryType) {
+        categories.filter { it.categoryType == selectedCategoryType }
+    }
+
+    val mainCategoriesForSelectedType = remember(categoriesForSelectedType) {
+        categoriesForSelectedType
+            .map { it.mainCategory }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .sorted()
+    }
+
+    val filteredSubCategories = remember(
+        categoriesForSelectedType,
+        selectedMainCategory
+    ) {
+        categoriesForSelectedType
+            .filter { it.mainCategory == selectedMainCategory }
+            .sortedBy { it.subCategory }
+    }
+
+    fun resetSelectionForTabChange(newType: String) {
+        selectedCategoryType = newType
+
+        selectedMainCategory = ""
+        selectedSubCategory = null
+
+        editedMainCategory = ""
+        editedSubCategory = ""
+        editedVisualType = "emoji"
+        editedVisualValue = "🍳"
+        selectedColor = colorFromHex("#139A43")
+
+        mainExpanded = false
+        subExpanded = false
+    }
+
+    fun selectMainCategory(mainCategory: String) {
+        selectedMainCategory = mainCategory
+        selectedSubCategory = null
+
+        editedMainCategory = mainCategory
+        editedSubCategory = ""
+        editedVisualType = "emoji"
+        editedVisualValue = "🍳"
+        selectedColor = colorFromHex("#139A43")
+
+        mainExpanded = false
+        subExpanded = false
+    }
+
+    fun selectSubCategory(category: CategoryEntity) {
+        selectedSubCategory = category
+
+        editedMainCategory = category.mainCategory
+        editedSubCategory = category.subCategory
+        editedVisualType = category.visualType
+        editedVisualValue = category.visualValue
+        selectedColor = colorFromHex(category.outlineColor)
+
+        subExpanded = false
     }
 
     fun saveChanges() {
+        if (selectedMainCategory.isBlank() || editedMainCategory.isBlank()) {
+            return
+        }
+
         val selectedUpdatedCategory = selectedSubCategory?.copy(
+            categoryType = selectedCategoryType,
             mainCategory = editedMainCategory.trim(),
             subCategory = editedSubCategory.trim(),
             visualType = editedVisualType,
@@ -92,26 +141,46 @@ fun EditDeleteCategoryScreen(
 
         categoryViewModel.updateCategoryAndMaybeRenameMainCategory(
             oldMainCategory = selectedMainCategory,
-            newMainCategory = editedMainCategory,
+            newMainCategory = editedMainCategory.trim(),
             selectedCategory = selectedUpdatedCategory
         )
 
         navController.popBackStack()
     }
 
-    val canSave = selectedMainCategory.isNotBlank() &&
-            editedMainCategory.isNotBlank() &&
-            (
-                    selectedSubCategory == null ||
-                            editedSubCategory.isNotBlank()
-                    )
+    fun deleteSelectedSubCategory() {
+        selectedSubCategory?.let { category ->
+            categoryViewModel.deleteCategory(category)
+            navController.popBackStack()
+        }
+    }
+
+    fun deleteSelectedMainCategory() {
+        if (selectedMainCategory.isNotBlank()) {
+            categoryViewModel.deleteWholeMainCategory(
+                mainCategory = selectedMainCategory,
+                categoryType = selectedCategoryType
+            )
+            navController.popBackStack()
+        }
+    }
+
+    val canSave =
+        selectedMainCategory.isNotBlank() &&
+                editedMainCategory.isNotBlank() &&
+                (
+                        selectedSubCategory == null ||
+                                editedSubCategory.isNotBlank()
+                        )
+
+    val canDeleteMainCategory = selectedMainCategory.isNotBlank()
+    val canDeleteSubCategory = selectedSubCategory != null
 
     AppScaffold(
         navController = navController,
         selectedRoute = "edit_delete_category",
         authViewModel = authViewModel
     ) { modifier ->
-
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -151,7 +220,7 @@ fun EditDeleteCategoryScreen(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = "Save Changes",
-                        tint = BudgetGreen
+                        tint = if (canSave) BudgetGreen else Color.LightGray
                     )
                 }
             }
@@ -168,8 +237,32 @@ fun EditDeleteCategoryScreen(
 
             Spacer(modifier = Modifier.height(22.dp))
 
+            TabRow(
+                selectedTabIndex = if (selectedCategoryType == "expense") 0 else 1,
+                containerColor = Color.White,
+                contentColor = BudgetGreen
+            ) {
+                Tab(
+                    selected = selectedCategoryType == "expense",
+                    onClick = { resetSelectionForTabChange("expense") },
+                    text = { Text("Expense") }
+                )
+
+                Tab(
+                    selected = selectedCategoryType == "income",
+                    onClick = { resetSelectionForTabChange("income") },
+                    text = { Text("Income") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+
             Text(
-                text = "Select Category",
+                text = if (selectedCategoryType == "income") {
+                    "Select Income Category"
+                } else {
+                    "Select Expense Category"
+                },
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
@@ -186,10 +279,17 @@ fun EditDeleteCategoryScreen(
                     value = selectedMainCategory,
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Name") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = mainExpanded)
+                    label = { Text("Main Category") },
+                    placeholder = {
+                        Text(
+                            if (selectedCategoryType == "income") {
+                                "Choose income category"
+                            } else {
+                                "Choose expense category"
+                            }
+                        )
                     },
+                    singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BudgetGreen,
                         unfocusedBorderColor = BudgetGreen,
@@ -208,23 +308,26 @@ fun EditDeleteCategoryScreen(
                     expanded = mainExpanded,
                     onDismissRequest = { mainExpanded = false }
                 ) {
-                    mainCategories.forEach { category ->
+                    if (mainCategoriesForSelectedType.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text(category) },
-                            onClick = {
-                                selectedMainCategory = category
-                                selectedSubCategory = null
-
-                                editedMainCategory = category
-                                editedSubCategory = ""
-
-                                editedVisualType = "emoji"
-                                editedVisualValue = "🍳"
-                                selectedColor = colorFromHex("#139A43")
-
-                                mainExpanded = false
-                            }
+                            text = {
+                                Text(
+                                    if (selectedCategoryType == "income") {
+                                        "No income categories available"
+                                    } else {
+                                        "No expense categories available"
+                                    }
+                                )
+                            },
+                            onClick = { mainExpanded = false }
                         )
+                    } else {
+                        mainCategoriesForSelectedType.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category) },
+                                onClick = { selectMainCategory(category) }
+                            )
+                        }
                     }
                 }
             }
@@ -243,22 +346,31 @@ fun EditDeleteCategoryScreen(
                     value = selectedSubCategory?.subCategory ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Sub Category Type") },
-                    trailingIcon = {
-                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = subExpanded)
+                    label = { Text("Sub Category") },
+                    placeholder = {
+                        Text(
+                            if (selectedMainCategory.isBlank()) {
+                                "Choose main category first"
+                            } else {
+                                "Choose subcategory"
+                            }
+                        )
                     },
+                    singleLine = true,
                     enabled = selectedMainCategory.isNotBlank(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BudgetGreen,
                         unfocusedBorderColor = BudgetGreen,
-                        disabledBorderColor = BudgetGreen.copy(alpha = 0.5f),
                         focusedLabelColor = BudgetGreen,
-                        cursorColor = BudgetGreen
+                        cursorColor = BudgetGreen,
+                        disabledBorderColor = Color.LightGray,
+                        disabledLabelColor = Color.Gray,
+                        disabledTextColor = Color.Gray
                     ),
                     modifier = Modifier
                         .menuAnchor(
                             type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
-                            enabled = true
+                            enabled = selectedMainCategory.isNotBlank()
                         )
                         .fillMaxWidth()
                 )
@@ -267,21 +379,18 @@ fun EditDeleteCategoryScreen(
                     expanded = subExpanded,
                     onDismissRequest = { subExpanded = false }
                 ) {
-                    filteredSubCategories.forEach { category ->
+                    if (filteredSubCategories.isEmpty()) {
                         DropdownMenuItem(
-                            text = { Text(category.subCategory) },
-                            onClick = {
-                                selectedSubCategory = category
-
-                                editedMainCategory = category.mainCategory
-                                editedSubCategory = category.subCategory
-                                editedVisualType = category.visualType
-                                editedVisualValue = category.visualValue
-                                selectedColor = colorFromHex(category.outlineColor)
-
-                                subExpanded = false
-                            }
+                            text = { Text("No subcategories available") },
+                            onClick = { subExpanded = false }
                         )
+                    } else {
+                        filteredSubCategories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category.subCategory) },
+                                onClick = { selectSubCategory(category) }
+                            )
+                        }
                     }
                 }
             }
@@ -290,10 +399,10 @@ fun EditDeleteCategoryScreen(
 
             HorizontalDivider(color = BudgetGreen, thickness = 2.dp)
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Edit Selected Category",
+                text = "Edit Details",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
@@ -305,42 +414,42 @@ fun EditDeleteCategoryScreen(
             OutlinedTextField(
                 value = editedMainCategory,
                 onValueChange = { editedMainCategory = it },
-                label = { Text("Edit Category Name") },
-                enabled = selectedMainCategory.isNotBlank(),
+                label = { Text("Main Category Name") },
                 singleLine = true,
+                enabled = selectedMainCategory.isNotBlank(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = BudgetGreen,
                     unfocusedBorderColor = BudgetGreen,
-                    disabledBorderColor = BudgetGreen.copy(alpha = 0.5f),
                     focusedLabelColor = BudgetGreen,
-                    cursorColor = BudgetGreen
+                    cursorColor = BudgetGreen,
+                    disabledBorderColor = Color.LightGray,
+                    disabledLabelColor = Color.Gray,
+                    disabledTextColor = Color.Gray
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = editedSubCategory,
                 onValueChange = { editedSubCategory = it },
-                label = { Text("Edit Subcategory Name") },
-                enabled = selectedSubCategory != null,
+                label = { Text("Sub Category Name") },
                 singleLine = true,
+                enabled = selectedSubCategory != null,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = BudgetGreen,
                     unfocusedBorderColor = BudgetGreen,
-                    disabledBorderColor = BudgetGreen.copy(alpha = 0.5f),
                     focusedLabelColor = BudgetGreen,
-                    cursorColor = BudgetGreen
+                    cursorColor = BudgetGreen,
+                    disabledBorderColor = Color.LightGray,
+                    disabledLabelColor = Color.Gray,
+                    disabledTextColor = Color.Gray
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            HorizontalDivider(color = BudgetGreen, thickness = 2.dp)
-
-            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
                 text = "Appearance",
@@ -374,51 +483,67 @@ fun EditDeleteCategoryScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            if (selectedSubCategory != null) {
-                if (editedVisualType == "emoji") {
-                    Text(
-                        text = "Choose Emoji",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = Color.Gray
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    EmojiPicker(
-                        selectedEmoji = editedVisualValue,
-                        onEmojiSelected = { editedVisualValue = it }
-                    )
-                } else {
-                    Text(
-                        text = "Choose Icon",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = Color.Gray
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    IconPicker(
-                        selectedIconKey = editedVisualValue,
-                        onIconSelected = { editedVisualValue = it }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
+            if (editedVisualType == "emoji") {
                 Text(
-                    text = "Outline Colour",
+                    text = "Choose Emoji",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = Color.Gray
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
+                if (selectedSubCategory != null) {
+                    EmojiPicker(
+                        selectedEmoji = editedVisualValue,
+                        onEmojiSelected = { editedVisualValue = it }
+                    )
+                } else {
+                    Text(
+                        text = "Select a subcategory first to edit its visual appearance.",
+                        color = Color.Gray,
+                        fontSize = 13.sp
+                    )
+                }
+            } else {
+                Text(
+                    text = "Choose Icon",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (selectedSubCategory != null) {
+                    IconPicker(
+                        selectedIconKey = editedVisualValue,
+                        onIconSelected = { editedVisualValue = it }
+                    )
+                } else {
+                    Text(
+                        text = "Select a subcategory first to edit its visual appearance.",
+                        color = Color.Gray,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = "Outline Colour",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (selectedSubCategory != null) {
                 Box(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
@@ -430,9 +555,9 @@ fun EditDeleteCategoryScreen(
                 }
             } else {
                 Text(
-                    text = "Select a subcategory to edit its emoji/icon and colour.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    text = "Select a subcategory first to edit its outline colour.",
+                    color = Color.Gray,
+                    fontSize = 13.sp
                 )
             }
 
@@ -447,7 +572,7 @@ fun EditDeleteCategoryScreen(
                 border = ButtonDefaults.outlinedButtonBorder(
                     enabled = canSave
                 ).copy(
-                    brush = SolidColor(BudgetGreen)
+                    brush = SolidColor(if (canSave) BudgetGreen else Color.LightGray)
                 ),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
@@ -459,54 +584,56 @@ fun EditDeleteCategoryScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             OutlinedButton(
-                onClick = {
-                    selectedSubCategory?.let {
-                        categoryViewModel.deleteSubCategory(it)
-                    }
-                    navController.popBackStack()
-                },
-                enabled = selectedSubCategory != null,
+                onClick = { deleteSelectedSubCategory() },
+                enabled = canDeleteSubCategory,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 ),
                 border = ButtonDefaults.outlinedButtonBorder(
-                    enabled = selectedSubCategory != null
+                    enabled = canDeleteSubCategory
                 ).copy(
-                    brush = SolidColor(MaterialTheme.colorScheme.error)
+                    brush = SolidColor(
+                        if (canDeleteSubCategory) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            Color.LightGray
+                        }
+                    )
                 ),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .width(220.dp)
             ) {
-                Text("Delete Subcategory")
+                Text("Delete Selected Subcategory")
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedButton(
-                onClick = {
-                    if (selectedMainCategory.isNotBlank()) {
-                        categoryViewModel.deleteWholeCategory(selectedMainCategory)
-                    }
-                    navController.popBackStack()
-                },
-                enabled = selectedMainCategory.isNotBlank(),
+                onClick = { deleteSelectedMainCategory() },
+                enabled = canDeleteMainCategory,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = MaterialTheme.colorScheme.error
                 ),
                 border = ButtonDefaults.outlinedButtonBorder(
-                    enabled = selectedMainCategory.isNotBlank()
+                    enabled = canDeleteMainCategory
                 ).copy(
-                    brush = SolidColor(MaterialTheme.colorScheme.error)
+                    brush = SolidColor(
+                        if (canDeleteMainCategory) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            Color.LightGray
+                        }
+                    )
                 ),
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
                     .width(220.dp)
             ) {
-                Text("Delete Whole Category")
+                Text("Delete Whole Main Category")
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
@@ -514,7 +641,7 @@ fun EditDeleteCategoryScreen(
 @Composable
 private fun AnimatedVisualTypeToggle(
     selectedType: String,
-    enabled: Boolean,
+    enabled: Boolean = true,
     onSelected: (String) -> Unit
 ) {
     val toggleWidth = 184.dp
@@ -530,7 +657,7 @@ private fun AnimatedVisualTypeToggle(
             .width(toggleWidth)
             .height(40.dp)
             .clip(RoundedCornerShape(50))
-            .background(Color(0xFFE0E0E0))
+            .background(if (enabled) Color(0xFFE0E0E0) else Color(0xFFF1F1F1))
             .padding(3.dp)
     ) {
         Box(
@@ -539,10 +666,12 @@ private fun AnimatedVisualTypeToggle(
                 .width(optionWidth - 6.dp)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(50))
-                .background(if (enabled) BudgetGreen else BudgetGreen.copy(alpha = 0.35f))
+                .background(if (enabled) BudgetGreen else Color.LightGray)
         )
 
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxSize()
+        ) {
             ToggleOption(
                 text = "Emoji",
                 selected = selectedType == "emoji",
@@ -579,7 +708,11 @@ private fun ToggleOption(
     ) {
         Text(
             text = text,
-            color = if (selected) Color.White else Color.Gray,
+            color = when {
+                !enabled -> Color.Gray
+                selected -> Color.White
+                else -> Color.Gray
+            },
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp
         )

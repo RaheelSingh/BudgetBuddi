@@ -1,24 +1,3 @@
-/*
-
-2024 Coil Contributors. “Compose - Coil.” Github.io, 2024, coil-kt.github.io/coil/compose/. Accessed 29 Apr. 2026.
-
-“Access App-Specific Files.” Android Developers, 2026, developer.android.com/training/data-storage/app-specific. Accessed 29 Apr. 2026.
-
-“Getting a Result from an Activity.” Android Developers, 1 Jan. 2026, developer.android.com/training/basics/intents/result. Accessed 29 Apr. 2026.
-
-Google. “ViewModel Overview  |  Android Developers.” Android Developers, 2019, developer.android.com/topic/libraries/architecture/viewmodel. Accessed 29 Apr. 2026.
-
-“Navigation with Compose | Jetpack Compose.” Android Developers, developer.android.com/develop/ui/compose/navigation. Accessed 29 Apr. 2026.
-
-“Photo Picker.” Android Developers, 2025, developer.android.com/training/data-storage/shared/photo-picker. Accessed 29 Apr. 2026.
-
-“Request App Permissions.” Android Developers, 2026, developer.android.com/training/permissions/requesting. Accessed 29 Apr. 2026.
-
-“SimpleDateFormat  |  API Reference  |  Android Developers.” Android Developers, 2026, developer.android.com/reference/java/text/SimpleDateFormat. Accessed 29 Apr. 2026.
-
-“State and Jetpack Compose.” Android Developers, 2024, developer.android.com/develop/ui/compose/state. Accessed 29 Apr. 2026.
- */
-
 package group12.budgetbuddi.ui.screens
 
 import android.Manifest
@@ -105,7 +84,6 @@ fun AddTransactionScreen(
         var dateError by remember { mutableStateOf<String?>(null) }
 
         var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-        // The ViewModel handles uploading it to Supabase on save.
         var photoUriString by remember { mutableStateOf<String?>(null) }
         var cameraUri by remember { mutableStateOf<Uri?>(null) }
 
@@ -115,7 +93,18 @@ fun AddTransactionScreen(
         var showPhotoDialog by remember { mutableStateOf(false) }
 
         val allCategories by categoryViewModel.allCategories.collectAsState()
-        val mainCategories by categoryViewModel.mainCategories.collectAsState()
+
+        val categoriesForSelectedType = remember(allCategories, selectedType) {
+            allCategories.filter { it.categoryType == selectedType }
+        }
+
+        val mainCategoriesForSelectedType = remember(categoriesForSelectedType) {
+            categoriesForSelectedType
+                .map { it.mainCategory }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .sorted()
+        }
 
         val saveSuccess by expenseViewModel.saveSuccess.collectAsState()
         val uiMessage by expenseViewModel.uiMessage.collectAsState()
@@ -124,9 +113,11 @@ fun AddTransactionScreen(
         LaunchedEffect(amountText) {
             if (amountText.isNotBlank()) amountError = null
         }
+
         LaunchedEffect(selectedMainCategory) {
             if (selectedMainCategory.isNotBlank()) categoryError = null
         }
+
         LaunchedEffect(selectedDate) {
             if (selectedDate.isNotBlank()) dateError = null
         }
@@ -145,7 +136,6 @@ fun AddTransactionScreen(
         ) { success ->
             if (success && cameraUri != null) {
                 selectedImageUri = cameraUri
-                // FileProvider URIs they work the same as gallery
                 photoUriString = cameraUri.toString()
             }
         }
@@ -155,11 +145,13 @@ fun AddTransactionScreen(
         ) { granted ->
             if (granted) {
                 val file = createImageFile(context)
+
                 cameraUri = FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.provider",
                     file
                 )
+
                 cameraUri?.let { cameraLauncher.launch(it) }
             } else {
                 expenseViewModel.setMessage("Camera permission denied. Please enable it in Settings.")
@@ -169,7 +161,11 @@ fun AddTransactionScreen(
         LaunchedEffect(saveSuccess) {
             if (saveSuccess) {
                 expenseViewModel.clearSaveSuccess()
-                navController.popBackStack()
+
+                navController.navigate("daily_report") {
+                    popUpTo("add_transaction") { inclusive = true }
+                    launchSingleTop = true
+                }
             }
         }
 
@@ -181,28 +177,32 @@ fun AddTransactionScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { navController.popBackStack() }) {
+                IconButton(
+                    onClick = { navController.popBackStack() }
+                ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
                         tint = BrandGreen
                     )
                 }
+
                 Text(
                     text = "New Transaction",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
+
                 Spacer(modifier = Modifier.width(48.dp))
             }
 
             Spacer(modifier = Modifier.height(8.dp))
+
             Image(
                 painter = painterResource(id = R.drawable.bb_og),
                 contentDescription = "BudgetBuddi logo",
@@ -224,13 +224,18 @@ fun AddTransactionScreen(
                     color = if (amountError != null) ErrorRed else Color.Gray,
                     fontWeight = FontWeight.Light
                 )
+
                 Spacer(modifier = Modifier.width(4.dp))
+
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { input ->
                         val filtered = input.filter { c -> c.isDigit() || c == '.' }
                         val dotCount = filtered.count { it == '.' }
-                        if (dotCount <= 1) amountText = filtered
+
+                        if (dotCount <= 1) {
+                            amountText = filtered
+                        }
                     },
                     placeholder = {
                         Text("0", fontSize = 28.sp, color = Color.LightGray)
@@ -274,7 +279,12 @@ fun AddTransactionScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(if (selectedType == value) BrandGreen else Color.Transparent)
-                            .clickable { selectedType = value }
+                            .clickable {
+                                selectedType = value
+                                selectedMainCategory = ""
+                                selectedSubCategory = ""
+                                categoryError = null
+                            }
                             .padding(horizontal = 28.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -298,11 +308,16 @@ fun AddTransactionScreen(
                 } else {
                     selectedMainCategory
                 },
-                placeholder = "Select category",
+                placeholder = if (selectedType == "income") {
+                    "Select income category"
+                } else {
+                    "Select expense category"
+                },
                 onClick = { showCategoryDialog = true },
                 trailingIcon = Icons.Default.List,
                 hasError = categoryError != null
             )
+
             if (categoryError != null) {
                 Text(
                     text = categoryError!!,
@@ -314,7 +329,10 @@ fun AddTransactionScreen(
                 )
             }
 
-            Divider(color = if (categoryError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
+            Divider(
+                color = if (categoryError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f),
+                thickness = 1.dp
+            )
 
             FormRow(
                 icon = Icons.Default.CalendarMonth,
@@ -324,6 +342,7 @@ fun AddTransactionScreen(
                 onClick = { showDatePicker = true },
                 hasError = dateError != null
             )
+
             if (dateError != null) {
                 Text(
                     text = dateError!!,
@@ -335,7 +354,10 @@ fun AddTransactionScreen(
                 )
             }
 
-            Divider(color = if (dateError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
+            Divider(
+                color = if (dateError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f),
+                thickness = 1.dp
+            )
 
             FormRow(
                 icon = Icons.Default.CreditCard,
@@ -361,9 +383,14 @@ fun AddTransactionScreen(
                         .padding(top = 14.dp, end = 8.dp)
                         .size(20.dp)
                 )
+
                 OutlinedTextField(
                     value = note,
-                    onValueChange = { if (it.length <= 300) note = it },
+                    onValueChange = {
+                        if (it.length <= 300) {
+                            note = it
+                        }
+                    },
                     label = { Text("Note") },
                     placeholder = { Text("Add a note...") },
                     minLines = 2,
@@ -401,15 +428,23 @@ fun AddTransactionScreen(
                         tint = BrandGreen,
                         modifier = Modifier.size(20.dp)
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Column {
                         Text(
                             text = if (selectedImageUri != null) "Photo attached ✓" else "Add Photo :",
                             color = if (selectedImageUri != null) BrandGreen else Color.Gray
                         )
-                        Text(text = "Optional", color = Color.LightGray, fontSize = 11.sp)
+
+                        Text(
+                            text = "Optional",
+                            color = Color.LightGray,
+                            fontSize = 11.sp
+                        )
                     }
                 }
+
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = "Add photo",
@@ -423,6 +458,7 @@ fun AddTransactionScreen(
 
             selectedImageUri?.let { uri ->
                 Spacer(modifier = Modifier.height(8.dp))
+
                 Image(
                     painter = rememberAsyncImagePainter(uri),
                     contentDescription = "Selected transaction photo",
@@ -433,7 +469,9 @@ fun AddTransactionScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .border(1.dp, BrandGreen.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 TextButton(
                     onClick = {
                         selectedImageUri = null
@@ -441,9 +479,18 @@ fun AddTransactionScreen(
                         cameraUri = null
                     }
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error
+                    )
+
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Remove photo", color = MaterialTheme.colorScheme.error)
+
+                    Text(
+                        "Remove photo",
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
 
@@ -463,9 +510,12 @@ fun AddTransactionScreen(
                         tint = BrandGreen,
                         modifier = Modifier.size(20.dp)
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Text("Recurring :")
                 }
+
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
@@ -493,7 +543,9 @@ fun AddTransactionScreen(
 
             uiMessage?.let { message ->
                 Spacer(modifier = Modifier.height(8.dp))
+
                 val isSuccess = message.contains("success", ignoreCase = true)
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -508,13 +560,16 @@ fun AddTransactionScreen(
                         tint = if (isSuccess) BrandGreen else ErrorRed,
                         modifier = Modifier.size(18.dp)
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
                         text = message,
                         color = if (isSuccess) BrandGreen else ErrorRed,
                         fontSize = 13.sp
                     )
                 }
+
                 LaunchedEffect(message) {
                     delay(3500)
                     expenseViewModel.clearMessage()
@@ -523,7 +578,6 @@ fun AddTransactionScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // ─── CHANGED: Show loading indicator during image upload
             if (isUploadingImage) {
                 Row(
                     modifier = Modifier
@@ -537,8 +591,14 @@ fun AddTransactionScreen(
                         color = BrandGreen,
                         strokeWidth = 2.dp
                     )
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Uploading photo...", color = Color.Gray, fontSize = 13.sp)
+
+                    Text(
+                        text = "Uploading photo...",
+                        color = Color.Gray,
+                        fontSize = 13.sp
+                    )
                 }
             }
 
@@ -548,23 +608,28 @@ fun AddTransactionScreen(
                     var isValid = true
 
                     val parsedAmount = amountText.toDoubleOrNull()
+
                     when {
                         amountText.isBlank() -> {
                             amountError = "Amount is required"
                             isValid = false
                         }
+
                         parsedAmount == null -> {
                             amountError = "Enter a valid number"
                             isValid = false
                         }
+
                         parsedAmount <= 0.0 -> {
                             amountError = "Amount must be greater than zero"
                             isValid = false
                         }
+
                         parsedAmount > 9_999_999.99 -> {
                             amountError = "Amount is too large"
                             isValid = false
                         }
+
                         else -> amountError = null
                     }
 
@@ -583,18 +648,14 @@ fun AddTransactionScreen(
                     }
 
                     if (isValid) {
-                        // ─── CHANGED: pass photoUriString instead of photoPath
-                        // Everything else is identical to your original
                         expenseViewModel.saveExpense(
                             amount = parsedAmount!!,
                             type = selectedType,
                             category = selectedMainCategory,
                             subCategory = selectedSubCategory,
                             date = selectedDate,
-                            startTime = "",
-                            endTime = "",
                             note = note.trim(),
-                            photoPath = photoUriString,   // URI string → ViewModel uploads to Supabase
+                            photoPath = photoUriString,
                             paymentMethod = paymentMethod,
                             isRecurring = isRecurring
                         )
@@ -604,161 +665,102 @@ fun AddTransactionScreen(
                     .width(160.dp)
                     .height(46.dp),
                 shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+                colors = ButtonDefaults.buttonColors(containerColor = BrandGreen)
             ) {
-                Text(text = "Save", color = Color.Black, fontWeight = FontWeight.Medium)
+                Text("Save")
             }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-
-        if (showDatePicker) {
-            val datePickerState = rememberDatePickerState()
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        val millis = datePickerState.selectedDateMillis
-                        if (millis != null) {
-                            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                            selectedDate = sdf.format(Date(millis))
-                            dateError = null
-                        } else {
-                            dateError = "Please select a date"
-                        }
-                        showDatePicker = false
-                    }) {
-                        Text("OK", color = BrandGreen)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) {
-                        Text("Cancel")
-                    }
-                }
-            ) {
-                DatePicker(state = datePickerState)
-            }
-        }
-
         if (showCategoryDialog) {
-            var expandedMain by remember { mutableStateOf("") }
             AlertDialog(
                 onDismissRequest = { showCategoryDialog = false },
-                confirmButton = {
-                    TextButton(onClick = { showCategoryDialog = false }) {
-                        Text("Done", color = BrandGreen)
-                    }
-                },
-                title = { Text("Select Category") },
-                text = {
-                    Column(
-                        modifier = Modifier
-                            .heightIn(max = 400.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        if (mainCategories.isEmpty()) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("No categories available", color = Color.Gray)
-                            }
+                title = {
+                    Text(
+                        text = if (selectedType == "income") {
+                            "Select Income Category"
                         } else {
-                            mainCategories.forEach { main ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            expandedMain = if (expandedMain == main) "" else main
-                                        }
-                                        .padding(vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(main, fontWeight = FontWeight.SemiBold)
-                                    Icon(
-                                        imageVector = if (expandedMain == main) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = null,
-                                        tint = BrandGreen
+                            "Select Expense Category"
+                        }
+                    )
+                },
+                text = {
+                    if (mainCategoriesForSelectedType.isEmpty()) {
+                        Text(
+                            text = if (selectedType == "income") {
+                                "No income categories found. Add income categories first."
+                            } else {
+                                "No expense categories found. Add expense categories first."
+                            }
+                        )
+                    } else {
+                        Column {
+                            mainCategoriesForSelectedType.forEach { main ->
+                                Text(
+                                    text = main,
+                                    fontWeight = FontWeight.Bold,
+                                    color = BrandGreen,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+
+                                val subs = categoriesForSelectedType
+                                    .filter { it.mainCategory == main }
+                                    .sortedBy { it.subCategory }
+
+                                subs.forEach { category ->
+                                    Text(
+                                        text = category.subCategory,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                selectedMainCategory = category.mainCategory
+                                                selectedSubCategory = category.subCategory
+                                                showCategoryDialog = false
+                                                categoryError = null
+                                            }
+                                            .padding(vertical = 8.dp)
                                     )
                                 }
-                                if (expandedMain == main) {
-                                    val subs = allCategories.filter { it.mainCategory == main }
-                                    if (subs.isEmpty()) {
-                                        Text(
-                                            text = "No subcategories",
-                                            color = Color.Gray,
-                                            fontSize = 13.sp,
-                                            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp)
-                                        )
-                                    } else {
-                                        subs.forEach { cat ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        selectedMainCategory = main
-                                                        selectedSubCategory = cat.subCategory
-                                                        categoryError = null
-                                                        showCategoryDialog = false
-                                                    }
-                                                    .padding(start = 16.dp, top = 6.dp, bottom = 6.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(text = cat.visualValue, modifier = Modifier.width(28.dp))
-                                                Text(cat.subCategory)
-                                                if (selectedSubCategory == cat.subCategory && selectedMainCategory == main) {
-                                                    Spacer(modifier = Modifier.weight(1f))
-                                                    Icon(Icons.Default.Check, contentDescription = null, tint = BrandGreen)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                Divider()
                             }
                         }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showCategoryDialog = false }
+                    ) {
+                        Text("Cancel")
                     }
                 }
             )
         }
 
         if (showPaymentDialog) {
-            val methods = listOf("Cash", "Card", "Bank Transfer", "Other")
             AlertDialog(
                 onDismissRequest = { showPaymentDialog = false },
-                confirmButton = {
-                    TextButton(onClick = { showPaymentDialog = false }) {
-                        Text("Done", color = BrandGreen)
-                    }
-                },
-                title = { Text("Payment Method") },
+                title = { Text("Select Payment Method") },
                 text = {
                     Column {
-                        methods.forEach { method ->
-                            Row(
+                        listOf("Cash", "Card", "Bank Transfer", "E-Wallet", "Other").forEach { method ->
+                            Text(
+                                text = method,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
                                         paymentMethod = method
                                         showPaymentDialog = false
                                     }
-                                    .padding(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(method)
-                                if (paymentMethod == method) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = BrandGreen)
-                                }
-                            }
-                            Divider()
+                                    .padding(vertical = 10.dp)
+                            )
                         }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showPaymentDialog = false }
+                    ) {
+                        Text("Cancel")
                     }
                 }
             )
@@ -767,37 +769,52 @@ fun AddTransactionScreen(
         if (showPhotoDialog) {
             AlertDialog(
                 onDismissRequest = { showPhotoDialog = false },
-                confirmButton = {},
                 title = { Text("Add Photo") },
                 text = {
                     Column {
-                        TextButton(
+                        Text(
+                            text = "Choose how you want to attach a photo.",
+                            color = Color.Gray
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
                             onClick = {
                                 showPhotoDialog = false
+
                                 photoPickerLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             },
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Photo, contentDescription = null, tint = BrandGreen)
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Choose from Gallery", color = Color.Black)
+                            Text("Choose from gallery")
                         }
-                        TextButton(
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedButton(
                             onClick = {
                                 showPhotoDialog = false
-                                val hasPermission = ContextCompat.checkSelfPermission(
-                                    context, Manifest.permission.CAMERA
+
+                                val permissionGranted = ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.CAMERA
                                 ) == PackageManager.PERMISSION_GRANTED
 
-                                if (hasPermission) {
+                                if (permissionGranted) {
                                     val file = createImageFile(context)
+
                                     cameraUri = FileProvider.getUriForFile(
                                         context,
                                         "${context.packageName}.provider",
                                         file
                                     )
+
                                     cameraUri?.let { cameraLauncher.launch(it) }
                                 } else {
                                     cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
@@ -805,14 +822,72 @@ fun AddTransactionScreen(
                             },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = BrandGreen)
+                            Icon(Icons.Default.CameraAlt, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Take Photo", color = Color.Black)
+                            Text("Take photo")
                         }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showPhotoDialog = false }
+                    ) {
+                        Text("Cancel")
                     }
                 }
             )
         }
+
+        if (showDatePicker) {
+            TransactionDatePickerDialog(
+                onDateSelected = { date ->
+                    selectedDate = date
+                    showDatePicker = false
+                    dateError = null
+                },
+                onDismiss = { showDatePicker = false }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransactionDatePickerDialog(
+    onDateSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState()
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val millis = datePickerState.selectedDateMillis
+
+                    if (millis != null) {
+                        val formattedDate = SimpleDateFormat(
+                            "yyyy-MM-dd",
+                            Locale.getDefault()
+                        ).format(Date(millis))
+
+                        onDateSelected(formattedDate)
+                    }
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DatePicker(state = datePickerState)
     }
 }
 
@@ -829,21 +904,32 @@ private fun FormRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable { onClick() }
             .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (hasError) ErrorRed else BrandGreen,
                 modifier = Modifier.size(20.dp)
             )
+
             Spacer(modifier = Modifier.width(8.dp))
-            Text(text = label, color = if (hasError) ErrorRed else Color.DarkGray, fontSize = 14.sp)
+
+            Text(
+                text = label,
+                color = if (hasError) ErrorRed else Color.DarkGray,
+                fontSize = 14.sp
+            )
+
             Spacer(modifier = Modifier.width(4.dp))
+
             Text(
                 text = value.ifBlank { placeholder },
                 color = when {
@@ -854,6 +940,7 @@ private fun FormRow(
                 fontSize = 14.sp
             )
         }
+
         trailingIcon?.let {
             Icon(
                 imageVector = it,
@@ -865,9 +952,17 @@ private fun FormRow(
     }
 }
 
-
 private fun createImageFile(context: Context): File {
-    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val timestamp = SimpleDateFormat(
+        "yyyyMMdd_HHmmss",
+        Locale.getDefault()
+    ).format(Date())
+
     val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-    return File.createTempFile("EXPENSE_${timestamp}_", ".jpg", storageDir)
+
+    return File.createTempFile(
+        "EXPENSE_${timestamp}_",
+        ".jpg",
+        storageDir
+    )
 }

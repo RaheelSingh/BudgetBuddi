@@ -55,6 +55,7 @@ fun AppNavigation() {
         if (currentUser != null) {
             navController.navigate("home") {
                 popUpTo("welcome") { inclusive = true }
+                launchSingleTop = true
             }
         }
     }
@@ -81,8 +82,21 @@ fun AppNavigation() {
         composable("categories") {
             CategoriesScreen(navController)
         }
+
+        composable("add_category/{categoryType}") { backStackEntry ->
+            val categoryType = backStackEntry.arguments?.getString("categoryType") ?: "expense"
+
+            AddCategoryScreen(
+                navController = navController,
+                initialCategoryType = categoryType
+            )
+        }
+
         composable("add_category") {
-            AddCategoryScreen(navController)
+            AddCategoryScreen(
+                navController = navController,
+                initialCategoryType = "expense"
+            )
         }
         composable("edit_delete_category") {
             EditDeleteCategoryScreen(navController)

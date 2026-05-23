@@ -60,19 +60,24 @@ fun CategoriesScreen(
     authViewModel: AuthViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    // The screen observes search text and filtered categories from the ViewModel.
     val searchQuery by categoryViewModel.searchQuery.collectAsState()
     val categories by categoryViewModel.filteredCategories.collectAsState()
 
-    // Categories are grouped so each main category can have its own section.
-    val groupedCategories = categories.groupBy { it.mainCategory }
+    var selectedCategoryType by remember { mutableStateOf("expense") }
+
+    val visibleCategories = remember(categories, selectedCategoryType) {
+        categories.filter { it.categoryType == selectedCategoryType }
+    }
+
+    val groupedCategories = remember(visibleCategories) {
+        visibleCategories.groupBy { it.mainCategory }
+    }
 
     AppScaffold(
         navController = navController,
         selectedRoute = "categories",
         authViewModel = authViewModel
     ) { modifier ->
-
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -129,7 +134,7 @@ fun CategoriesScreen(
                     }
 
                     IconButton(
-                        onClick = { navController.navigate("add_category") },
+                        onClick = { navController.navigate("add_category/$selectedCategoryType") },
                         modifier = Modifier.size(34.dp)
                     ) {
                         Icon(
@@ -144,6 +149,26 @@ fun CategoriesScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            TabRow(
+                selectedTabIndex = if (selectedCategoryType == "expense") 0 else 1,
+                containerColor = Color.White,
+                contentColor = BudgetGreen
+            ) {
+                Tab(
+                    selected = selectedCategoryType == "expense",
+                    onClick = { selectedCategoryType = "expense" },
+                    text = { Text("Expense") }
+                )
+
+                Tab(
+                    selected = selectedCategoryType == "income",
+                    onClick = { selectedCategoryType = "income" },
+                    text = { Text("Income") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
             RoundedSearchBar(
                 searchQuery = searchQuery,
                 onSearchChanged = { categoryViewModel.updateSearchQuery(it) }
@@ -151,19 +176,24 @@ fun CategoriesScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            if (categories.isEmpty()) {
+            if (visibleCategories.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No categories found")
+                    Text(
+                        text = if (selectedCategoryType == "income") {
+                            "No income categories found"
+                        } else {
+                            "No expense categories found"
+                        }
+                    )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     groupedCategories.forEach { (mainCategory, subCategories) ->
-
                         item {
                             CategorySectionHeader(mainCategory)
                         }
@@ -255,7 +285,6 @@ fun SubCategoryGridItem(category: CategoryEntity) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    // This gives the category item a small press animation.
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.92f else 1f,
         label = "categoryPressScale"
@@ -270,7 +299,7 @@ fun SubCategoryGridItem(category: CategoryEntity) {
                 interactionSource = interactionSource,
                 indication = null
             ) {
-                // No action for now. This exists only for subtle press feedback.
+                // No action for now.
             }
     ) {
         CategoryVisualPreview(
