@@ -10,7 +10,6 @@ import com.google.firebase.auth.FirebaseAuth
 import group12.budgetbuddi.SupabaseClient
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.ExpenseRepository
-import group12.budgetbuddi.utils.SessionManager
 import io.github.jan.supabase.storage.storage
 import io.ktor.http.ContentType
 import kotlinx.coroutines.flow.*
@@ -18,46 +17,82 @@ import kotlinx.coroutines.launch
 
 class ExpenseViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository = ExpenseRepository()
-
-
-    private val sessionManager = SessionManager(application)
-    private val auth = FirebaseAuth.getInstance()
-
-    val currentUserEmail: String
-        get() = auth.currentUser?.email
-            ?: sessionManager.getUserEmail()
-            ?: "guest"
-
     companion object {
         private const val TAG = "ExpenseViewModel"
         private const val BUCKET_NAME = "expense-receipts"
     }
 
+    private val repository = ExpenseRepository()
+    private val auth = FirebaseAuth.getInstance()
+
+    private val currentUserId: String?
+        get() = auth.currentUser?.uid
+
     private val _uiMessage = MutableStateFlow<String?>(null)
-    val uiMessage: StateFlow<String?> = _uiMessage
+    val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
 
     private val _saveSuccess = MutableStateFlow(false)
-    val saveSuccess: StateFlow<Boolean> = _saveSuccess
+    val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow()
 
     private val _isUploadingImage = MutableStateFlow(false)
-    val isUploadingImage: StateFlow<Boolean> = _isUploadingImage
+    val isUploadingImage: StateFlow<Boolean> = _isUploadingImage.asStateFlow()
 
-    val allExpenses: StateFlow<List<ExpenseEntity>> =
-        repository.getAllExpenses(currentUserEmail)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _allExpenses = MutableStateFlow<List<ExpenseEntity>>(emptyList())
+    val allExpenses: StateFlow<List<ExpenseEntity>> = _allExpenses.asStateFlow()
 
     val expensesOnly: StateFlow<List<ExpenseEntity>> =
-        repository.getExpensesOnly(currentUserEmail)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        allExpenses
+            .map { expenses ->
+                expenses.filter { it.type == "expense" }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
+    val incomeOnly: StateFlow<List<ExpenseEntity>> =
+        allExpenses
+            .map { expenses ->
+                expenses.filter { it.type == "income" }
+            }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = emptyList()
+            )
 
-    /**
-     * Uploads an image URI to Supabase storage.
-     * Returns the public URL on success, or null on failure.
-     * Handles both content:// URIs (gallery) and file:// URIs (camera).
-     */
-    private suspend fun uploadImageToSupabase(context: Context, imageUri: Uri): String? {
+    init {
+        observeExpensesForCurrentUser()
+    }
+
+    private fun observeExpensesForCurrentUser() {
+        val userId = currentUserId
+
+        if (userId.isNullOrBlank()) {
+            Log.e(TAG, "No Firebase user found. Cannot observe expenses.")
+            _allExpenses.value = emptyList()
+            return
+        }
+
+        viewModelScope.launch {
+            repository.getAllExpenses(userId)
+                .catch { error ->
+                    Log.e(TAG, "Failed to observe expenses: ${error.message}", error)
+                    _uiMessage.value = "Failed to load expenses"
+                    _allExpenses.value = emptyList()
+                }
+                .collect { expenses ->
+                    _allExpenses.value = expenses
+                }
+        }
+    }
+
+    private suspend fun uploadImageToSupabase(
+        context: Context,
+        userId: String,
+        imageUri: Uri
+    ): String? {
         return try {
             _isUploadingImage.value = true
 
@@ -72,18 +107,23 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
             }
 
             val mimeType = context.contentResolver.getType(imageUri) ?: "image/jpeg"
+
             val extension = when (mimeType) {
                 "image/png" -> "png"
                 "image/webp" -> "webp"
                 else -> "jpg"
             }
 
-            // Folder per user, unique filename per upload
-            val safeEmail = currentUserEmail
-                .replace("@", "_at_")
-                .replace(".", "_")
             val filename = "receipt_${System.currentTimeMillis()}.$extension"
-            val filePath = "$safeEmail/$filename"
+
+            /*
+             Supabase storage path:
+
+             expense-receipts/{uid}/receipt_timestamp.jpg
+
+             Using uid is better than email because Firebase UID is stable.
+            */
+            val filePath = "$userId/$filename"
 
             val bucket = SupabaseClient.client.storage.from(BUCKET_NAME)
 
@@ -95,26 +135,22 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 contentType = ContentType.parse(mimeType)
             }
 
-            // publicUrl() works for public buckets — change to createSignedUrl() for private later
             val publicUrl = bucket.publicUrl(filePath)
+
             Log.d(TAG, "Image uploaded successfully: $publicUrl")
+
             publicUrl
 
         } catch (e: Exception) {
             Log.e(TAG, "Supabase upload failed: ${e.message}", e)
             _uiMessage.value = "Image upload failed: ${e.message}"
             null
+
         } finally {
             _isUploadingImage.value = false
         }
     }
 
-    /**
-     * Saves a transaction to Firestore.
-     * photoPath here is a local file path or content URI string from the screen.
-     * If a photoPath is provided, it will be uploaded to Supabase first.
-     * The stored photoPath in Firestore will be the Supabase URL.
-     */
     fun saveExpense(
         amount: Double,
         type: String,
@@ -128,14 +164,29 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         paymentMethod: String,
         isRecurring: Boolean
     ) {
+        val userId = currentUserId
+
+        if (userId.isNullOrBlank()) {
+            _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot save expense because Firebase userId is null")
+            return
+        }
+
         if (amount <= 0.0) {
             _uiMessage.value = "Please enter a valid amount"
             return
         }
+
+        if (type.isBlank()) {
+            _uiMessage.value = "Please select transaction type"
+            return
+        }
+
         if (category.isBlank()) {
             _uiMessage.value = "Please select a category"
             return
         }
+
         if (date.isBlank()) {
             _uiMessage.value = "Please select a date"
             return
@@ -143,33 +194,43 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             try {
-                // If there's a local photo, upload it to Supabase and get back the URL
                 val finalPhotoPath: String? = if (!photoPath.isNullOrBlank()) {
                     val context = getApplication<Application>().applicationContext
                     val uri = Uri.parse(photoPath)
-                    uploadImageToSupabase(context, uri)
-                    // If upload fails, uploadImageToSupabase returns null and sets uiMessage
-                    // We still proceed with saving the expense (just without a photo)
+
+                    uploadImageToSupabase(
+                        context = context,
+                        userId = userId,
+                        imageUri = uri
+                    )
                 } else {
                     null
                 }
 
+                val now = System.currentTimeMillis()
+
                 val expense = ExpenseEntity(
-                    userEmail = currentUserEmail,
+                    userId = userId,
                     amount = amount,
-                    type = type,
-                    category = category,
-                    subCategory = subCategory,
-                    date = date,
-                    startTime = startTime,
-                    endTime = endTime,
-                    note = note,
-                    photoPath = finalPhotoPath,   // Supabase URL or null
-                    paymentMethod = paymentMethod,
-                    isRecurring = isRecurring
+                    type = type.trim().lowercase(),
+                    category = category.trim(),
+                    subCategory = subCategory.trim(),
+                    date = date.trim(),
+                    startTime = startTime.trim(),
+                    endTime = endTime.trim(),
+                    note = note.trim(),
+                    photoPath = finalPhotoPath,
+                    paymentMethod = paymentMethod.trim(),
+                    isRecurring = isRecurring,
+                    createdAt = now,
+                    updatedAt = now
                 )
 
-                repository.insertExpense(expense)
+                repository.insertExpense(
+                    userId = userId,
+                    expense = expense
+                )
+
                 _uiMessage.value = "Saved successfully"
                 _saveSuccess.value = true
 
@@ -180,19 +241,55 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateExpense(expense: ExpenseEntity) {
+        val userId = currentUserId
 
-    fun deleteExpense(expense: ExpenseEntity) {
+        if (userId.isNullOrBlank()) {
+            _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot update expense because Firebase userId is null")
+            return
+        }
+
         viewModelScope.launch {
             try {
-                repository.deleteExpense(expense)
+                repository.updateExpense(
+                    userId = userId,
+                    expense = expense.copy(userId = userId)
+                )
+
+                _uiMessage.value = "Expense updated"
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Update failed: ${e.message}", e)
+                _uiMessage.value = "Failed to update: ${e.message}"
+            }
+        }
+    }
+
+    fun deleteExpense(expense: ExpenseEntity) {
+        val userId = currentUserId
+
+        if (userId.isNullOrBlank()) {
+            _uiMessage.value = "No logged-in user found"
+            Log.e(TAG, "Cannot delete expense because Firebase userId is null")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.deleteExpense(
+                    userId = userId,
+                    expense = expense
+                )
+
                 _uiMessage.value = "Expense deleted"
+
             } catch (e: Exception) {
                 Log.e(TAG, "Delete failed: ${e.message}", e)
                 _uiMessage.value = "Failed to delete: ${e.message}"
             }
         }
     }
-
 
     fun setMessage(message: String) {
         _uiMessage.value = message
