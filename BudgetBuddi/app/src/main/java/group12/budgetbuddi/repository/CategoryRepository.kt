@@ -10,11 +10,11 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 /*
-Author: Firebase / Google Developers
-Description: Used as reference for reading, writing, updating and deleting user-specific category documents in Cloud Firestore.
-Reference: Firebase. 2026. Cloud Firestore documentation. [Online].
-Available at: https://firebase.google.com/docs/firestore
-Accessed: 19 May 2026.
+ Author: Firebase / Google Developers
+ Description: Used as reference for reading, writing, updating and deleting user-specific category documents in Cloud Firestore.
+ Reference: Firebase. 2026. Cloud Firestore documentation. [Online].
+ Available at: https://firebase.google.com/docs/firestore
+ Accessed: 19 May 2026.
 */
 
 class CategoryRepository {
@@ -43,17 +43,8 @@ class CategoryRepository {
 
         val listener = categoriesCollection(userId)
             .addSnapshotListener { snapshot, error ->
-
                 if (error != null) {
                     Log.e(TAG, "Error observing categories: ${error.message}", error)
-
-                    /*
-                     Do NOT send emptyList() here.
-
-                     If Firestore has a temporary permission/index/network issue,
-                     sending emptyList() wipes the UI and makes it look like the user
-                     has no categories, which is misleading.
-                    */
                     return@addSnapshotListener
                 }
 
@@ -88,14 +79,13 @@ class CategoryRepository {
                         createdAt = document.getLong("createdAt") ?: 0L,
                         updatedAt = document.getLong("updatedAt") ?: 0L
                     )
-                }
-                    .sortedWith(
-                        compareBy<CategoryEntity> { it.mainCategory.lowercase() }
-                            .thenBy { it.subCategory.lowercase() }
-                    )
+                }.sortedWith(
+                    compareBy<CategoryEntity> { it.categoryType.lowercase() }
+                        .thenBy { it.mainCategory.lowercase() }
+                        .thenBy { it.subCategory.lowercase() }
+                )
 
                 Log.d(TAG, "Observed valid categories: ${categories.size} for userId=$userId")
-
                 trySend(categories)
             }
 
@@ -106,6 +96,11 @@ class CategoryRepository {
     }
 
     suspend fun insertCategory(userId: String, category: CategoryEntity) {
+        val cleanCategoryType = when (category.categoryType.trim().lowercase()) {
+            "income" -> "income"
+            else -> "expense"
+        }
+
         val cleanMainCategory = category.mainCategory.trim()
         val cleanSubCategory = category.subCategory.trim()
 
@@ -115,17 +110,18 @@ class CategoryRepository {
 
         Log.d(
             TAG,
-            "Attempting to insert category for userId=$userId: $cleanMainCategory / $cleanSubCategory"
+            "Attempting to insert category for userId=$userId: $cleanCategoryType / $cleanMainCategory / $cleanSubCategory"
         )
 
         val duplicateSnapshot = categoriesCollection(userId)
+            .whereEqualTo("categoryType", cleanCategoryType)
             .whereEqualTo("mainCategory", cleanMainCategory)
             .whereEqualTo("subCategory", cleanSubCategory)
             .get()
             .await()
 
         if (!duplicateSnapshot.isEmpty) {
-            Log.d(TAG, "Duplicate category ignored: $cleanMainCategory / $cleanSubCategory")
+            Log.d(TAG, "Duplicate category ignored: $cleanCategoryType / $cleanMainCategory / $cleanSubCategory")
             return
         }
 
@@ -134,6 +130,7 @@ class CategoryRepository {
 
         val categoryData = hashMapOf(
             "userId" to userId,
+            "categoryType" to cleanCategoryType,
             "mainCategory" to cleanMainCategory,
             "subCategory" to cleanSubCategory,
             "visualType" to category.visualType,
@@ -144,50 +141,17 @@ class CategoryRepository {
         )
 
         documentRef.set(categoryData).await()
-
         Log.d(TAG, "Category inserted with documentId=${documentRef.id}")
-    }
-
-    suspend fun insertCategories(userId: String, categories: List<CategoryEntity>) {
-        if (categories.isEmpty()) return
-
-        Log.d(TAG, "Attempting to insert ${categories.size} default categories for userId=$userId")
-
-        val batch = firestore.batch()
-        val now = System.currentTimeMillis()
-
-        categories.forEach { category ->
-            val cleanMainCategory = category.mainCategory.trim()
-            val cleanSubCategory = category.subCategory.trim()
-
-            if (cleanMainCategory.isBlank() || cleanSubCategory.isBlank()) {
-                return@forEach
-            }
-
-            val documentRef = categoriesCollection(userId).document()
-
-            val categoryData = hashMapOf(
-                "userId" to userId,
-                "mainCategory" to cleanMainCategory,
-                "subCategory" to cleanSubCategory,
-                "visualType" to category.visualType,
-                "visualValue" to category.visualValue,
-                "outlineColor" to category.outlineColor,
-                "createdAt" to now,
-                "updatedAt" to now
-            )
-
-            batch.set(documentRef, categoryData)
-        }
-
-        batch.commit().await()
-
-        Log.d(TAG, "Inserted default categories for userId=$userId")
     }
 
     suspend fun updateCategory(userId: String, category: CategoryEntity) {
         if (category.id.isBlank()) {
             throw IllegalArgumentException("Cannot update category without Firestore document ID")
+        }
+
+        val cleanCategoryType = when (category.categoryType.trim().lowercase()) {
+            "income" -> "income"
+            else -> "expense"
         }
 
         val cleanMainCategory = category.mainCategory.trim()
@@ -199,6 +163,7 @@ class CategoryRepository {
 
         val updates = mapOf(
             "userId" to userId,
+            "categoryType" to cleanCategoryType,
             "mainCategory" to cleanMainCategory,
             "subCategory" to cleanSubCategory,
             "visualType" to category.visualType,
@@ -230,9 +195,6 @@ class CategoryRepository {
 
         val now = System.currentTimeMillis()
 
-        /*
-         If the main category name did not change, only update the selected subcategory.
-        */
         if (cleanOldMain == cleanNewMain) {
             selectedCategory?.let {
                 updateCategory(
@@ -247,25 +209,29 @@ class CategoryRepository {
             return
         }
 
-        /*
-         If the main category name changed, rename all subcategories under it.
-         If the user also selected one subcategory, update its visual fields too.
-        */
-        val snapshot = categoriesCollection(userId)
+        var query = categoriesCollection(userId)
             .whereEqualTo("mainCategory", cleanOldMain)
-            .get()
-            .await()
+
+        val snapshot = query.get().await()
 
         if (snapshot.isEmpty) {
             Log.w(TAG, "No documents found when renaming main category: $cleanOldMain")
             return
         }
 
+        val selectedType = selectedCategory?.categoryType ?: "expense"
         val batch = firestore.batch()
 
         snapshot.documents.forEach { document ->
+            val documentType = document.getString("categoryType") ?: "expense"
+
+            if (documentType != selectedType) {
+                return@forEach
+            }
+
             val updates = mutableMapOf<String, Any>(
                 "userId" to userId,
+                "categoryType" to selectedType,
                 "mainCategory" to cleanNewMain,
                 "updatedAt" to now
             )
@@ -287,7 +253,6 @@ class CategoryRepository {
         }
 
         batch.commit().await()
-
         Log.d(TAG, "Renamed main category from '$cleanOldMain' to '$cleanNewMain'")
     }
 
@@ -304,87 +269,92 @@ class CategoryRepository {
         Log.d(TAG, "Category deleted: ${category.id}")
     }
 
-    suspend fun deleteWholeMainCategory(userId: String, mainCategory: String) {
+    suspend fun deleteWholeMainCategory(
+        userId: String,
+        mainCategory: String,
+        categoryType: String = "expense"
+    ) {
         val cleanMainCategory = mainCategory.trim()
+        val cleanCategoryType = when (categoryType.trim().lowercase()) {
+            "income" -> "income"
+            else -> "expense"
+        }
 
         if (cleanMainCategory.isBlank()) {
             throw IllegalArgumentException("Main category cannot be empty")
         }
 
         val snapshot = categoriesCollection(userId)
+            .whereEqualTo("categoryType", cleanCategoryType)
             .whereEqualTo("mainCategory", cleanMainCategory)
             .get()
             .await()
 
         if (snapshot.isEmpty) {
-            Log.w(TAG, "No documents found for whole category delete: $cleanMainCategory")
+            Log.w(TAG, "No documents found for whole category delete: $cleanCategoryType / $cleanMainCategory")
             return
         }
 
         val batch = firestore.batch()
-
         snapshot.documents.forEach { document ->
             batch.delete(document.reference)
         }
 
         batch.commit().await()
-
-        Log.d(TAG, "Deleted whole category: $cleanMainCategory")
-    }
-
-    suspend fun getCategoryCountForUser(userId: String): Int {
-        val snapshot = categoriesCollection(userId)
-            .limit(1)
-            .get()
-            .await()
-
-        Log.d(TAG, "Category count check for userId=$userId found ${snapshot.size()} document(s)")
-
-        return snapshot.size()
+        Log.d(TAG, "Deleted whole category: $cleanCategoryType / $cleanMainCategory")
     }
 
     suspend fun seedDefaultCategoriesIfNeeded(userId: String) {
-        val count = getCategoryCountForUser(userId)
-
-        if (count > 0) {
-            Log.d(TAG, "Default seeding skipped. User already has categories.")
-            return
-        }
-
         val defaultCategories = listOf(
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Breakfast", visualType = "emoji", visualValue = "🍳", outlineColor = "#4CAF50"),
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Lunch", visualType = "emoji", visualValue = "🥪", outlineColor = "#4CAF50"),
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Dinner", visualType = "emoji", visualValue = "🍽️", outlineColor = "#4CAF50"),
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Snacks", visualType = "emoji", visualValue = "🍪", outlineColor = "#4CAF50"),
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Restaurant", visualType = "emoji", visualValue = "🍴", outlineColor = "#4CAF50"),
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Eating Out", visualType = "emoji", visualValue = "🛍️", outlineColor = "#4CAF50"),
-            CategoryEntity(userId = userId, mainCategory = "Food & Drink", subCategory = "Drinks", visualType = "emoji", visualValue = "🥤", outlineColor = "#4CAF50"),
+            // Expense defaults
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Breakfast", visualType = "emoji", visualValue = "🍳", outlineColor = "#4CAF50"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Lunch", visualType = "emoji", visualValue = "🥪", outlineColor = "#4CAF50"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Dinner", visualType = "emoji", visualValue = "🍽️", outlineColor = "#4CAF50"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Snacks", visualType = "emoji", visualValue = "🍪", outlineColor = "#4CAF50"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Restaurant", visualType = "emoji", visualValue = "🍴", outlineColor = "#4CAF50"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Drinks", visualType = "emoji", visualValue = "🥤", outlineColor = "#4CAF50"),
 
-            CategoryEntity(userId = userId, mainCategory = "Transport", subCategory = "Bus", visualType = "emoji", visualValue = "🚌", outlineColor = "#2196F3"),
-            CategoryEntity(userId = userId, mainCategory = "Transport", subCategory = "Subway", visualType = "emoji", visualValue = "🚇", outlineColor = "#2196F3"),
-            CategoryEntity(userId = userId, mainCategory = "Transport", subCategory = "Taxi", visualType = "emoji", visualValue = "🚕", outlineColor = "#2196F3"),
-            CategoryEntity(userId = userId, mainCategory = "Transport", subCategory = "Train", visualType = "emoji", visualValue = "🚆", outlineColor = "#2196F3"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Bus", visualType = "emoji", visualValue = "🚌", outlineColor = "#2196F3"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Taxi", visualType = "emoji", visualValue = "🚕", outlineColor = "#2196F3"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Transport", subCategory = "Train", visualType = "emoji", visualValue = "🚆", outlineColor = "#2196F3"),
 
-            CategoryEntity(userId = userId, mainCategory = "Housing", subCategory = "Groceries", visualType = "emoji", visualValue = "🛒", outlineColor = "#795548"),
-            CategoryEntity(userId = userId, mainCategory = "Housing", subCategory = "Rent", visualType = "emoji", visualValue = "🏠", outlineColor = "#795548"),
-            CategoryEntity(userId = userId, mainCategory = "Housing", subCategory = "Water", visualType = "emoji", visualValue = "💧", outlineColor = "#795548"),
-            CategoryEntity(userId = userId, mainCategory = "Housing", subCategory = "Electricity", visualType = "emoji", visualValue = "⚡", outlineColor = "#795548"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Rent", visualType = "emoji", visualValue = "🏠", outlineColor = "#795548"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Water", visualType = "emoji", visualValue = "💧", outlineColor = "#795548"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Housing", subCategory = "Electricity", visualType = "emoji", visualValue = "⚡", outlineColor = "#795548"),
 
-            CategoryEntity(userId = userId, mainCategory = "Entertainment", subCategory = "Movie", visualType = "emoji", visualValue = "🎬", outlineColor = "#9C27B0"),
-            CategoryEntity(userId = userId, mainCategory = "Entertainment", subCategory = "Games", visualType = "emoji", visualValue = "🎮", outlineColor = "#9C27B0"),
-            CategoryEntity(userId = userId, mainCategory = "Entertainment", subCategory = "Music", visualType = "emoji", visualValue = "🎵", outlineColor = "#9C27B0"),
-            CategoryEntity(userId = userId, mainCategory = "Entertainment", subCategory = "Party", visualType = "emoji", visualValue = "🎉", outlineColor = "#9C27B0"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Movie", visualType = "emoji", visualValue = "🎬", outlineColor = "#9C27B0"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Games", visualType = "emoji", visualValue = "🎮", outlineColor = "#9C27B0"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Entertainment", subCategory = "Music", visualType = "emoji", visualValue = "🎵", outlineColor = "#9C27B0"),
 
-            CategoryEntity(userId = userId, mainCategory = "Education", subCategory = "School", visualType = "emoji", visualValue = "🏫", outlineColor = "#FF9800"),
-            CategoryEntity(userId = userId, mainCategory = "Education", subCategory = "Self-development", visualType = "emoji", visualValue = "📚", outlineColor = "#FF9800"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Education", subCategory = "School", visualType = "emoji", visualValue = "🏫", outlineColor = "#FF9800"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Education", subCategory = "Self-development", visualType = "emoji", visualValue = "📚", outlineColor = "#FF9800"),
 
-            CategoryEntity(userId = userId, mainCategory = "Healthcare", subCategory = "Hospital", visualType = "emoji", visualValue = "🏥", outlineColor = "#F44336"),
-            CategoryEntity(userId = userId, mainCategory = "Healthcare", subCategory = "Medicine", visualType = "emoji", visualValue = "💊", outlineColor = "#F44336"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Healthcare", subCategory = "Hospital", visualType = "emoji", visualValue = "🏥", outlineColor = "#F44336"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Healthcare", subCategory = "Medicine", visualType = "emoji", visualValue = "💊", outlineColor = "#F44336"),
 
-            CategoryEntity(userId = userId, mainCategory = "Car", subCategory = "Fuel", visualType = "emoji", visualValue = "⛽", outlineColor = "#607D8B"),
-            CategoryEntity(userId = userId, mainCategory = "Car", subCategory = "Parking", visualType = "emoji", visualValue = "🅿️", outlineColor = "#607D8B")
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Car", subCategory = "Fuel", visualType = "emoji", visualValue = "⛽", outlineColor = "#607D8B"),
+            CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Car", subCategory = "Parking", visualType = "emoji", visualValue = "🅿️", outlineColor = "#607D8B"),
+
+            // Income defaults
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Monthly Salary", visualType = "emoji", visualValue = "💼", outlineColor = "#139A43"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Part-time Job", visualType = "emoji", visualValue = "🕒", outlineColor = "#139A43"),
+
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Investments", subCategory = "Dividends", visualType = "emoji", visualValue = "📈", outlineColor = "#2E7D32"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Investments", subCategory = "Interest", visualType = "emoji", visualValue = "🏦", outlineColor = "#2E7D32"),
+
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Allowance", subCategory = "Family Allowance", visualType = "emoji", visualValue = "🤝", outlineColor = "#00A86B"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Allowance", subCategory = "Student Allowance", visualType = "emoji", visualValue = "🎓", outlineColor = "#00A86B"),
+
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Bonus", subCategory = "Work Bonus", visualType = "emoji", visualValue = "🎁", outlineColor = "#43A047"),
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Bonus", subCategory = "Gift Bonus", visualType = "emoji", visualValue = "💝", outlineColor = "#43A047"),
+
+            CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Other", subCategory = "Other Income", visualType = "emoji", visualValue = "➕", outlineColor = "#607D8B")
         )
 
-        insertCategories(userId, defaultCategories)
+        defaultCategories.forEach { category ->
+            insertCategory(userId, category)
+        }
+
+        Log.d(TAG, "Default category seeding checked for userId=$userId")
     }
 }
