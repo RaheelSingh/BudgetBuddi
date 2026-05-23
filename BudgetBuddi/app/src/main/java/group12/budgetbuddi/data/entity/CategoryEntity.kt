@@ -11,6 +11,7 @@ Accessed: 19 May 2026.
 data class CategoryEntity(
     val id: String = "",
     val userId: String = "",
+    val categoryType: String = "expense", // "expense" or "income"
     val mainCategory: String = "",
     val subCategory: String = "",
     val visualType: String = "emoji",
