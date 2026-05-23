@@ -47,7 +47,8 @@ data class BudgetGoalUiState(
 class CategoryTotalsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getInstance(application)
-    private val expenseRepository = ExpenseRepository(db.expenseDao())
+
+    private val expenseRepository = ExpenseRepository()
     private val budgetGoalRepository = BudgetGoalRepository(db.budgetGoalDao())
     private val sessionManager = SessionManager(application)
     private val userEmail: String = sessionManager.getUserEmail() ?: ""
