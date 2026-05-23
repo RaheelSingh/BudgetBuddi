@@ -16,14 +16,24 @@ class ExpenseRepository {
 
     companion object {
         private const val TAG = "ExpenseRepository"
+        private const val USERS_COLLECTION = "users"
         private const val EXPENSES_COLLECTION = "expenses"
     }
 
+    private fun expensesCollection(userId: String) =
+        firestore
+            .collection(USERS_COLLECTION)
+            .document(userId)
+            .collection(EXPENSES_COLLECTION)
 
-    private fun mapToExpense(id: String, data: Map<String, Any>): ExpenseEntity {
+    private fun mapToExpense(
+        id: String,
+        userId: String,
+        data: Map<String, Any>
+    ): ExpenseEntity {
         return ExpenseEntity(
             id = id,
-            userEmail = data["userEmail"] as? String ?: "",
+            userId = data["userId"] as? String ?: userId,
             amount = (data["amount"] as? Number)?.toDouble() ?: 0.0,
             type = data["type"] as? String ?: "",
             category = data["category"] as? String ?: "",
@@ -35,14 +45,14 @@ class ExpenseRepository {
             photoPath = data["photoPath"] as? String,
             paymentMethod = data["paymentMethod"] as? String ?: "",
             isRecurring = data["isRecurring"] as? Boolean ?: false,
-            createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
         )
     }
 
-
     private fun expenseToMap(expense: ExpenseEntity): Map<String, Any?> {
         return mapOf(
-            "userEmail" to expense.userEmail,
+            "userId" to expense.userId,
             "amount" to expense.amount,
             "type" to expense.type,
             "category" to expense.category,
@@ -54,118 +64,221 @@ class ExpenseRepository {
             "photoPath" to expense.photoPath,
             "paymentMethod" to expense.paymentMethod,
             "isRecurring" to expense.isRecurring,
-            "createdAt" to expense.createdAt
+            "createdAt" to expense.createdAt,
+            "updatedAt" to expense.updatedAt
         )
     }
 
-    // ─── Real-time listener as Flow ───────────────────────────────────────────
+    fun getAllExpenses(userId: String): Flow<List<ExpenseEntity>> = callbackFlow {
+        if (userId.isBlank()) {
+            Log.e(TAG, "Cannot observe expenses because userId is blank")
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
 
-    fun getAllExpenses(userEmail: String): Flow<List<ExpenseEntity>> = callbackFlow {
-        val listenerRegistration = firestore.collection(EXPENSES_COLLECTION)
-            .whereEqualTo("userEmail", userEmail)
+        Log.d(TAG, "Starting expenses listener for userId=$userId")
+
+        val listenerRegistration = expensesCollection(userId)
             .orderBy("date", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
+
                 if (error != null) {
                     Log.e(TAG, "Error listening to expenses: ${error.message}", error)
                     return@addSnapshotListener
                 }
-                val expenses = snapshot?.documents?.mapNotNull { doc ->
-                    doc.data?.let { mapToExpense(doc.id, it) }
-                } ?: emptyList()
+
+                if (snapshot == null) {
+                    Log.w(TAG, "Expense snapshot is null for userId=$userId")
+                    return@addSnapshotListener
+                }
+
+                val expenses = snapshot.documents.mapNotNull { document ->
+                    val data = document.data ?: return@mapNotNull null
+
+                    mapToExpense(
+                        id = document.id,
+                        userId = userId,
+                        data = data
+                    )
+                }
+
+                Log.d(TAG, "Observed ${expenses.size} expenses for userId=$userId")
+
                 trySend(expenses)
             }
-        awaitClose { listenerRegistration.remove() }
+
+        awaitClose {
+            Log.d(TAG, "Closing expenses listener for userId=$userId")
+            listenerRegistration.remove()
+        }
     }
 
-    fun getExpensesOnly(userEmail: String): Flow<List<ExpenseEntity>> =
-        getAllExpenses(userEmail).map { list -> list.filter { it.type == "expense" } }
+    fun getExpensesOnly(userId: String): Flow<List<ExpenseEntity>> =
+        getAllExpenses(userId).map { list ->
+            list.filter { it.type == "expense" }
+        }
 
-    fun getIncomeOnly(userEmail: String): Flow<List<ExpenseEntity>> =
-        getAllExpenses(userEmail).map { list -> list.filter { it.type == "income" } }
+    fun getIncomeOnly(userId: String): Flow<List<ExpenseEntity>> =
+        getAllExpenses(userId).map { list ->
+            list.filter { it.type == "income" }
+        }
 
     fun getExpensesByDateRange(
-        userEmail: String,
+        userId: String,
         fromDate: String,
         toDate: String
     ): Flow<List<ExpenseEntity>> =
-        getAllExpenses(userEmail).map { list ->
-            list.filter { it.date >= fromDate && it.date <= toDate }
+        getAllExpenses(userId).map { list ->
+            list.filter {
+                it.date >= fromDate && it.date <= toDate
+            }
         }
 
     fun getExpensesByCategory(
-        userEmail: String,
+        userId: String,
         category: String
     ): Flow<List<ExpenseEntity>> =
-        getAllExpenses(userEmail).map { list -> list.filter { it.category == category } }
+        getAllExpenses(userId).map { list ->
+            list.filter {
+                it.category == category
+            }
+        }
 
     fun getExpensesByCategoryAndDateRange(
-        userEmail: String,
+        userId: String,
         category: String,
         fromDate: String,
         toDate: String
     ): Flow<List<ExpenseEntity>> =
-        getAllExpenses(userEmail).map { list ->
+        getAllExpenses(userId).map { list ->
             list.filter {
-                it.category == category && it.date >= fromDate && it.date <= toDate
+                it.category == category &&
+                        it.date >= fromDate &&
+                        it.date <= toDate
             }
         }
 
-    fun getTotalExpenses(userEmail: String): Flow<Double?> =
-        getExpensesOnly(userEmail).map { list ->
-            list.sumOf { it.amount }.takeIf { it > 0 }
+    fun getTotalExpenses(userId: String): Flow<Double?> =
+        getExpensesOnly(userId).map { list ->
+            list.sumOf { it.amount }.takeIf { it > 0.0 }
         }
 
-    fun getTotalIncome(userEmail: String): Flow<Double?> =
-        getIncomeOnly(userEmail).map { list ->
-            list.sumOf { it.amount }.takeIf { it > 0 }
+    fun getTotalIncome(userId: String): Flow<Double?> =
+        getIncomeOnly(userId).map { list ->
+            list.sumOf { it.amount }.takeIf { it > 0.0 }
         }
 
+    suspend fun insertExpense(
+        userId: String,
+        expense: ExpenseEntity
+    ): String {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot insert expense because userId is blank")
+        }
 
-    suspend fun insertExpense(expense: ExpenseEntity): String {
         return try {
-            val docRef = firestore.collection(EXPENSES_COLLECTION)
-                .add(expenseToMap(expense))
+            val now = System.currentTimeMillis()
+
+            val cleanExpense = expense.copy(
+                userId = userId,
+                createdAt = if (expense.createdAt == 0L) now else expense.createdAt,
+                updatedAt = now
+            )
+
+            val documentRef = expensesCollection(userId)
+                .add(expenseToMap(cleanExpense))
                 .await()
-            Log.d(TAG, "Expense inserted with ID: ${docRef.id}")
-            docRef.id
+
+            Log.d(TAG, "Expense inserted with ID: ${documentRef.id} for userId=$userId")
+
+            documentRef.id
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to insert expense: ${e.message}", e)
             throw e
         }
     }
 
-    suspend fun updateExpense(expense: ExpenseEntity) {
+    suspend fun updateExpense(
+        userId: String,
+        expense: ExpenseEntity
+    ) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot update expense because userId is blank")
+        }
+
+        if (expense.id.isBlank()) {
+            throw IllegalArgumentException("Cannot update expense because expense ID is blank")
+        }
+
         try {
-            if (expense.id.isBlank()) throw IllegalArgumentException("Expense ID is blank")
-            firestore.collection(EXPENSES_COLLECTION)
+            val cleanExpense = expense.copy(
+                userId = userId,
+                updatedAt = System.currentTimeMillis()
+            )
+
+            expensesCollection(userId)
                 .document(expense.id)
-                .set(expenseToMap(expense))
+                .set(expenseToMap(cleanExpense))
                 .await()
-            Log.d(TAG, "Expense updated: ${expense.id}")
+
+            Log.d(TAG, "Expense updated: ${expense.id} for userId=$userId")
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update expense: ${e.message}", e)
             throw e
         }
     }
 
-    suspend fun deleteExpense(expense: ExpenseEntity) {
+    suspend fun deleteExpense(
+        userId: String,
+        expense: ExpenseEntity
+    ) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot delete expense because userId is blank")
+        }
+
+        if (expense.id.isBlank()) {
+            throw IllegalArgumentException("Cannot delete expense because expense ID is blank")
+        }
+
         try {
-            if (expense.id.isBlank()) throw IllegalArgumentException("Expense ID is blank")
-            firestore.collection(EXPENSES_COLLECTION)
+            expensesCollection(userId)
                 .document(expense.id)
                 .delete()
                 .await()
-            Log.d(TAG, "Expense deleted: ${expense.id}")
+
+            Log.d(TAG, "Expense deleted: ${expense.id} for userId=$userId")
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete expense: ${e.message}", e)
             throw e
         }
     }
 
-    suspend fun getExpenseById(id: String): ExpenseEntity? {
+    suspend fun getExpenseById(
+        userId: String,
+        expenseId: String
+    ): ExpenseEntity? {
+        if (userId.isBlank() || expenseId.isBlank()) {
+            return null
+        }
+
         return try {
-            val doc = firestore.collection(EXPENSES_COLLECTION).document(id).get().await()
-            doc.data?.let { mapToExpense(doc.id, it) }
+            val document = expensesCollection(userId)
+                .document(expenseId)
+                .get()
+                .await()
+
+            val data = document.data ?: return null
+
+            mapToExpense(
+                id = document.id,
+                userId = userId,
+                data = data
+            )
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get expense by ID: ${e.message}", e)
             null
