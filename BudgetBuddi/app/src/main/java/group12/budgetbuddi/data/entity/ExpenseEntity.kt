@@ -2,7 +2,7 @@ package group12.budgetbuddi.data.entity
 
 data class ExpenseEntity(
     val id: String = "",
-    val userEmail: String = "",
+    val userId: String = "",
     val amount: Double = 0.0,
     val type: String = "",
     val category: String = "",
@@ -14,5 +14,6 @@ data class ExpenseEntity(
     val photoPath: String? = null,
     val paymentMethod: String = "",
     val isRecurring: Boolean = false,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )
