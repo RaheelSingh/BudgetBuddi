@@ -24,96 +24,110 @@ class BudgetGoalRepository {
             .document(userId)
             .collection(BUDGET_GOALS_COLLECTION)
 
-    private fun goalDocumentId(month: Int, year: Int): String {
-        return "%04d_%02d".format(year, month)
+    private fun mapToGoal(
+        id: String,
+        userId: String,
+        data: Map<String, Any>
+    ): BudgetGoalEntity {
+        return BudgetGoalEntity(
+            id = id,
+            userId = data["userId"] as? String ?: userId,
+            goalName = data["goalName"] as? String ?: "",
+            categoryName = data["categoryName"] as? String ?: "",
+            subCategoryName = data["subCategoryName"] as? String ?: "",
+            goalType = data["goalType"] as? String ?: "expense",
+            minGoal = (data["minGoal"] as? Number)?.toDouble() ?: 0.0,
+            maxGoal = (data["maxGoal"] as? Number)?.toDouble() ?: 0.0,
+            month = (data["month"] as? Number)?.toInt() ?: 0,
+            year = (data["year"] as? Number)?.toInt() ?: 0,
+            isRecurring = data["isRecurring"] as? Boolean ?: false,
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
+            updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
+        )
     }
 
-    fun getGoalForMonth(
+    fun getAllGoalsForMonth(
         userId: String,
         month: Int,
         year: Int
-    ): Flow<BudgetGoalEntity?> = callbackFlow {
-
+    ): Flow<List<BudgetGoalEntity>> = callbackFlow {
         if (userId.isBlank()) {
-            trySend(null)
+            trySend(emptyList())
             close()
             return@callbackFlow
         }
-
-        val documentId = goalDocumentId(month, year)
-
         val listener = budgetGoalsCollection(userId)
-            .document(documentId)
+            .whereEqualTo("month", month)
+            .whereEqualTo("year", year)
             .addSnapshotListener { snapshot, error ->
-
                 if (error != null) {
-                    Log.e(TAG, "Error observing budget goal: ${error.message}", error)
+                    Log.e(TAG, "Error observing goals: ${error.message}", error)
                     return@addSnapshotListener
                 }
-
-                if (snapshot == null || !snapshot.exists()) {
-                    trySend(null)
+                if (snapshot == null) {
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
-
-                val data = snapshot.data
-
-                if (data == null) {
-                    trySend(null)
-                    return@addSnapshotListener
+                val goals = snapshot.documents.mapNotNull { doc ->
+                    val data = doc.data ?: return@mapNotNull null
+                    mapToGoal(doc.id, userId, data)
                 }
-
-                val goal = BudgetGoalEntity(
-                    id = snapshot.id,
-                    userId = data["userId"] as? String ?: userId,
-                    month = (data["month"] as? Number)?.toInt() ?: month,
-                    year = (data["year"] as? Number)?.toInt() ?: year,
-                    minGoal = (data["minGoal"] as? Number)?.toDouble() ?: 0.0,
-                    maxGoal = (data["maxGoal"] as? Number)?.toDouble() ?: 0.0,
-                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
-                    updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: 0L
-                )
-
-                trySend(goal)
+                trySend(goals)
             }
-
-        awaitClose {
-            listener.remove()
-        }
+        awaitClose { listener.remove() }
     }
 
-    suspend fun saveGoal(
-        userId: String,
-        goal: BudgetGoalEntity
-    ) {
+    suspend fun saveGoal(userId: String, goal: BudgetGoalEntity): String {
         if (userId.isBlank()) {
-            throw IllegalArgumentException("Cannot save budget goal because userId is blank")
+            throw IllegalArgumentException("Cannot save goal: userId is blank")
         }
-
-        val documentId = goalDocumentId(goal.month, goal.year)
         val now = System.currentTimeMillis()
-
-        val cleanGoal = goal.copy(
-            userId = userId,
-            createdAt = if (goal.createdAt == 0L) now else goal.createdAt,
-            updatedAt = now
-        )
-
         val data = mapOf(
-            "userId" to cleanGoal.userId,
-            "month" to cleanGoal.month,
-            "year" to cleanGoal.year,
-            "minGoal" to cleanGoal.minGoal,
-            "maxGoal" to cleanGoal.maxGoal,
-            "createdAt" to cleanGoal.createdAt,
-            "updatedAt" to cleanGoal.updatedAt
+            "userId" to userId,
+            "goalName" to goal.goalName,
+            "categoryName" to goal.categoryName,
+            "subCategoryName" to goal.subCategoryName,
+            "goalType" to goal.goalType,
+            "minGoal" to goal.minGoal,
+            "maxGoal" to goal.maxGoal,
+            "month" to goal.month,
+            "year" to goal.year,
+            "isRecurring" to goal.isRecurring,
+            "createdAt" to now,
+            "updatedAt" to now
         )
+        val docRef = budgetGoalsCollection(userId).add(data).await()
+        Log.d(TAG, "Goal saved: ${docRef.id} for userId=$userId")
+        return docRef.id
+    }
 
-        budgetGoalsCollection(userId)
-            .document(documentId)
-            .set(data)
-            .await()
+    suspend fun updateGoal(userId: String, goal: BudgetGoalEntity) {
+        if (userId.isBlank() || goal.id.isBlank()) {
+            throw IllegalArgumentException("Cannot update goal: userId or goalId is blank")
+        }
+        val now = System.currentTimeMillis()
+        val data = mapOf(
+            "userId" to userId,
+            "goalName" to goal.goalName,
+            "categoryName" to goal.categoryName,
+            "subCategoryName" to goal.subCategoryName,
+            "goalType" to goal.goalType,
+            "minGoal" to goal.minGoal,
+            "maxGoal" to goal.maxGoal,
+            "month" to goal.month,
+            "year" to goal.year,
+            "isRecurring" to goal.isRecurring,
+            "updatedAt" to now
+        )
+        budgetGoalsCollection(userId).document(goal.id).update(data).await()
+        Log.d(TAG, "Goal updated: ${goal.id} for userId=$userId")
+    }
 
-        Log.d(TAG, "Budget goal saved: $documentId for userId=$userId")
+    suspend fun deleteGoal(userId: String, goalId: String) {
+        if (userId.isBlank() || goalId.isBlank()) {
+            throw IllegalArgumentException("Cannot delete goal: userId or goalId is blank")
+        }
+        budgetGoalsCollection(userId).document(goalId).delete().await()
+        Log.d(TAG, "Goal deleted: $goalId for userId=$userId")
     }
 }
