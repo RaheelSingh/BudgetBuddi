@@ -54,11 +54,7 @@ fun CategoryTotalsScreen(
             onDismissRequest = { budgetGoalViewModel.dismissDeleteDialog() },
             containerColor = BackgroundWhite,
             title = {
-                Text(
-                    "Delete Goal",
-                    fontWeight = FontWeight.Bold,
-                    color = TextBlack
-                )
+                Text("Delete Goal", fontWeight = FontWeight.Bold, color = TextBlack)
             },
             text = {
                 Text(
