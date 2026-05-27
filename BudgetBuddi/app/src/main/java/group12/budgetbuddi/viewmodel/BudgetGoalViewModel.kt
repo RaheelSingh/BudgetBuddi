@@ -78,6 +78,8 @@ class BudgetGoalViewModel : ViewModel() {
         loadCategories()
     }
 
+    // ── Load goals + spending ─────────────────────────────────────────────
+
     private fun loadGoalsWithProgress() {
         val uid = userId ?: return
         viewModelScope.launch {
@@ -134,6 +136,8 @@ class BudgetGoalViewModel : ViewModel() {
         }
     }
 
+    // ── Load categories ───────────────────────────────────────────────────
+
     private fun loadCategories() {
         val uid = userId ?: return
         viewModelScope.launch {
@@ -144,6 +148,181 @@ class BudgetGoalViewModel : ViewModel() {
                         incomeCategories = categories.filter { c -> c.categoryType == "income" }
                     )
                 }
+            }
+        }
+    }
+
+    // ── Form interactions ─────────────────────────────────────────────────
+
+    fun selectTab(index: Int) {
+        _addGoalUiState.update {
+            it.copy(
+                selectedTab = index,
+                selectedCategory = null,
+                minGoal = "",
+                maxGoal = "",
+                error = null
+            )
+        }
+    }
+
+    fun selectCategory(category: CategoryEntity) {
+        _addGoalUiState.update { it.copy(selectedCategory = category, error = null) }
+    }
+
+    fun updateMinGoal(value: String) {
+        _addGoalUiState.update { it.copy(minGoal = value, error = null) }
+    }
+
+    fun updateMaxGoal(value: String) {
+        _addGoalUiState.update { it.copy(maxGoal = value, error = null) }
+    }
+
+    fun toggleRecurring() {
+        _addGoalUiState.update { it.copy(isRecurring = !it.isRecurring) }
+    }
+
+    fun resetForm() {
+        _addGoalUiState.update {
+            it.copy(
+                selectedTab = 0,
+                selectedCategory = null,
+                minGoal = "",
+                maxGoal = "",
+                isRecurring = false,
+                isSaved = false,
+                error = null,
+                editingGoalId = null,
+                isEditMode = false
+            )
+        }
+    }
+
+    fun resetSavedFlag() {
+        _addGoalUiState.update { it.copy(isSaved = false) }
+    }
+
+    // ── Edit mode ─────────────────────────────────────────────────────────
+
+    fun startEditing(goalWithProgress: GoalWithProgress) {
+        val goal = goalWithProgress.goal
+        val tabIndex = if (goal.goalType == "income") 1 else 0
+        val state = _addGoalUiState.value
+        val categories = if (goal.goalType == "income")
+            state.incomeCategories else state.expenseCategories
+        val matchingCategory = categories.firstOrNull {
+            it.mainCategory == goal.categoryName && it.subCategory == goal.subCategoryName
+        }
+        _addGoalUiState.update {
+            it.copy(
+                selectedTab = tabIndex,
+                selectedCategory = matchingCategory,
+                minGoal = if (goal.minGoal > 0) goal.minGoal.toString() else "",
+                maxGoal = if (goal.maxGoal > 0) goal.maxGoal.toString() else "",
+                isRecurring = goal.isRecurring,
+                editingGoalId = goal.id,
+                isEditMode = true,
+                isSaved = false,
+                error = null
+            )
+        }
+    }
+
+    // ── Save goal ─────────────────────────────────────────────────────────
+
+    fun saveGoal() {
+        val uid = userId
+        if (uid.isNullOrBlank()) {
+            _addGoalUiState.update { it.copy(error = "No logged-in user") }
+            return
+        }
+        val state = _addGoalUiState.value
+        val category = state.selectedCategory
+        if (category == null) {
+            _addGoalUiState.update { it.copy(error = "Please select a category") }
+            return
+        }
+        val goalType = if (state.selectedTab == 1) "income" else "expense"
+        val min = state.minGoal.toDoubleOrNull() ?: 0.0
+        val max = state.maxGoal.toDoubleOrNull() ?: 0.0
+
+        if (goalType == "expense") {
+            if (max <= 0) {
+                _addGoalUiState.update { it.copy(error = "Maximum spending must be greater than 0") }
+                return
+            }
+            if (min < 0) {
+                _addGoalUiState.update { it.copy(error = "Minimum cannot be negative") }
+                return
+            }
+            if (min > max) {
+                _addGoalUiState.update { it.copy(error = "Minimum cannot exceed maximum") }
+                return
+            }
+        } else {
+            if (min <= 0) {
+                _addGoalUiState.update { it.copy(error = "Minimum income must be greater than 0") }
+                return
+            }
+        }
+
+        viewModelScope.launch {
+            _addGoalUiState.update { it.copy(isSaving = true, error = null) }
+            try {
+                val goal = BudgetGoalEntity(
+                    id = state.editingGoalId ?: "",
+                    userId = uid,
+                    goalName = "${category.mainCategory} - ${category.subCategory}",
+                    categoryName = category.mainCategory,
+                    subCategoryName = category.subCategory,
+                    goalType = goalType,
+                    minGoal = min,
+                    maxGoal = max,
+                    month = currentMonth,
+                    year = currentYear,
+                    isRecurring = state.isRecurring
+                )
+                if (state.isEditMode && state.editingGoalId != null) {
+                    budgetGoalRepository.updateGoal(uid, goal)
+                } else {
+                    budgetGoalRepository.saveGoal(uid, goal)
+                }
+                _addGoalUiState.update {
+                    it.copy(isSaving = false, isSaved = true, error = null)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error saving goal: ${e.message}", e)
+                _addGoalUiState.update {
+                    it.copy(isSaving = false, error = "Failed to save: ${e.message}")
+                }
+            }
+        }
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────
+
+    fun showDeleteDialog(goalId: String, goalName: String) {
+        _deleteDialogState.update {
+            it.copy(isVisible = true, goalId = goalId, goalName = goalName)
+        }
+    }
+
+    fun dismissDeleteDialog() {
+        _deleteDialogState.update { it.copy(isVisible = false, goalId = "", goalName = "") }
+    }
+
+    fun confirmDelete() {
+        val uid = userId ?: return
+        val goalId = _deleteDialogState.value.goalId
+        if (goalId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                budgetGoalRepository.deleteGoal(uid, goalId)
+                dismissDeleteDialog()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting goal: ${e.message}", e)
+                _listUiState.update { it.copy(error = "Failed to delete: ${e.message}") }
+                dismissDeleteDialog()
             }
         }
     }
