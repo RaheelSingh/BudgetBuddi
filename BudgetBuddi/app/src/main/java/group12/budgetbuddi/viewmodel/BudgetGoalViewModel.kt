@@ -78,7 +78,6 @@ class BudgetGoalViewModel : ViewModel() {
         loadCategories()
     }
 
-    // ── Load goals + spending ─────────────────────────────────────────────
 
     private fun loadGoalsWithProgress() {
         val uid = userId ?: return
@@ -136,7 +135,6 @@ class BudgetGoalViewModel : ViewModel() {
         }
     }
 
-    // ── Load categories ───────────────────────────────────────────────────
 
     private fun loadCategories() {
         val uid = userId ?: return
@@ -152,7 +150,6 @@ class BudgetGoalViewModel : ViewModel() {
         }
     }
 
-    // ── Form interactions ─────────────────────────────────────────────────
 
     fun selectTab(index: Int) {
         _addGoalUiState.update {
@@ -202,7 +199,6 @@ class BudgetGoalViewModel : ViewModel() {
         _addGoalUiState.update { it.copy(isSaved = false) }
     }
 
-    // ── Edit mode ─────────────────────────────────────────────────────────
 
     fun startEditing(goalWithProgress: GoalWithProgress) {
         val goal = goalWithProgress.goal
@@ -228,7 +224,6 @@ class BudgetGoalViewModel : ViewModel() {
         }
     }
 
-    // ── Save goal ─────────────────────────────────────────────────────────
 
     fun saveGoal() {
         val uid = userId
@@ -299,7 +294,6 @@ class BudgetGoalViewModel : ViewModel() {
         }
     }
 
-    // ── Delete ────────────────────────────────────────────────────────────
 
     fun showDeleteDialog(goalId: String, goalName: String) {
         _deleteDialogState.update {
