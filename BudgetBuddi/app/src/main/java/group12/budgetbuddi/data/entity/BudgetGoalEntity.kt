@@ -1,5 +1,6 @@
 package group12.budgetbuddi.data.entity
 
+
 data class BudgetGoalEntity(
     val id: String = "",
     val userId: String = "",
