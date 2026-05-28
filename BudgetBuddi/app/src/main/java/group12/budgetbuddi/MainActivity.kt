@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import group12.budgetbuddi.ui.screens.*
 import group12.budgetbuddi.ui.theme.BudgetBuddiTheme
 import group12.budgetbuddi.viewmodel.AuthViewModel
+import group12.budgetbuddi.viewmodel.BudgetGoalViewModel
 import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
@@ -48,6 +49,7 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
     val currentUser by authViewModel.currentUser.collectAsState()
+    val budgetGoalViewModel: BudgetGoalViewModel = viewModel()
 
     val startDestination = if (currentUser != null) "home" else "welcome"
 
@@ -125,10 +127,16 @@ fun AppNavigation() {
             )
         }
         composable("budget_goals") {
-            SetBudgetGoalScreen(navController)
+            SetBudgetGoalScreen(
+                navController = navController,
+                budgetGoalViewModel = budgetGoalViewModel
+            )
         }
         composable("category_totals") {
-            CategoryTotalsScreen(navController)
+            CategoryTotalsScreen(
+                navController = navController,
+                budgetGoalViewModel = budgetGoalViewModel
+            )
         }
     }
 }
