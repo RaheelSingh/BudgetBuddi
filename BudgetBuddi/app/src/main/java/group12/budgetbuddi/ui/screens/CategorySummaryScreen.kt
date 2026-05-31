@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.ui.screens.CategorySelectorDialog
@@ -22,6 +23,7 @@ import group12.budgetbuddi.ui.theme.BrandGreen
 import group12.budgetbuddi.ui.theme.BrandGreenDark
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +49,7 @@ fun CategorySummaryScreen(
     var selectedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showCategorySelector by remember { mutableStateOf(false) }
 
-    val dateDisplayFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+    val dateDisplayFormat = SimpleDateFormat("MM/dd/yyyy", LocalLocale.current.platformLocale)
 
     // Get all unique categories from expenses
     val allCategories = remember(expensesOnly) {
@@ -114,12 +116,72 @@ fun CategorySummaryScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Category Summary") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = BrandGreen,
                     titleContentColor = Color.White,
                     navigationIconContentColor = Color.White
                 )
             )
+        },
+        bottomBar = {
+            NavigationBar(
+                containerColor = Color.White,
+                tonalElevation = 8.dp
+            ) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = {
+                        navController.navigate("home") {
+                            popUpTo("category_summary") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home", fontSize = 11.sp) }
+                )
+
+                NavigationBarItem(
+                    selected = false,
+                    onClick = {
+                        navController.navigate("daily_report") {
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Assessment, contentDescription = "Daily Report") },
+                    label = { Text("Daily", fontSize = 11.sp) }
+                )
+
+                NavigationBarItem(
+                    selected = false,
+                    onClick = {
+                        navController.navigate("add_transaction") {
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = { Icon(Icons.Default.AddCircle, contentDescription = "Add Transaction") },
+                    label = { Text("Add", fontSize = 11.sp) }
+                )
+
+                NavigationBarItem(
+                    selected = false,
+                    onClick = {
+                        navController.navigate("categories") {
+                            launchSingleTop = true
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Category, contentDescription = "Categories") },
+                    label = { Text("Categories", fontSize = 11.sp) }
+                )
+            }
         }
     ) { paddingValues ->
         Column(
