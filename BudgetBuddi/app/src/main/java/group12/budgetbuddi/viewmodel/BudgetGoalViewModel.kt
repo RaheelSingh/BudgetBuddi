@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import group12.budgetbuddi.data.entity.CategoryEntity
+import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.BudgetGoalRepository
 import group12.budgetbuddi.repository.CategoryRepository
 import group12.budgetbuddi.repository.ExpenseRepository
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -51,6 +53,9 @@ class BudgetGoalViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "BudgetGoalVM"
+
+        private const val ENTIRE_EXPENSE_ID = "__entire_expense__"
+        private const val ENTIRE_INCOME_ID = "__entire_income__"
     }
 
     private val auth = FirebaseAuth.getInstance()
@@ -58,14 +63,28 @@ class BudgetGoalViewModel : ViewModel() {
     private val categoryRepository = CategoryRepository()
     private val expenseRepository = ExpenseRepository()
 
-    private val userId: String?
-        get() = auth.currentUser?.uid
-
     private val currentMonth = Calendar.getInstance().get(Calendar.MONTH) + 1
     private val currentYear = Calendar.getInstance().get(Calendar.YEAR)
 
-    private val _listUiState = MutableStateFlow(BudgetGoalsListUiState())
-    val listUiState: StateFlow<BudgetGoalsListUiState> = _listUiState.asStateFlow()
+    private val userIdFlow: StateFlow<String?> =
+        callbackFlow {
+            val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+                trySend(firebaseAuth.currentUser?.uid)
+            }
+
+            auth.addAuthStateListener(listener)
+            trySend(auth.currentUser?.uid)
+
+            awaitClose {
+                auth.removeAuthStateListener(listener)
+            }
+        }
+            .distinctUntilChanged()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,
+                initialValue = auth.currentUser?.uid
+            )
 
     private val _addGoalUiState = MutableStateFlow(AddGoalUiState())
     val addGoalUiState: StateFlow<AddGoalUiState> = _addGoalUiState.asStateFlow()
@@ -73,83 +92,239 @@ class BudgetGoalViewModel : ViewModel() {
     private val _deleteDialogState = MutableStateFlow(DeleteDialogState())
     val deleteDialogState: StateFlow<DeleteDialogState> = _deleteDialogState.asStateFlow()
 
-    init {
-        loadGoalsWithProgress()
-        loadCategories()
-    }
-
-
-    private fun loadGoalsWithProgress() {
-        val uid = userId ?: return
-        viewModelScope.launch {
-            _listUiState.update { it.copy(isLoading = true) }
-            try {
-                val firstDay = "%04d-%02d-01".format(currentYear, currentMonth)
-                val cal = Calendar.getInstance()
-                val lastDay = "%04d-%02d-%02d".format(
-                    currentYear, currentMonth,
-                    cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-                )
-                combine(
-                    budgetGoalRepository.getAllGoalsForMonth(uid, currentMonth, currentYear),
-                    expenseRepository.getExpensesByDateRange(uid, firstDay, lastDay)
-                ) { goals, expenses -> Pair(goals, expenses) }
-                    .collect { (goals, expenses) ->
-                        val spendingMap = expenses
-                            .groupBy { it.category }
-                            .mapValues { (_, list) -> list.sumOf { it.amount } }
-
-                        val expenseGoals = goals
-                            .filter { it.goalType == "expense" }
-                            .map { goal ->
-                                val spent = spendingMap[goal.categoryName] ?: 0.0
-                                val fraction = if (goal.maxGoal > 0)
-                                    (spent / goal.maxGoal).toFloat() else 0f
-                                GoalWithProgress(goal, spent, fraction.coerceAtLeast(0f))
-                            }
-                            .sortedBy { it.goal.goalName }
-
-                        val incomeGoals = goals
-                            .filter { it.goalType == "income" }
-                            .map { goal ->
-                                val earned = spendingMap[goal.categoryName] ?: 0.0
-                                val fraction = if (goal.minGoal > 0)
-                                    (earned / goal.minGoal).toFloat() else 0f
-                                GoalWithProgress(goal, earned, fraction.coerceAtLeast(0f))
-                            }
-                            .sortedBy { it.goal.goalName }
-
-                        _listUiState.update {
-                            it.copy(
-                                expenseGoals = expenseGoals,
-                                incomeGoals = incomeGoals,
-                                isLoading = false,
-                                error = null
-                            )
-                        }
-                    }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading goals: ${e.message}", e)
-                _listUiState.update { it.copy(isLoading = false, error = e.message) }
+    val listUiState: StateFlow<BudgetGoalsListUiState> =
+        userIdFlow
+            .flatMapLatest { userId ->
+                if (userId.isNullOrBlank()) {
+                    flowOf(
+                        BudgetGoalsListUiState(
+                            expenseGoals = emptyList(),
+                            incomeGoals = emptyList(),
+                            isLoading = false,
+                            error = "No logged-in user found"
+                        )
+                    )
+                } else {
+                    observeGoalsWithProgress(userId)
+                }
             }
-        }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = BudgetGoalsListUiState(isLoading = true)
+            )
+
+    init {
+        observeCategories()
     }
 
+    private fun observeGoalsWithProgress(userId: String): Flow<BudgetGoalsListUiState> {
+        val firstDay = "%04d-%02d-01".format(currentYear, currentMonth)
 
-    private fun loadCategories() {
-        val uid = userId ?: return
-        viewModelScope.launch {
-            categoryRepository.observeAllCategories(uid).collect { categories ->
-                _addGoalUiState.update {
-                    it.copy(
-                        expenseCategories = categories.filter { c -> c.categoryType == "expense" },
-                        incomeCategories = categories.filter { c -> c.categoryType == "income" }
+        val cal = Calendar.getInstance()
+        val lastDay = "%04d-%02d-%02d".format(
+            currentYear,
+            currentMonth,
+            cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        )
+
+        return combine(
+            budgetGoalRepository.getAllGoalsForMonth(userId, currentMonth, currentYear),
+            expenseRepository.getExpensesByDateRange(userId, firstDay, lastDay)
+        ) { goals, transactions ->
+
+            val expenseGoals = goals
+                .filter { it.goalType == "expense" }
+                .map { goal ->
+                    val amount = calculateGoalAmount(goal, transactions)
+
+                    val fraction = if (goal.maxGoal > 0.0) {
+                        (amount / goal.maxGoal).toFloat()
+                    } else {
+                        0f
+                    }
+
+                    GoalWithProgress(
+                        goal = goal,
+                        amountSpent = amount,
+                        progressFraction = fraction.coerceAtLeast(0f)
+                    )
+                }
+                .sortedBy { it.goal.goalName.lowercase() }
+
+            val incomeGoals = goals
+                .filter { it.goalType == "income" }
+                .map { goal ->
+                    val amount = calculateGoalAmount(goal, transactions)
+
+                    val fraction = if (goal.minGoal > 0.0) {
+                        (amount / goal.minGoal).toFloat()
+                    } else {
+                        0f
+                    }
+
+                    GoalWithProgress(
+                        goal = goal,
+                        amountSpent = amount,
+                        progressFraction = fraction.coerceAtLeast(0f)
+                    )
+                }
+                .sortedBy { it.goal.goalName.lowercase() }
+
+            BudgetGoalsListUiState(
+                expenseGoals = expenseGoals,
+                incomeGoals = incomeGoals,
+                isLoading = false,
+                error = null
+            )
+        }
+            .onStart {
+                emit(BudgetGoalsListUiState(isLoading = true))
+            }
+            .catch { e ->
+                Log.e(TAG, "Error loading budget goals: ${e.message}", e)
+                emit(
+                    BudgetGoalsListUiState(
+                        isLoading = false,
+                        error = e.message
+                    )
+                )
+            }
+    }
+
+    private fun observeCategories() {
+        userIdFlow
+            .flatMapLatest { userId ->
+                if (userId.isNullOrBlank()) {
+                    flowOf(emptyList())
+                } else {
+                    flow {
+                        try {
+                            categoryRepository.seedDefaultCategoriesIfNeeded(userId)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to seed categories: ${e.message}", e)
+                        }
+
+                        emitAll(categoryRepository.observeAllCategories(userId))
+                    }
+                }
+            }
+            .map { categories ->
+                categories.distinctBy {
+                    "${it.categoryType.lowercase()}|${it.mainCategory.lowercase()}|${it.subCategory.lowercase()}"
+                }
+            }
+            .onEach { categories ->
+                val expenseCategories = buildBudgetGoalCategoryOptions(
+                    userId = userIdFlow.value.orEmpty(),
+                    categoryType = "expense",
+                    categories = categories.filter { it.categoryType == "expense" }
+                )
+
+                val incomeCategories = buildBudgetGoalCategoryOptions(
+                    userId = userIdFlow.value.orEmpty(),
+                    categoryType = "income",
+                    categories = categories.filter { it.categoryType == "income" }
+                )
+
+                _addGoalUiState.update { state ->
+                    state.copy(
+                        expenseCategories = expenseCategories,
+                        incomeCategories = incomeCategories
                     )
                 }
             }
-        }
+            .catch { e ->
+                Log.e(TAG, "Error loading categories for budget goals: ${e.message}", e)
+                _addGoalUiState.update {
+                    it.copy(error = "Failed to load categories: ${e.message}")
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
+    private fun buildBudgetGoalCategoryOptions(
+        userId: String,
+        categoryType: String,
+        categories: List<CategoryEntity>
+    ): List<CategoryEntity> {
+        val entireOption = if (categoryType == "income") {
+            CategoryEntity(
+                id = ENTIRE_INCOME_ID,
+                userId = userId,
+                categoryType = "income",
+                mainCategory = "Entire Income",
+                subCategory = "",
+                visualType = "emoji",
+                visualValue = "💰",
+                outlineColor = "#139A43"
+            )
+        } else {
+            CategoryEntity(
+                id = ENTIRE_EXPENSE_ID,
+                userId = userId,
+                categoryType = "expense",
+                mainCategory = "Entire Expense",
+                subCategory = "",
+                visualType = "emoji",
+                visualValue = "💸",
+                outlineColor = "#139A43"
+            )
+        }
+
+        val mainCategoryOptions = categories
+            .groupBy { it.mainCategory }
+            .mapNotNull { (mainCategory, items) ->
+                val first = items.firstOrNull() ?: return@mapNotNull null
+
+                CategoryEntity(
+                    id = "__main_${categoryType}_${mainCategory.lowercase().replace(" ", "_")}__",
+                    userId = userId,
+                    categoryType = categoryType,
+                    mainCategory = mainCategory,
+                    subCategory = "",
+                    visualType = first.visualType,
+                    visualValue = first.visualValue,
+                    outlineColor = first.outlineColor
+                )
+            }
+            .sortedBy { it.mainCategory.lowercase() }
+
+        val subCategoryOptions = categories.sortedWith(
+            compareBy<CategoryEntity> { it.mainCategory.lowercase() }
+                .thenBy { it.subCategory.lowercase() }
+        )
+
+        return listOf(entireOption) + mainCategoryOptions + subCategoryOptions
+    }
+
+    private fun calculateGoalAmount(
+        goal: BudgetGoalEntity,
+        transactions: List<ExpenseEntity>
+    ): Double {
+        val cleanGoalType = goal.goalType.trim().lowercase()
+        val cleanCategory = goal.categoryName.trim()
+        val cleanSubCategory = goal.subCategoryName.trim()
+
+        return transactions
+            .filter { it.type.trim().lowercase() == cleanGoalType }
+            .filter { transaction ->
+                when {
+                    cleanCategory == "Entire Expense" && cleanGoalType == "expense" -> true
+                    cleanCategory == "Entire Income" && cleanGoalType == "income" -> true
+
+                    cleanSubCategory.isBlank() -> {
+                        transaction.category == cleanCategory
+                    }
+
+                    else -> {
+                        transaction.category == cleanCategory &&
+                                transaction.subCategory == cleanSubCategory
+                    }
+                }
+            }
+            .sumOf { it.amount }
+    }
 
     fun selectTab(index: Int) {
         _addGoalUiState.update {
@@ -164,19 +339,44 @@ class BudgetGoalViewModel : ViewModel() {
     }
 
     fun selectCategory(category: CategoryEntity) {
-        _addGoalUiState.update { it.copy(selectedCategory = category, error = null) }
+        _addGoalUiState.update {
+            it.copy(
+                selectedCategory = category,
+                error = null
+            )
+        }
     }
 
     fun updateMinGoal(value: String) {
-        _addGoalUiState.update { it.copy(minGoal = value, error = null) }
+        val filtered = value.filter { it.isDigit() || it == '.' }
+
+        if (filtered.count { it == '.' } <= 1) {
+            _addGoalUiState.update {
+                it.copy(
+                    minGoal = filtered,
+                    error = null
+                )
+            }
+        }
     }
 
     fun updateMaxGoal(value: String) {
-        _addGoalUiState.update { it.copy(maxGoal = value, error = null) }
+        val filtered = value.filter { it.isDigit() || it == '.' }
+
+        if (filtered.count { it == '.' } <= 1) {
+            _addGoalUiState.update {
+                it.copy(
+                    maxGoal = filtered,
+                    error = null
+                )
+            }
+        }
     }
 
     fun toggleRecurring() {
-        _addGoalUiState.update { it.copy(isRecurring = !it.isRecurring) }
+        _addGoalUiState.update {
+            it.copy(isRecurring = !it.isRecurring)
+        }
     }
 
     fun resetForm() {
@@ -187,6 +387,7 @@ class BudgetGoalViewModel : ViewModel() {
                 minGoal = "",
                 maxGoal = "",
                 isRecurring = false,
+                isSaving = false,
                 isSaved = false,
                 error = null,
                 editingGoalId = null,
@@ -196,126 +397,194 @@ class BudgetGoalViewModel : ViewModel() {
     }
 
     fun resetSavedFlag() {
-        _addGoalUiState.update { it.copy(isSaved = false) }
+        _addGoalUiState.update {
+            it.copy(isSaved = false)
+        }
     }
-
 
     fun startEditing(goalWithProgress: GoalWithProgress) {
         val goal = goalWithProgress.goal
         val tabIndex = if (goal.goalType == "income") 1 else 0
-        val state = _addGoalUiState.value
-        val categories = if (goal.goalType == "income")
-            state.incomeCategories else state.expenseCategories
-        val matchingCategory = categories.firstOrNull {
-            it.mainCategory == goal.categoryName && it.subCategory == goal.subCategoryName
+
+        val categoryOptions = if (tabIndex == 1) {
+            _addGoalUiState.value.incomeCategories
+        } else {
+            _addGoalUiState.value.expenseCategories
         }
+
+        val matchingCategory = categoryOptions.firstOrNull {
+            it.categoryType == goal.goalType &&
+                    it.mainCategory == goal.categoryName &&
+                    it.subCategory == goal.subCategoryName
+        } ?: CategoryEntity(
+            id = goal.id,
+            userId = goal.userId,
+            categoryType = goal.goalType,
+            mainCategory = goal.categoryName,
+            subCategory = goal.subCategoryName,
+            visualType = "emoji",
+            visualValue = if (goal.goalType == "income") "💰" else "💸",
+            outlineColor = "#139A43"
+        )
+
         _addGoalUiState.update {
             it.copy(
                 selectedTab = tabIndex,
                 selectedCategory = matchingCategory,
-                minGoal = if (goal.minGoal > 0) goal.minGoal.toString() else "",
-                maxGoal = if (goal.maxGoal > 0) goal.maxGoal.toString() else "",
+                minGoal = goal.minGoal.toString(),
+                maxGoal = if (goal.maxGoal > 0.0) goal.maxGoal.toString() else "",
                 isRecurring = goal.isRecurring,
                 editingGoalId = goal.id,
                 isEditMode = true,
+                isSaving = false,
                 isSaved = false,
                 error = null
             )
         }
     }
 
-
     fun saveGoal() {
-        val uid = userId
-        if (uid.isNullOrBlank()) {
-            _addGoalUiState.update { it.copy(error = "No logged-in user") }
-            return
-        }
+        val userId = userIdFlow.value
         val state = _addGoalUiState.value
         val category = state.selectedCategory
-        if (category == null) {
-            _addGoalUiState.update { it.copy(error = "Please select a category") }
+
+        if (userId.isNullOrBlank()) {
+            _addGoalUiState.update {
+                it.copy(error = "No logged-in user found")
+            }
             return
         }
+
+        if (category == null) {
+            _addGoalUiState.update {
+                it.copy(error = "Please select a category")
+            }
+            return
+        }
+
         val goalType = if (state.selectedTab == 1) "income" else "expense"
-        val min = state.minGoal.toDoubleOrNull() ?: 0.0
-        val max = state.maxGoal.toDoubleOrNull() ?: 0.0
+        val min = state.minGoal.toDoubleOrNull()
+        val max = state.maxGoal.toDoubleOrNull()
+
+        if (min == null || min < 0.0) {
+            _addGoalUiState.update {
+                it.copy(error = "Enter a valid minimum amount")
+            }
+            return
+        }
 
         if (goalType == "expense") {
-            if (max <= 0) {
-                _addGoalUiState.update { it.copy(error = "Maximum spending must be greater than 0") }
+            if (max == null || max <= 0.0) {
+                _addGoalUiState.update {
+                    it.copy(error = "Enter a valid maximum spending amount")
+                }
                 return
             }
-            if (min < 0) {
-                _addGoalUiState.update { it.copy(error = "Minimum cannot be negative") }
-                return
-            }
+
             if (min > max) {
-                _addGoalUiState.update { it.copy(error = "Minimum cannot exceed maximum") }
-                return
-            }
-        } else {
-            if (min <= 0) {
-                _addGoalUiState.update { it.copy(error = "Minimum income must be greater than 0") }
+                _addGoalUiState.update {
+                    it.copy(error = "Minimum cannot be greater than maximum")
+                }
                 return
             }
         }
 
         viewModelScope.launch {
-            _addGoalUiState.update { it.copy(isSaving = true, error = null) }
+            _addGoalUiState.update {
+                it.copy(isSaving = true, error = null)
+            }
+
             try {
+                val cleanCategoryName = category.mainCategory.trim()
+                val cleanSubCategoryName = category.subCategory.trim()
+
+                val goalName = if (cleanSubCategoryName.isBlank()) {
+                    cleanCategoryName
+                } else {
+                    "$cleanCategoryName - $cleanSubCategoryName"
+                }
+
                 val goal = BudgetGoalEntity(
                     id = state.editingGoalId ?: "",
-                    userId = uid,
-                    goalName = "${category.mainCategory} - ${category.subCategory}",
-                    categoryName = category.mainCategory,
-                    subCategoryName = category.subCategory,
+                    userId = userId,
+                    goalName = goalName,
+                    categoryName = cleanCategoryName,
+                    subCategoryName = cleanSubCategoryName,
                     goalType = goalType,
                     minGoal = min,
-                    maxGoal = max,
+                    maxGoal = if (goalType == "expense") max ?: 0.0 else 0.0,
                     month = currentMonth,
                     year = currentYear,
                     isRecurring = state.isRecurring
                 )
-                if (state.isEditMode && state.editingGoalId != null) {
-                    budgetGoalRepository.updateGoal(uid, goal)
+
+                if (state.isEditMode && !state.editingGoalId.isNullOrBlank()) {
+                    budgetGoalRepository.updateGoal(userId, goal)
                 } else {
-                    budgetGoalRepository.saveGoal(uid, goal)
+                    budgetGoalRepository.saveGoal(userId, goal)
                 }
+
                 _addGoalUiState.update {
-                    it.copy(isSaving = false, isSaved = true, error = null)
+                    it.copy(
+                        isSaving = false,
+                        isSaved = true,
+                        error = null
+                    )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error saving goal: ${e.message}", e)
+                Log.e(TAG, "Error saving budget goal: ${e.message}", e)
+
                 _addGoalUiState.update {
-                    it.copy(isSaving = false, error = "Failed to save: ${e.message}")
+                    it.copy(
+                        isSaving = false,
+                        error = "Failed to save: ${e.message}"
+                    )
                 }
             }
         }
     }
 
-
     fun showDeleteDialog(goalId: String, goalName: String) {
         _deleteDialogState.update {
-            it.copy(isVisible = true, goalId = goalId, goalName = goalName)
+            it.copy(
+                isVisible = true,
+                goalId = goalId,
+                goalName = goalName
+            )
         }
     }
 
     fun dismissDeleteDialog() {
-        _deleteDialogState.update { it.copy(isVisible = false, goalId = "", goalName = "") }
+        _deleteDialogState.update {
+            it.copy(
+                isVisible = false,
+                goalId = "",
+                goalName = ""
+            )
+        }
     }
 
     fun confirmDelete() {
-        val uid = userId ?: return
+        val userId = userIdFlow.value
         val goalId = _deleteDialogState.value.goalId
-        if (goalId.isBlank()) return
+
+        if (userId.isNullOrBlank()) {
+            Log.e(TAG, "Cannot delete goal because userId is blank")
+            dismissDeleteDialog()
+            return
+        }
+
+        if (goalId.isBlank()) {
+            dismissDeleteDialog()
+            return
+        }
+
         viewModelScope.launch {
             try {
-                budgetGoalRepository.deleteGoal(uid, goalId)
+                budgetGoalRepository.deleteGoal(userId, goalId)
                 dismissDeleteDialog()
             } catch (e: Exception) {
                 Log.e(TAG, "Error deleting goal: ${e.message}", e)
-                _listUiState.update { it.copy(error = "Failed to delete: ${e.message}") }
                 dismissDeleteDialog()
             }
         }

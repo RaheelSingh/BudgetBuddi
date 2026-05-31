@@ -9,14 +9,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
-/*
- Author: Firebase / Google Developers
- Description: Used as reference for reading, writing, updating and deleting user-specific category documents in Cloud Firestore.
- Reference: Firebase. 2026. Cloud Firestore documentation. [Online].
- Available at: https://firebase.google.com/docs/firestore
- Accessed: 19 May 2026.
-*/
-
 class CategoryRepository {
 
     private val auth = FirebaseAuth.getInstance()
@@ -26,10 +18,16 @@ class CategoryRepository {
         private const val TAG = "CategoryRepository"
         private const val USERS_COLLECTION = "users"
         private const val CATEGORIES_COLLECTION = "categories"
+
+        private val categoryCacheByUser = mutableMapOf<String, List<CategoryEntity>>()
     }
 
     fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
+    }
+
+    fun getCachedCategories(userId: String): List<CategoryEntity> {
+        return categoryCacheByUser[userId].orEmpty()
     }
 
     private fun categoriesCollection(userId: String) =
@@ -39,6 +37,19 @@ class CategoryRepository {
             .collection(CATEGORIES_COLLECTION)
 
     fun observeAllCategories(userId: String): Flow<List<CategoryEntity>> = callbackFlow {
+        if (userId.isBlank()) {
+            Log.e(TAG, "Cannot observe categories because userId is blank")
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val cached = getCachedCategories(userId)
+
+        if (cached.isNotEmpty()) {
+            trySend(cached)
+        }
+
         Log.d(TAG, "Starting category listener for userId=$userId")
 
         val listener = categoriesCollection(userId)
@@ -50,14 +61,15 @@ class CategoryRepository {
 
                 if (snapshot == null) {
                     Log.w(TAG, "Category snapshot is null for userId=$userId")
+                    if (cached.isEmpty()) {
+                        trySend(emptyList())
+                    }
                     return@addSnapshotListener
                 }
 
-                Log.d(TAG, "Raw category documents found: ${snapshot.documents.size}")
-
                 val categories = snapshot.documents.mapNotNull { document ->
-                    val mainCategory = document.getString("mainCategory") ?: ""
-                    val subCategory = document.getString("subCategory") ?: ""
+                    val mainCategory = document.getString("mainCategory")?.trim() ?: ""
+                    val subCategory = document.getString("subCategory")?.trim() ?: ""
 
                     if (mainCategory.isBlank() || subCategory.isBlank()) {
                         Log.w(
@@ -70,7 +82,10 @@ class CategoryRepository {
                     CategoryEntity(
                         id = document.id,
                         userId = document.getString("userId") ?: userId,
-                        categoryType = document.getString("categoryType") ?: "expense",
+                        categoryType = when (document.getString("categoryType")?.trim()?.lowercase()) {
+                            "income" -> "income"
+                            else -> "expense"
+                        },
                         mainCategory = mainCategory,
                         subCategory = subCategory,
                         visualType = document.getString("visualType") ?: "emoji",
@@ -79,11 +94,17 @@ class CategoryRepository {
                         createdAt = document.getLong("createdAt") ?: 0L,
                         updatedAt = document.getLong("updatedAt") ?: 0L
                     )
-                }.sortedWith(
-                    compareBy<CategoryEntity> { it.categoryType.lowercase() }
-                        .thenBy { it.mainCategory.lowercase() }
-                        .thenBy { it.subCategory.lowercase() }
-                )
+                }
+                    .distinctBy {
+                        "${it.categoryType.lowercase()}|${it.mainCategory.lowercase()}|${it.subCategory.lowercase()}"
+                    }
+                    .sortedWith(
+                        compareBy<CategoryEntity> { it.categoryType.lowercase() }
+                            .thenBy { it.mainCategory.lowercase() }
+                            .thenBy { it.subCategory.lowercase() }
+                    )
+
+                categoryCacheByUser[userId] = categories
 
                 Log.d(TAG, "Observed valid categories: ${categories.size} for userId=$userId")
                 trySend(categories)
@@ -96,6 +117,10 @@ class CategoryRepository {
     }
 
     suspend fun insertCategory(userId: String, category: CategoryEntity) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot insert category because userId is blank")
+        }
+
         val cleanCategoryType = when (category.categoryType.trim().lowercase()) {
             "income" -> "income"
             else -> "expense"
@@ -108,11 +133,6 @@ class CategoryRepository {
             throw IllegalArgumentException("Category and subcategory cannot be empty")
         }
 
-        Log.d(
-            TAG,
-            "Attempting to insert category for userId=$userId: $cleanCategoryType / $cleanMainCategory / $cleanSubCategory"
-        )
-
         val duplicateSnapshot = categoriesCollection(userId)
             .whereEqualTo("categoryType", cleanCategoryType)
             .whereEqualTo("mainCategory", cleanMainCategory)
@@ -121,7 +141,10 @@ class CategoryRepository {
             .await()
 
         if (!duplicateSnapshot.isEmpty) {
-            Log.d(TAG, "Duplicate category ignored: $cleanCategoryType / $cleanMainCategory / $cleanSubCategory")
+            Log.d(
+                TAG,
+                "Duplicate category ignored for userId=$userId: $cleanCategoryType / $cleanMainCategory / $cleanSubCategory"
+            )
             return
         }
 
@@ -141,10 +164,38 @@ class CategoryRepository {
         )
 
         documentRef.set(categoryData).await()
-        Log.d(TAG, "Category inserted with documentId=${documentRef.id}")
+
+        val updatedCache = categoryCacheByUser[userId].orEmpty()
+            .plus(
+                category.copy(
+                    id = documentRef.id,
+                    userId = userId,
+                    categoryType = cleanCategoryType,
+                    mainCategory = cleanMainCategory,
+                    subCategory = cleanSubCategory,
+                    createdAt = now,
+                    updatedAt = now
+                )
+            )
+            .distinctBy {
+                "${it.categoryType.lowercase()}|${it.mainCategory.lowercase()}|${it.subCategory.lowercase()}"
+            }
+            .sortedWith(
+                compareBy<CategoryEntity> { it.categoryType.lowercase() }
+                    .thenBy { it.mainCategory.lowercase() }
+                    .thenBy { it.subCategory.lowercase() }
+            )
+
+        categoryCacheByUser[userId] = updatedCache
+
+        Log.d(TAG, "Category inserted with documentId=${documentRef.id} for userId=$userId")
     }
 
     suspend fun updateCategory(userId: String, category: CategoryEntity) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot update category because userId is blank")
+        }
+
         if (category.id.isBlank()) {
             throw IllegalArgumentException("Cannot update category without Firestore document ID")
         }
@@ -161,6 +212,21 @@ class CategoryRepository {
             throw IllegalArgumentException("Category and subcategory cannot be empty")
         }
 
+        val duplicateSnapshot = categoriesCollection(userId)
+            .whereEqualTo("categoryType", cleanCategoryType)
+            .whereEqualTo("mainCategory", cleanMainCategory)
+            .whereEqualTo("subCategory", cleanSubCategory)
+            .get()
+            .await()
+
+        val hasOtherDuplicate = duplicateSnapshot.documents.any { it.id != category.id }
+
+        if (hasOtherDuplicate) {
+            throw IllegalArgumentException("This category already exists")
+        }
+
+        val now = System.currentTimeMillis()
+
         val updates = mapOf(
             "userId" to userId,
             "categoryType" to cleanCategoryType,
@@ -169,7 +235,7 @@ class CategoryRepository {
             "visualType" to category.visualType,
             "visualValue" to category.visualValue,
             "outlineColor" to category.outlineColor,
-            "updatedAt" to System.currentTimeMillis()
+            "updatedAt" to now
         )
 
         categoriesCollection(userId)
@@ -177,7 +243,26 @@ class CategoryRepository {
             .update(updates)
             .await()
 
-        Log.d(TAG, "Category updated: ${category.id}")
+        val updatedCategory = category.copy(
+            userId = userId,
+            categoryType = cleanCategoryType,
+            mainCategory = cleanMainCategory,
+            subCategory = cleanSubCategory,
+            updatedAt = now
+        )
+
+        categoryCacheByUser[userId] = categoryCacheByUser[userId].orEmpty()
+            .map { if (it.id == category.id) updatedCategory else it }
+            .distinctBy {
+                "${it.categoryType.lowercase()}|${it.mainCategory.lowercase()}|${it.subCategory.lowercase()}"
+            }
+            .sortedWith(
+                compareBy<CategoryEntity> { it.categoryType.lowercase() }
+                    .thenBy { it.mainCategory.lowercase() }
+                    .thenBy { it.subCategory.lowercase() }
+            )
+
+        Log.d(TAG, "Category updated: ${category.id} for userId=$userId")
     }
 
     suspend fun updateCategoryAndMaybeRenameMainCategory(
@@ -186,11 +271,20 @@ class CategoryRepository {
         newMainCategory: String,
         selectedCategory: CategoryEntity?
     ) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot rename category because userId is blank")
+        }
+
         val cleanOldMain = oldMainCategory.trim()
         val cleanNewMain = newMainCategory.trim()
 
         if (cleanOldMain.isBlank() || cleanNewMain.isBlank()) {
             throw IllegalArgumentException("Main category name cannot be empty")
+        }
+
+        val selectedType = when (selectedCategory?.categoryType?.trim()?.lowercase()) {
+            "income" -> "income"
+            else -> "expense"
         }
 
         val now = System.currentTimeMillis()
@@ -201,6 +295,7 @@ class CategoryRepository {
                     userId = userId,
                     category = it.copy(
                         userId = userId,
+                        categoryType = selectedType,
                         mainCategory = cleanNewMain,
                         subCategory = it.subCategory.trim()
                     )
@@ -210,25 +305,19 @@ class CategoryRepository {
         }
 
         val snapshot = categoriesCollection(userId)
+            .whereEqualTo("categoryType", selectedType)
             .whereEqualTo("mainCategory", cleanOldMain)
             .get()
             .await()
 
         if (snapshot.isEmpty) {
-            Log.w(TAG, "No documents found when renaming main category: $cleanOldMain")
+            Log.w(TAG, "No documents found when renaming main category: $selectedType / $cleanOldMain")
             return
         }
 
-        val selectedType = selectedCategory?.categoryType ?: "expense"
         val batch = firestore.batch()
 
         snapshot.documents.forEach { document ->
-            val documentType = document.getString("categoryType") ?: "expense"
-
-            if (documentType != selectedType) {
-                return@forEach
-            }
-
             val updates = mutableMapOf<String, Any>(
                 "userId" to userId,
                 "categoryType" to selectedType,
@@ -253,10 +342,17 @@ class CategoryRepository {
         }
 
         batch.commit().await()
-        Log.d(TAG, "Renamed main category from '$cleanOldMain' to '$cleanNewMain'")
+
+        categoryCacheByUser.remove(userId)
+
+        Log.d(TAG, "Renamed main category from '$cleanOldMain' to '$cleanNewMain' for userId=$userId")
     }
 
     suspend fun deleteCategory(userId: String, category: CategoryEntity) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot delete category because userId is blank")
+        }
+
         if (category.id.isBlank()) {
             throw IllegalArgumentException("Cannot delete category without Firestore document ID")
         }
@@ -266,7 +362,10 @@ class CategoryRepository {
             .delete()
             .await()
 
-        Log.d(TAG, "Category deleted: ${category.id}")
+        categoryCacheByUser[userId] = categoryCacheByUser[userId].orEmpty()
+            .filterNot { it.id == category.id }
+
+        Log.d(TAG, "Category deleted: ${category.id} for userId=$userId")
     }
 
     suspend fun deleteWholeMainCategory(
@@ -274,7 +373,12 @@ class CategoryRepository {
         mainCategory: String,
         categoryType: String = "expense"
     ) {
+        if (userId.isBlank()) {
+            throw IllegalArgumentException("Cannot delete main category because userId is blank")
+        }
+
         val cleanMainCategory = mainCategory.trim()
+
         val cleanCategoryType = when (categoryType.trim().lowercase()) {
             "income" -> "income"
             else -> "expense"
@@ -302,12 +406,23 @@ class CategoryRepository {
         }
 
         batch.commit().await()
-        Log.d(TAG, "Deleted whole category: $cleanCategoryType / $cleanMainCategory")
+
+        categoryCacheByUser[userId] = categoryCacheByUser[userId].orEmpty()
+            .filterNot {
+                it.categoryType == cleanCategoryType &&
+                        it.mainCategory == cleanMainCategory
+            }
+
+        Log.d(TAG, "Deleted whole category: $cleanCategoryType / $cleanMainCategory for userId=$userId")
     }
 
     suspend fun seedDefaultCategoriesIfNeeded(userId: String) {
+        if (userId.isBlank()) {
+            Log.e(TAG, "Cannot seed categories because userId is blank")
+            return
+        }
+
         val defaultCategories = listOf(
-            // Expense defaults
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Breakfast", visualType = "emoji", visualValue = "🍳", outlineColor = "#4CAF50"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Lunch", visualType = "emoji", visualValue = "🥪", outlineColor = "#4CAF50"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Food & Drink", subCategory = "Dinner", visualType = "emoji", visualValue = "🍽️", outlineColor = "#4CAF50"),
@@ -340,7 +455,6 @@ class CategoryRepository {
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Car", subCategory = "Fuel", visualType = "emoji", visualValue = "⛽", outlineColor = "#607D8B"),
             CategoryEntity(userId = userId, categoryType = "expense", mainCategory = "Car", subCategory = "Parking", visualType = "emoji", visualValue = "🅿️", outlineColor = "#607D8B"),
 
-            // Income defaults with varied outline colours
             CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Monthly Salary", visualType = "emoji", visualValue = "💼", outlineColor = "#2E7D32"),
             CategoryEntity(userId = userId, categoryType = "income", mainCategory = "Salary", subCategory = "Part-time Job", visualType = "emoji", visualValue = "🕒", outlineColor = "#388E3C"),
 
