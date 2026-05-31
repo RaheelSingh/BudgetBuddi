@@ -1,8 +1,9 @@
-// HomeScreen.kt - Enhanced dashboard version
+// HomeScreen.kt - Fixed version with no duplicate function names
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,13 +17,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.ui.theme.BackgroundWhite
 import group12.budgetbuddi.ui.theme.BrandGreen
@@ -31,6 +32,7 @@ import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalLocale
 
 @Composable
 fun HomeScreen(
@@ -46,7 +48,7 @@ fun HomeScreen(
     val calendar = Calendar.getInstance()
     val currentMonth = calendar.get(Calendar.MONTH)
     val currentYear = calendar.get(Calendar.YEAR)
-    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    val today = SimpleDateFormat("yyyy-MM-dd", LocalLocale.current.platformLocale).format(Date())
 
     val monthNames = listOf(
         "January", "February", "March", "April", "May", "June",
@@ -65,11 +67,6 @@ fun HomeScreen(
         }
     }
 
-    // Get today's transactions
-    val todayTransactions = remember(allTransactions, today) {
-        allTransactions.filter { it.date == today }
-    }
-
     val monthlyExpenses = remember(monthlyTransactions) {
         monthlyTransactions.filter { it.type == "expense" }
     }
@@ -82,8 +79,8 @@ fun HomeScreen(
     val totalMonthlyIncome = remember(monthlyIncome) { monthlyIncome.sumOf { it.amount } }
     val netMonthly = totalMonthlyIncome - totalMonthlyExpenses
 
-    val todayExpenses = remember(todayTransactions) {
-        todayTransactions.filter { it.type == "expense" }.sumOf { it.amount }
+    val todayExpenses = remember(allTransactions, today) {
+        allTransactions.filter { it.date == today && it.type == "expense" }.sumOf { it.amount }
     }
 
     // Get top spending categories
@@ -92,6 +89,11 @@ fun HomeScreen(
             .map { (category, expenses) -> category to expenses.sumOf { it.amount } }
             .sortedByDescending { it.second }
             .take(5)
+    }
+
+    // Recent transactions (last 5)
+    val recentTransactions = remember(monthlyTransactions) {
+        monthlyTransactions.sortedByDescending { it.date }.take(5)
     }
 
     // Animation
@@ -103,11 +105,6 @@ fun HomeScreen(
         animationSpec = tween(500),
         label = "contentAlpha"
     )
-
-    // Recent transactions (last 5)
-    val recentTransactions = remember(monthlyTransactions) {
-        monthlyTransactions.sortedByDescending { it.date }.take(5)
-    }
 
     AppScaffold(
         navController = navController,
@@ -237,19 +234,19 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                StatItem(
+                                HomeStatItem(
                                     title = "Income",
                                     amount = totalMonthlyIncome,
                                     color = Color(0xFF43A047),
                                     icon = Icons.Default.TrendingUp
                                 )
-                                StatItem(
+                                HomeStatItem(
                                     title = "Expenses",
                                     amount = totalMonthlyExpenses,
                                     color = Color(0xFFE53935),
                                     icon = Icons.Default.TrendingDown
                                 )
-                                StatItem(
+                                HomeStatItem(
                                     title = "Net",
                                     amount = netMonthly,
                                     color = if (netMonthly >= 0) Color(0xFF43A047) else Color(0xFFE53935),
@@ -300,7 +297,7 @@ fun HomeScreen(
                                         color = Color.Gray
                                     )
                                     Text(
-                                        text = formatDate(today),
+                                        text = formatHomeDate(today),
                                         fontSize = 12.sp,
                                         color = Color.Gray
                                     )
@@ -343,7 +340,7 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 topCategories.forEach { (category, amount) ->
-                                    CategoryProgressRow(
+                                    HomeCategoryProgressRow(
                                         category = category,
                                         amount = amount,
                                         total = totalMonthlyExpenses,
@@ -391,7 +388,7 @@ fun HomeScreen(
                                 }
 
                                 recentTransactions.forEach { transaction ->
-                                    RecentTransactionItem(transaction = transaction)
+                                    HomeRecentTransactionItem(transaction = transaction)
                                     if (transaction != recentTransactions.last()) {
                                         HorizontalDivider(
                                             modifier = Modifier.padding(vertical = 8.dp),
@@ -432,19 +429,19 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                QuickActionButton(
+                                HomeQuickActionButton(
                                     icon = Icons.Default.AddCircle,
                                     label = "Add Expense",
                                     onClick = { navController.navigate("add_transaction") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                QuickActionButton(
+                                HomeQuickActionButton(
                                     icon = Icons.Default.Category,
                                     label = "Categories",
                                     onClick = { navController.navigate("categories") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                QuickActionButton(
+                                HomeQuickActionButton(
                                     icon = Icons.Default.TrackChanges,
                                     label = "Budget Goals",
                                     onClick = { navController.navigate("budget_goals") },
@@ -460,7 +457,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun StatItem(
+fun HomeStatItem(
     title: String,
     amount: Double,
     color: Color,
@@ -489,13 +486,13 @@ fun StatItem(
 }
 
 @Composable
-fun CategoryProgressRow(
+fun HomeCategoryProgressRow(
     category: String,
     amount: Double,
     total: Double,
     maxAmount: Double
 ) {
-    val percentage = if (total > 0) (amount / total) else 0f
+    val percentage = if (total > 0) (amount / total) else 0.0
     val barWidth = if (maxAmount > 0) (amount / maxAmount).toFloat().coerceIn(0f, 1f) else 0f
 
     Column {
@@ -505,7 +502,7 @@ fun CategoryProgressRow(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = getCategoryEmoji(category),
+                    text = getHomeCategoryEmoji(category),
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -552,7 +549,7 @@ fun CategoryProgressRow(
 }
 
 @Composable
-fun RecentTransactionItem(transaction: ExpenseEntity) {
+fun HomeRecentTransactionItem(transaction: group12.budgetbuddi.data.entity.ExpenseEntity) {
     val isExpense = transaction.type == "expense"
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -570,7 +567,7 @@ fun RecentTransactionItem(transaction: ExpenseEntity) {
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
-                        text = getCategoryEmoji(transaction.category),
+                        text = getHomeCategoryEmoji(transaction.category),
                         fontSize = 18.sp
                     )
                 }
@@ -584,7 +581,7 @@ fun RecentTransactionItem(transaction: ExpenseEntity) {
                     color = TextBlack
                 )
                 Text(
-                    text = formatDate(transaction.date),
+                    text = formatHomeDate(transaction.date),
                     fontSize = 11.sp,
                     color = Color.Gray
                 )
@@ -601,7 +598,7 @@ fun RecentTransactionItem(transaction: ExpenseEntity) {
 }
 
 @Composable
-fun QuickActionButton(
+fun HomeQuickActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -637,7 +634,23 @@ fun QuickActionButton(
     }
 }
 
-fun formatDate(dateString: String): String {
+// Helper functions with unique names
+fun getHomeCategoryEmoji(category: String): String {
+    return when (category.lowercase()) {
+        "food", "groceries", "restaurant" -> "🍔"
+        "transport", "car", "fuel" -> "🚗"
+        "shopping", "clothing" -> "🛍️"
+        "entertainment", "movies" -> "🎬"
+        "bills", "utilities" -> "📄"
+        "health", "medical" -> "🏥"
+        "education" -> "📚"
+        "housing", "rent" -> "🏠"
+        "travel" -> "✈️"
+        else -> "💸"
+    }
+}
+
+fun formatHomeDate(dateString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val outputFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
