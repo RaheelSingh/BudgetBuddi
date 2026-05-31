@@ -1,4 +1,4 @@
-// HomeScreen.kt - Fixed version with no duplicate function names
+// HomeScreen.kt - Fixed version with clickable calendar icon
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.animation.core.*
@@ -185,7 +185,7 @@ fun HomeScreen(
                 contentPadding = PaddingValues(bottom = 80.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Monthly Summary Card
+                // Monthly Summary Card with clickable calendar
                 item {
                     Card(
                         modifier = Modifier
@@ -212,14 +212,18 @@ fun HomeScreen(
                                     color = TextBlack
                                 )
                                 Surface(
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clickable {
+                                            navController.navigate("category_totals")
+                                        },
                                     shape = CircleShape,
                                     color = BrandGreen.copy(alpha = 0.1f)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Default.CalendarMonth,
-                                            contentDescription = null,
+                                            contentDescription = "View Monthly Report",
                                             tint = BrandGreen,
                                             modifier = Modifier.size(18.dp)
                                         )
