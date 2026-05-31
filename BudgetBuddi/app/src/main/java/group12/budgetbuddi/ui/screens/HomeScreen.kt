@@ -1,7 +1,8 @@
-// HomeScreen.kt - Fixed version with clickable calendar icon
+// HomeScreen.kt - Complete version with Pie Chart
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
@@ -32,7 +35,6 @@ import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.platform.LocalLocale
 
 @Composable
 fun HomeScreen(
@@ -48,7 +50,7 @@ fun HomeScreen(
     val calendar = Calendar.getInstance()
     val currentMonth = calendar.get(Calendar.MONTH)
     val currentYear = calendar.get(Calendar.YEAR)
-    val today = SimpleDateFormat("yyyy-MM-dd", LocalLocale.current.platformLocale).format(Date())
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
     val monthNames = listOf(
         "January", "February", "March", "April", "May", "June",
@@ -318,6 +320,40 @@ fun HomeScreen(
                     }
                 }
 
+                // Income vs Expense Pie Chart Card
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Income vs Expenses",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextBlack,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            HomeIncomeExpensePieChart(
+                                income = totalMonthlyIncome,
+                                expenses = totalMonthlyExpenses
+                            )
+                        }
+                    }
+                }
+
                 // Top Spending Categories
                 if (topCategories.isNotEmpty()) {
                     item {
@@ -486,6 +522,169 @@ fun HomeStatItem(
             fontSize = 12.sp,
             color = Color.Gray
         )
+    }
+}
+
+@Composable
+fun HomeIncomeExpensePieChart(
+    income: Double,
+    expenses: Double
+) {
+    val total = income + expenses
+
+    // If no data, show placeholder
+    if (total == 0.0) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(160.dp)
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.PieChart,
+                        contentDescription = null,
+                        tint = Color.Gray.copy(alpha = 0.5f),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "No data yet",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Text(
+                        text = "Add income or expenses",
+                        fontSize = 11.sp,
+                        color = Color.Gray.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+        return
+    }
+
+    val incomePercentage = (income / total).toFloat()
+    val expensePercentage = (expenses / total).toFloat()
+
+    val incomeAngle = incomePercentage * 360f
+    val expenseAngle = expensePercentage * 360f
+
+    // Colors
+    val incomeColor = Color(0xFF43A047)  // Green
+    val expenseColor = Color(0xFFE53935)  // Red
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Pie Chart
+        Canvas(
+            modifier = Modifier.size(160.dp)
+        ) {
+            val centerX = size.width / 2
+            val centerY = size.height / 2
+            val radius = size.minDimension / 2 - 10
+
+            var startAngle = -90f  // Start from top (12 o'clock)
+
+            // Draw Income slice
+            if (income > 0) {
+                drawArc(
+                    color = incomeColor,
+                    startAngle = startAngle,
+                    sweepAngle = incomeAngle,
+                    useCenter = true,
+                    topLeft = Offset(centerX - radius, centerY - radius),
+                    size = Size(radius * 2, radius * 2)
+                )
+                startAngle += incomeAngle
+            }
+
+            // Draw Expense slice
+            if (expenses > 0) {
+                drawArc(
+                    color = expenseColor,
+                    startAngle = startAngle,
+                    sweepAngle = expenseAngle,
+                    useCenter = true,
+                    topLeft = Offset(centerX - radius, centerY - radius),
+                    size = Size(radius * 2, radius * 2)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Legend
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Income Legend
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(incomeColor)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Income (${(incomePercentage * 100).toInt()}%)",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+
+            // Expense Legend
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(expenseColor)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Expenses (${(expensePercentage * 100).toInt()}%)",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Amount summary
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Net: ",
+                fontSize = 13.sp,
+                color = Color.Gray
+            )
+            Text(
+                text = "R${String.format("%.2f", income - expenses)}",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (income - expenses >= 0) incomeColor else expenseColor
+            )
+        }
     }
 }
 
