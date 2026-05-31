@@ -48,6 +48,7 @@ import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.platform.LocalLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,7 +123,7 @@ fun ExpenseListScreen(
         filtered.sumOf { it.amount }
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", LocalLocale.current.platformLocale)
 
     fun toggleCategory(category: String) {
         expandedCategories = if (expandedCategories.contains(category)) {
