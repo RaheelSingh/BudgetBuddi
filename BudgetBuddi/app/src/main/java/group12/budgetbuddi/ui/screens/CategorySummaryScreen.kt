@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Assessment
@@ -39,6 +42,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -55,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -73,6 +78,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.launch
+import androidx.compose.ui.platform.LocalLocale
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,43 +91,35 @@ fun CategorySummaryScreen(
     val context = LocalContext.current
     val allExpenses by expenseViewModel.allExpenses.collectAsState()
 
-    // Drawer state for hamburger menu
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Filter to show only expenses (not income)
     val expensesOnly = remember(allExpenses) {
         allExpenses.filter { it.type == "expense" }
     }
 
-    // Date filter state
     var startDate by remember { mutableStateOf<Date?>(null) }
     var endDate by remember { mutableStateOf<Date?>(null) }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
-    // Category selection state
     var selectedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showCategorySelector by remember { mutableStateOf(false) }
 
-    val dateDisplayFormat = SimpleDateFormat("MM/dd/yyyy", Locale.getDefault())
+    val dateDisplayFormat = SimpleDateFormat("MM/dd/yyyy", LocalLocale.current.platformLocale)
 
-    // Get all unique categories from expenses
     val allCategories = remember(expensesOnly) {
         expensesOnly.map { it.category }.distinct().sorted()
     }
 
-    // Initialize selected categories to all when data loads
     LaunchedEffect(allCategories) {
         if (selectedCategories.isEmpty() && allCategories.isNotEmpty()) {
             selectedCategories = allCategories.toSet()
         }
     }
 
-    // Filter expenses by date range
     val filteredExpenses = remember(expensesOnly, startDate, endDate) {
         var filtered = expensesOnly
-
         startDate?.let { start ->
             filtered = filtered.filter { expense ->
                 try {
@@ -129,7 +128,6 @@ fun CategorySummaryScreen(
                 } catch (e: Exception) { false }
             }
         }
-
         endDate?.let { end ->
             filtered = filtered.filter { expense ->
                 try {
@@ -138,22 +136,18 @@ fun CategorySummaryScreen(
                 } catch (e: Exception) { false }
             }
         }
-
         filtered
     }
 
-    // Further filter by selected categories
     val displayExpenses = remember(filteredExpenses, selectedCategories) {
         filteredExpenses.filter { selectedCategories.contains(it.category) }
     }
 
-    // Group expenses by category and subcategory
     val categorySummary = remember(displayExpenses) {
         val summary = mutableMapOf<String, MutableMap<String, Double>>()
         displayExpenses.forEach { expense ->
             val category = expense.category
             val subCategory = expense.subCategory.ifBlank { "General" }
-
             summary.getOrPut(category) { mutableMapOf() }
             val currentAmount = summary[category]?.get(subCategory) ?: 0.0
             summary[category]?.put(subCategory, currentAmount + expense.amount)
@@ -161,17 +155,15 @@ fun CategorySummaryScreen(
         summary
     }
 
-    // Calculate total spent
     val totalSpent = remember(displayExpenses) {
         displayExpenses.sumOf { it.amount }
     }
 
-    // Make drawer open from the RIGHT side
+    // Drawer from right
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
-                // The drawer opens from the right, but the menu text itself stays left-to-right
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     HamburgerMenu(
                         selectedRoute = "category_summary",
@@ -184,31 +176,20 @@ fun CategorySummaryScreen(
                         },
                         onCategoriesClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate("categories") {
-                                launchSingleTop = true
-                            }
+                            navController.navigate("categories") { launchSingleTop = true }
                         },
                         onExpensesClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate("expense_list") {
-                                launchSingleTop = true
-                            }
+                            navController.navigate("expense_list") { launchSingleTop = true }
                         },
-                        onCategorySummaryClick = {
-                            scope.launch { drawerState.close() }
-                            // Already on category summary, just close drawer
-                        },
+                        onCategorySummaryClick = { scope.launch { drawerState.close() } },
                         onBudgetGoalsClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate("budget_goals") {
-                                launchSingleTop = true
-                            }
+                            navController.navigate("budget_goals") { launchSingleTop = true }
                         },
                         onCategoryTotalsClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate("category_totals") {
-                                launchSingleTop = true
-                            }
+                            navController.navigate("category_totals") { launchSingleTop = true }
                         },
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
@@ -221,7 +202,6 @@ fun CategorySummaryScreen(
                 }
             }
         ) {
-            // Main content (stays left-to-right)
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Scaffold(
                     topBar = {
@@ -229,11 +209,7 @@ fun CategorySummaryScreen(
                             title = { Text("Category Summary") },
                             navigationIcon = {
                                 IconButton(onClick = { navController.popBackStack() }) {
-                                    Icon(
-                                        Icons.Default.Close,
-                                        contentDescription = "Back",
-                                        tint = Color.White
-                                    )
+                                    Icon(Icons.Default.Close, contentDescription = "Back", tint = Color.White)
                                 }
                             },
                             colors = TopAppBarDefaults.topAppBarColors(
@@ -244,49 +220,28 @@ fun CategorySummaryScreen(
                         )
                     },
                     bottomBar = {
-                        NavigationBar(
-                            containerColor = Color.White,
-                            tonalElevation = 8.dp
-                        ) {
+                        NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) {
                             NavigationBarItem(
                                 selected = false,
-                                onClick = {
-                                    navController.navigate("home") {
-                                        popUpTo("category_summary") { inclusive = true }
-                                        launchSingleTop = true
-                                    }
-                                },
+                                onClick = { navController.navigate("home") { popUpTo("category_summary") { inclusive = true }; launchSingleTop = true } },
                                 icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                                 label = { Text("Home", fontSize = 11.sp) }
                             )
-
                             NavigationBarItem(
                                 selected = false,
-                                onClick = {
-                                    navController.navigate("daily_report") {
-                                        launchSingleTop = true
-                                    }
-                                },
+                                onClick = { navController.navigate("daily_report") { launchSingleTop = true } },
                                 icon = { Icon(Icons.Default.Assessment, contentDescription = "Daily Report") },
                                 label = { Text("Daily", fontSize = 11.sp) }
                             )
-
                             NavigationBarItem(
                                 selected = false,
-                                onClick = {
-                                    navController.navigate("add_transaction") {
-                                        launchSingleTop = true
-                                    }
-                                },
+                                onClick = { navController.navigate("add_transaction") { launchSingleTop = true } },
                                 icon = { Icon(Icons.Default.AddCircle, contentDescription = "Add Transaction") },
                                 label = { Text("Add", fontSize = 11.sp) }
                             )
-
                             NavigationBarItem(
                                 selected = false,
-                                onClick = {
-                                    scope.launch { drawerState.open() }
-                                },
+                                onClick = { scope.launch { drawerState.open() } },
                                 icon = { Icon(Icons.Default.Menu, contentDescription = "Menu") },
                                 label = { Text("Menu", fontSize = 11.sp) }
                             )
@@ -296,95 +251,60 @@ fun CategorySummaryScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .background(LightGreenBg)
                             .padding(paddingValues)
                     ) {
                         // Date Filter Card
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            shape = RoundedCornerShape(20.dp),
                             elevation = CardDefaults.cardElevation(4.dp)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
-                            ) {
-                                Text(
-                                    text = "Filter by Date Range",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Filter by Date Range", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                 Spacer(modifier = Modifier.height(8.dp))
-
-                                // Date row
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedButton(
                                         onClick = { showStartDatePicker = true },
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = BrandGreen
-                                        )
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandGreen)
                                     ) {
                                         Icon(Icons.Default.CalendarToday, contentDescription = null)
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text("Start: ${startDate?.let { dateDisplayFormat.format(it) } ?: "Select"}")
                                     }
-
                                     OutlinedButton(
                                         onClick = { showEndDatePicker = true },
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = BrandGreen
-                                        )
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandGreen)
                                     ) {
                                         Icon(Icons.Default.CalendarToday, contentDescription = null)
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text("End: ${endDate?.let { dateDisplayFormat.format(it) } ?: "Select"}")
                                     }
                                 }
-
                                 Spacer(modifier = Modifier.height(8.dp))
-
-                                // Filter and Category Select buttons
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Button(
-                                        onClick = {
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                "Filter applied",
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
-                                        },
+                                        onClick = { android.widget.Toast.makeText(context, "Filter applied", android.widget.Toast.LENGTH_SHORT).show() },
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = BrandGreen
-                                        ),
+                                        colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
                                         shape = MaterialTheme.shapes.small
                                     ) {
                                         Icon(Icons.Default.FilterList, contentDescription = null)
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text("Filter")
                                     }
-
                                     OutlinedButton(
                                         onClick = { showCategorySelector = true },
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = BrandGreen
-                                        )
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandGreen)
                                     ) {
                                         Icon(Icons.Default.Checklist, contentDescription = null)
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text("Select Categories")
                                     }
                                 }
-
-                                // Clear All Filters button
                                 if (startDate != null || endDate != null || selectedCategories.size != allCategories.size) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     TextButton(
@@ -392,17 +312,13 @@ fun CategorySummaryScreen(
                                             startDate = null
                                             endDate = null
                                             selectedCategories = allCategories.toSet()
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                "Cleared all filters - showing all categories",
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
+                                            android.widget.Toast.makeText(context, "Cleared all filters", android.widget.Toast.LENGTH_SHORT).show()
                                         },
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Icon(Icons.Default.Clear, contentDescription = null)
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Clear All Filters (Dates & Categories)")
+                                        Text("Clear All Filters")
                                     }
                                 }
                             }
@@ -410,9 +326,7 @@ fun CategorySummaryScreen(
 
                         // Selected categories info
                         if (selectedCategories.isNotEmpty()) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            ) {
+                            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                 Text(
                                     text = "Showing: ${selectedCategories.size} of ${allCategories.size} categories",
                                     style = MaterialTheme.typography.bodySmall,
@@ -423,23 +337,11 @@ fun CategorySummaryScreen(
 
                         // Summary List
                         if (displayExpenses.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        Icons.Default.ReceiptLong,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Icon(Icons.Default.ReceiptLong, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                                     Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        text = "No expenses found for selected period",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Text("No expenses found for selected period", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         } else {
@@ -451,26 +353,42 @@ fun CategorySummaryScreen(
                                 items(categorySummary.keys.toList().sorted()) { category ->
                                     val subCategories = categorySummary[category] ?: emptyMap()
                                     val categoryTotal = subCategories.values.sum()
+                                    val categoryColor = getCategoryColorForSummary(category)
 
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = MaterialTheme.shapes.medium,
+                                        shape = RoundedCornerShape(16.dp),
                                         elevation = CardDefaults.cardElevation(2.dp)
                                     ) {
-                                        Column(
-                                            modifier = Modifier.padding(16.dp)
-                                        ) {
-                                            // Main Category Row
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            // Main Category Row with icon
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = category.uppercase(),
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = BrandGreen
-                                                )
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    // Emoji icon in circular background
+                                                    Surface(
+                                                        modifier = Modifier.size(40.dp),
+                                                        shape = CircleShape,
+                                                        color = categoryColor.copy(alpha = 0.15f)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Text(
+                                                                text = getCategoryEmojiForSummary(category),
+                                                                fontSize = 20.sp
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Text(
+                                                        text = category.uppercase(),
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = BrandGreen
+                                                    )
+                                                }
                                                 Text(
                                                     text = "R${String.format("%.2f", categoryTotal)}",
                                                     style = MaterialTheme.typography.titleMedium,
@@ -484,9 +402,7 @@ fun CategorySummaryScreen(
                                             // Sub Categories
                                             subCategories.toList().sortedBy { it.first }.forEach { (subCategory, amount) ->
                                                 Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(start = 16.dp, top = 4.dp),
+                                                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 4.dp),
                                                     horizontalArrangement = Arrangement.SpaceBetween
                                                 ) {
                                                     Text(
@@ -505,34 +421,20 @@ fun CategorySummaryScreen(
                                     }
                                 }
 
-                                // Total Spent Card - Brand Green background
+                                // Total Spent Card
                                 item {
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
-                                        shape = MaterialTheme.shapes.medium,
+                                        shape = RoundedCornerShape(16.dp),
                                         elevation = CardDefaults.cardElevation(4.dp),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = BrandGreen
-                                        )
+                                        colors = CardDefaults.cardColors(containerColor = BrandGreen)
                                     ) {
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
+                                            modifier = Modifier.fillMaxWidth().padding(16.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            Text(
-                                                text = "TOTAL SPENT",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
-                                            Text(
-                                                text = "R${String.format("%.2f", totalSpent)}",
-                                                style = MaterialTheme.typography.titleLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color.White
-                                            )
+                                            Text("TOTAL SPENT", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text("R${String.format("%.2f", totalSpent)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
                                         }
                                     }
                                 }
@@ -544,7 +446,7 @@ fun CategorySummaryScreen(
         }
     }
 
-    // Start Date Picker Dialog
+    // Dialogs
     if (showStartDatePicker) {
         DatePickerDialog(
             onDateSelected = { date ->
@@ -554,8 +456,6 @@ fun CategorySummaryScreen(
             onDismiss = { showStartDatePicker = false }
         )
     }
-
-    // End Date Picker Dialog
     if (showEndDatePicker) {
         DatePickerDialog(
             onDateSelected = { date ->
@@ -565,8 +465,6 @@ fun CategorySummaryScreen(
             onDismiss = { showEndDatePicker = false }
         )
     }
-
-    // Category Selector Dialog
     if (showCategorySelector) {
         CategorySelectorDialog(
             allCategories = allCategories,
@@ -577,5 +475,34 @@ fun CategorySummaryScreen(
             },
             onDismiss = { showCategorySelector = false }
         )
+    }
+}
+
+// Helper functions for consistent colors and emojis
+fun getCategoryColorForSummary(category: String): Color {
+    return when (category.lowercase()) {
+        "food", "groceries", "restaurant" -> AccentOrange
+        "transport", "car", "fuel" -> AccentBlue
+        "shopping", "clothing" -> AccentPurple
+        "entertainment", "movies" -> AccentPink
+        "bills", "utilities" -> Color(0xFF607D8B)
+        "health", "medical" -> Color(0xFF4CAF50)
+        "education" -> AccentTeal
+        else -> BrandGreen
+    }
+}
+
+fun getCategoryEmojiForSummary(category: String): String {
+    return when (category.lowercase()) {
+        "food", "groceries", "restaurant" -> "🍔"
+        "transport", "car", "fuel" -> "🚗"
+        "shopping", "clothing" -> "🛍️"
+        "entertainment", "movies" -> "🎬"
+        "bills", "utilities" -> "📄"
+        "health", "medical" -> "🏥"
+        "education" -> "📚"
+        "housing", "rent" -> "🏠"
+        "travel" -> "✈️"
+        else -> "💸"
     }
 }
