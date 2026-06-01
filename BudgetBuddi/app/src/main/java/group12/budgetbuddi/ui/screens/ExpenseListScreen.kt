@@ -1,23 +1,7 @@
-// Code Attributions
-
-/* Stack Overflow (2023). How to Use Null as Default Value in Compose MutableState [Online].
-* Available at: https://stackoverflow.com/questions/75425433/how-to-use-null-as-default-value-compose-mutablestate
-* (Accessed: 29 April 2026)
-*
-* Stack Overflow (2024). Jetpack Compose Button Alignment [Online].
-* Available at: https://stackoverflow.com/questions/79085592/jetpack-compose-button-alignment
-* (Accessed: 29 April 2026)
-*
-* Android Developers (2024). Lists and Grids in Jetpack Compose [Online].
-* Available at: https://developer.android.com/develop/ui/compose/lists
-* (Accessed: 29 April 2026)
-*/
-
-
-// ExpenseListScreen.kt - Enhanced version
 package group12.budgetbuddi.ui.screens
 
-import androidx.compose.animation.*
+import android.widget.Toast
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,8 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,7 +28,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.ui.components.AppScaffold
-import group12.budgetbuddi.ui.theme.BackgroundWhite
 import group12.budgetbuddi.ui.theme.BrandGreen
 import group12.budgetbuddi.ui.theme.TextBlack
 import group12.budgetbuddi.viewmodel.AuthViewModel
@@ -50,6 +36,17 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.platform.LocalLocale
 
+// Light green background color
+val LightGreenBg = Color(0xFFE8F5E9)
+
+// Colorful accent colors
+val AccentOrange = Color(0xFFFF9800)
+val AccentBlue = Color(0xFF2196F3)
+val AccentPurple = Color(0xFF9C27B0)
+val AccentPink = Color(0xFFE91E63)
+val AccentTeal = Color(0xFF009688)
+val ExpenseRed = Color(0xFFE53935)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseListScreen(
@@ -57,24 +54,25 @@ fun ExpenseListScreen(
     authViewModel: AuthViewModel = viewModel(),
     expenseViewModel: ExpenseViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val allExpenses by expenseViewModel.allExpenses.collectAsState()
 
-    // Filter to show only expenses
+    // Filter to show only expenses (not income)
     val expensesOnly = remember(allExpenses) {
         allExpenses.filter { it.type == "expense" }
     }
 
+    // Date filter state
+    var startDate by remember { mutableStateOf<Date?>(null) }
+    var endDate by remember { mutableStateOf<Date?>(null) }
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+
     // State for expanded categories
     var expandedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    // State for date range filter
-    var startDate by remember { mutableStateOf<Date?>(null) }
-    var endDate by remember { mutableStateOf<Date?>(null) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var isSelectingStart by remember { mutableStateOf(true) }
-
-    // Group expenses by category
-    val groupedExpenses = remember(expensesOnly, startDate, endDate) {
+    // Filter expenses by date range
+    val filteredExpenses = remember(expensesOnly, startDate, endDate) {
         var filtered = expensesOnly
 
         startDate?.let { start ->
@@ -95,35 +93,23 @@ fun ExpenseListScreen(
             }
         }
 
-        filtered.groupBy { it.category }
+        filtered
+    }
+
+    // Group expenses by category
+    val groupedExpenses = remember(filteredExpenses) {
+        filteredExpenses.groupBy { it.category }
             .map { (category, expenses) ->
                 category to expenses.sortedByDescending { it.date }
             }
             .sortedBy { it.first }
     }
 
-    val totalExpenses = remember(expensesOnly, startDate, endDate) {
-        var filtered = expensesOnly
-        startDate?.let { start ->
-            filtered = filtered.filter { expense ->
-                try {
-                    val expenseDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expense.date)
-                    expenseDate != null && expenseDate >= start
-                } catch (e: Exception) { false }
-            }
-        }
-        endDate?.let { end ->
-            filtered = filtered.filter { expense ->
-                try {
-                    val expenseDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expense.date)
-                    expenseDate != null && expenseDate <= end
-                } catch (e: Exception) { false }
-            }
-        }
-        filtered.sumOf { it.amount }
+    val totalExpenses = remember(filteredExpenses) {
+        filteredExpenses.sumOf { it.amount }
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", LocalLocale.current.platformLocale)
+    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     fun toggleCategory(category: String) {
         expandedCategories = if (expandedCategories.contains(category)) {
@@ -132,6 +118,16 @@ fun ExpenseListScreen(
             expandedCategories + category
         }
     }
+
+    // Animation
+    var contentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { contentVisible = true }
+
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (contentVisible) 1f else 0f,
+        animationSpec = tween(500),
+        label = "contentAlpha"
+    )
 
     AppScaffold(
         navController = navController,
@@ -142,137 +138,219 @@ fun ExpenseListScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(BackgroundWhite)
+                .background(LightGreenBg)  // <-- Light green background added here
+                .graphicsLayer(alpha = contentAlpha)
         ) {
-            // Header
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = BrandGreen,
-                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+            // Colorful Gradient Header
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(8.dp, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp), clip = false)
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+                    color = BrandGreen
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.horizontalGradient(
+                                    colors = listOf(
+                                        BrandGreen,
+                                        Color(0xFF0D8B5E),
+                                        Color(0xFF139A43),
+                                        Color(0xFF1EAB5A)
+                                    )
+                                )
+                            )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 28.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Expense List",
+                                        fontSize = 28.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Track all your spending",
+                                        fontSize = 14.sp,
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+
+                                Surface(
+                                    modifier = Modifier
+                                        .size(50.dp)
+                                        .shadow(8.dp, CircleShape),
+                                    shape = CircleShape,
+                                    color = Color.White.copy(alpha = 0.2f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.ReceiptLong,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Stats and Filter Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .shadow(4.dp, RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 20.dp)
+                        .padding(20.dp)
                 ) {
-                    Text(
-                        text = "Expense List",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Track and manage your spending",
-                        fontSize = 14.sp,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            // Stats row
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(4.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Total Expenses",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
-                        Text(
-                            text = "R${String.format("%.2f", totalExpenses)}",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BrandGreen
-                        )
-                    }
-
-                    // Filter button
-                    FilterChip(
-                        onClick = { showDatePicker = true },
-                        label = {
+                    // Total Expenses Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
                             Text(
-                                if (startDate != null || endDate != null) "Filter Active" else "Filter",
-                                fontSize = 12.sp
+                                text = "Total Expenses",
+                                fontSize = 14.sp,
+                                color = Color.Gray
                             )
-                        },
-                        selected = startDate != null || endDate != null,
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.FilterList,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                            Text(
+                                text = "R${String.format("%.2f", totalExpenses)}",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ExpenseRed
                             )
-                        },
-                        modifier = Modifier
-                            .height(36.dp)
-                            .clip(RoundedCornerShape(50.dp))
-                    )
-                }
-            }
+                        }
 
-            // Date filter indicators
-            if (startDate != null || endDate != null) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (startDate != null) {
-                        AssistChip(
-                            onClick = { startDate = null },
+                        // Filter button with date indicator
+                        FilterChip(
+                            onClick = { showStartDatePicker = true },
                             label = {
-                                Text("From: ${dateDisplayFormat.format(startDate)}", fontSize = 11.sp)
+                                Text(
+                                    if (startDate != null || endDate != null) "Filter Active" else "Set Date Range",
+                                    fontSize = 12.sp
+                                )
                             },
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp))
+                            selected = startDate != null || endDate != null,
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
                             },
-                            modifier = Modifier.height(28.dp)
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = BrandGreen.copy(alpha = 0.1f),
+                                selectedLabelColor = BrandGreen
+                            ),
+                            modifier = Modifier
+                                .height(40.dp)
+                                .clip(RoundedCornerShape(50.dp))
                         )
                     }
-                    if (endDate != null) {
-                        AssistChip(
-                            onClick = { endDate = null },
-                            label = {
-                                Text("To: ${dateDisplayFormat.format(endDate)}", fontSize = 11.sp)
-                            },
-                            trailingIcon = {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp))
-                            },
-                            modifier = Modifier.height(28.dp)
-                        )
-                    }
+
+                    // Date Range Display
                     if (startDate != null || endDate != null) {
-                        TextButton(
-                            onClick = {
-                                startDate = null
-                                endDate = null
-                            },
-                            modifier = Modifier.height(28.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = BrandGreen.copy(alpha = 0.05f)
+                            )
                         ) {
-                            Text("Clear All", fontSize = 11.sp, color = BrandGreen)
+                            Column(
+                                modifier = Modifier.padding(12.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = BrandGreen,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "From: ${startDate?.let { dateDisplayFormat.format(it) } ?: "Any"}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.CalendarToday,
+                                            contentDescription = null,
+                                            tint = BrandGreen,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "To: ${endDate?.let { dateDisplayFormat.format(it) } ?: "Any"}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            startDate = null
+                                            endDate = null
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Clear",
+                                            tint = Color.Gray,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
             }
 
+            // Expense List
             if (groupedExpenses.isEmpty()) {
-                // Empty state
+                // Empty State
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -282,7 +360,7 @@ fun ExpenseListScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Surface(
-                            modifier = Modifier.size(100.dp),
+                            modifier = Modifier.size(120.dp),
                             shape = CircleShape,
                             color = BrandGreen.copy(alpha = 0.1f)
                         ) {
@@ -291,33 +369,41 @@ fun ExpenseListScreen(
                                     Icons.Default.ReceiptLong,
                                     contentDescription = null,
                                     tint = BrandGreen,
-                                    modifier = Modifier.size(50.dp)
+                                    modifier = Modifier.size(60.dp)
                                 )
                             }
                         }
                         Text(
                             text = "No Expenses Found",
-                            fontSize = 20.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextBlack
                         )
                         Text(
                             text = if (startDate != null || endDate != null) {
-                                "Try adjusting your date filter"
+                                "No expenses in this date range"
                             } else {
                                 "Add your first expense to get started"
                             },
                             fontSize = 14.sp,
-                            color = Color.Gray
+                            color = Color.Gray,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                         if (startDate != null || endDate != null) {
-                            TextButton(
+                            OutlinedButton(
                                 onClick = {
                                     startDate = null
                                     endDate = null
-                                }
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = BrandGreen
+                                ),
+                                shape = RoundedCornerShape(50.dp)
                             ) {
-                                Text("Clear Filters", color = BrandGreen)
+                                Icon(Icons.Default.Clear, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Clear Filters")
                             }
                         } else {
                             Button(
@@ -333,30 +419,31 @@ fun ExpenseListScreen(
                     }
                 }
             } else {
-                // Expense list grouped by category
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(groupedExpenses) { (category, expenses) ->
                         val isExpanded = expandedCategories.contains(category)
                         val categoryTotal = expenses.sumOf { it.amount }
+                        val categoryColor = getCategoryColor(category)
 
+                        // Category Card
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .animateContentSize(),
+                                .shadow(2.dp, RoundedCornerShape(16.dp)),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            elevation = CardDefaults.cardElevation(2.dp)
+                            colors = CardDefaults.cardColors(containerColor = Color.White)
                         ) {
                             Column {
-                                // Category header (always visible)
+                                // Category Header
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { toggleCategory(category) }
+                                        .background(categoryColor.copy(alpha = 0.05f))
                                         .padding(16.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -365,20 +452,20 @@ fun ExpenseListScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        // Category icon
+                                        // Category Icon
                                         Surface(
-                                            modifier = Modifier.size(44.dp),
+                                            modifier = Modifier.size(48.dp),
                                             shape = CircleShape,
-                                            color = BrandGreen.copy(alpha = 0.1f)
+                                            color = categoryColor.copy(alpha = 0.15f)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Text(
-                                                    text = getCategoryEmoji(category),
-                                                    fontSize = 22.sp
+                                                    text = getExpenseCategoryEmoji(category),
+                                                    fontSize = 24.sp
                                                 )
                                             }
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Spacer(modifier = Modifier.width(14.dp))
                                         Column {
                                             Text(
                                                 text = category,
@@ -394,41 +481,44 @@ fun ExpenseListScreen(
                                         }
                                     }
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(horizontalAlignment = Alignment.End) {
                                         Text(
                                             text = "R${String.format("%.2f", categoryTotal)}",
                                             fontSize = 16.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = BrandGreen
+                                            fontWeight = FontWeight.Bold,
+                                            color = categoryColor
                                         )
-                                        Spacer(modifier = Modifier.width(8.dp))
                                         Icon(
                                             if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                             contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                            tint = Color.Gray
+                                            tint = categoryColor,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
 
-                                // Expanded content - list of expenses in this category
-                                AnimatedVisibility(visible = isExpanded) {
+                                // Expanded Expenses List
+                                if (isExpanded) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
+                                            .background(Color.White)
                                             .padding(bottom = 8.dp)
                                     ) {
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(horizontal = 16.dp),
-                                            color = Color.LightGray.copy(alpha = 0.3f)
-                                        )
-                                        expenses.forEach { expense ->
-                                            CategoryExpenseItem(
+                                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.2f))
+
+                                        expenses.forEachIndexed { index, expense ->
+                                            ColorfulExpenseListItem(
                                                 expense = expense,
                                                 onClick = {
-                                                    // Navigate to edit/delete expense detail
+                                                    Toast.makeText(
+                                                        context,
+                                                        "${expense.category}: R${expense.amount}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             )
-                                            if (expense != expenses.last()) {
+                                            if (index < expenses.size - 1) {
                                                 HorizontalDivider(
                                                     modifier = Modifier.padding(horizontal = 16.dp),
                                                     color = Color.LightGray.copy(alpha = 0.15f)
@@ -447,44 +537,41 @@ fun ExpenseListScreen(
         }
     }
 
-    // Date picker dialog
-    if (showDatePicker) {
-        AlertDialog(
-            onDismissRequest = { showDatePicker = false },
-            title = { Text(if (isSelectingStart) "Select Start Date" else "Select End Date") },
-            text = {
-                DatePickerDialog(
-                    onDateSelected = { date ->
-                        if (isSelectingStart) {
-                            startDate = date
-                            isSelectingStart = false
-                            showDatePicker = true // Keep open for end date
-                        } else {
-                            endDate = date
-                            showDatePicker = false
-                            isSelectingStart = true
-                        }
-                    },
-                    onDismiss = {
-                        showDatePicker = false
-                        isSelectingStart = true
-                    }
-                )
+    // Start Date Picker Dialog
+    if (showStartDatePicker) {
+        DatePickerDialog(
+            title = "Select Start Date",
+            onDateSelected = { date ->
+                startDate = date
+                showStartDatePicker = false
+                // Open end date picker after selecting start date
+                showEndDatePicker = true
             },
-            confirmButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel")
-                }
-            }
+            onDismiss = { showStartDatePicker = false }
+        )
+    }
+
+    // End Date Picker Dialog
+    if (showEndDatePicker) {
+        DatePickerDialog(
+            title = "Select End Date",
+            onDateSelected = { date ->
+                endDate = date
+                showEndDatePicker = false
+                Toast.makeText(context, "Filter applied: ${dateDisplayFormat.format(startDate)} - ${dateDisplayFormat.format(date)}", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showEndDatePicker = false }
         )
     }
 }
 
 @Composable
-fun CategoryExpenseItem(
+fun ColorfulExpenseListItem(
     expense: ExpenseEntity,
     onClick: () -> Unit
 ) {
+    val categoryColor = getCategoryColor(expense.category)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -493,49 +580,112 @@ fun CategoryExpenseItem(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = expense.subCategory.ifBlank { expense.category },
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = TextBlack
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Small colored dot
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(categoryColor)
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
                 Text(
-                    text = formatDate(expense.date),
-                    fontSize = 11.sp,
-                    color = Color.Gray
+                    text = expense.subCategory.ifBlank { expense.category },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextBlack
                 )
-                if (expense.paymentMethod.isNotBlank()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "• ${expense.paymentMethod}",
+                        text = formatExpenseDate(expense.date),
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
-                }
-                if (expense.note.isNotBlank()) {
-                    Text(
-                        text = "• ${expense.note.take(15)}",
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
+                    if (expense.paymentMethod.isNotBlank()) {
+                        Text(
+                            text = "• ${expense.paymentMethod}",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    if (expense.note.isNotBlank()) {
+                        Text(
+                            text = "• ${expense.note.take(15)}",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
         }
 
         Text(
             text = "-R${String.format("%.2f", expense.amount)}",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Color(0xFFE53935)
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = ExpenseRed
         )
     }
 }
 
-fun getCategoryEmoji(category: String): String {
+@Composable
+fun DatePickerDialog(
+    title: String,
+    onDateSelected: (Date) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val datePickerState = rememberDatePickerState()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                DatePicker(state = datePickerState, showModeToggle = false)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        onDateSelected(Date(millis))
+                    }
+                }
+            ) {
+                Text("OK", color = BrandGreen, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color.Gray)
+            }
+        }
+    )
+}
+
+// Helper functions
+fun getCategoryColor(category: String): Color {
+    return when (category.lowercase()) {
+        "food", "groceries", "restaurant" -> AccentOrange
+        "transport", "car", "fuel" -> AccentBlue
+        "shopping", "clothing" -> AccentPurple
+        "entertainment", "movies" -> AccentPink
+        "bills", "utilities" -> Color(0xFF607D8B)
+        "health", "medical" -> Color(0xFF4CAF50)
+        "education" -> AccentTeal
+        else -> BrandGreen
+    }
+}
+
+fun getExpenseCategoryEmoji(category: String): String {
     return when (category.lowercase()) {
         "food", "groceries", "restaurant" -> "🍔"
         "transport", "car", "fuel" -> "🚗"
@@ -550,10 +700,10 @@ fun getCategoryEmoji(category: String): String {
     }
 }
 
-fun formatDate(dateString: String): String {
+fun formatExpenseDate(dateString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
         val date = inputFormat.parse(dateString)
         outputFormat.format(date ?: Date())
     } catch (e: Exception) {

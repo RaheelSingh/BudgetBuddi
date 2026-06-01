@@ -1,19 +1,3 @@
-/*
-“Androidx.compose.material3  |  API Reference  |  Android Developers.” Android Developers, 2025, developer.android.com/reference/kotlin/androidx/compose/material3/package-summary. Accessed 29 Apr. 2026.
-
-Google. “ViewModel Overview  |  Android Developers.” Android Developers, 2019, developer.android.com/topic/libraries/architecture/viewmodel. Accessed 29 Apr. 2026.
-
-“Lists and Grids.” Android Developers, 2024, developer.android.com/develop/ui/compose/lists. Accessed 29 Apr. 2026.
-
-“Navigation with Compose | Jetpack Compose.” Android Developers, 2026, developer.android.com/develop/ui/compose/navigation. Accessed 29 Apr. 2026.
-
-“SimpleDateFormat  |  API Reference  |  Android Developers.” Android Developers, 2026, developer.android.com/reference/java/text/SimpleDateFormat. Accessed 29 Apr. 2026.
-
-“Thinking in Compose | Jetpack Compose.” Android Developers, 2026, developer.android.com/develop/ui/compose/mental-model. Accessed 29 Apr. 2026.
- */
-
-
-
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.foundation.background
@@ -40,15 +24,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.ui.components.AppScaffold
+import group12.budgetbuddi.ui.theme.BrandGreen
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
 import group12.budgetbuddi.data.entity.ExpenseEntity
-
-private val BrandGreen = Color(0xFF4CAF50)
-private val IncomeGreen = Color(0xFF2E7D32)
-private val ExpenseRed = Color(0xFFC62828)
 
 @Composable
 fun ExpensesScreen(
@@ -62,7 +43,7 @@ fun ExpensesScreen(
         authViewModel = authViewModel
     ) { modifier ->
 
-        val allTransactions by expenseViewModel.allExpenses.collectAsState()  //Retrieves data from the ViewMode, Automatically updates UI when data changes ,Implements MVVM architecture
+        val allTransactions by expenseViewModel.allExpenses.collectAsState()
 
         Column(
             modifier = modifier
@@ -78,12 +59,13 @@ fun ExpensesScreen(
                 Text(
                     text = "Saved Transactions",
                     fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
                 )
 
                 IconButton(
                     onClick = {
-                        navController.navigate("add_transaction") {  //Navigates to another screen while preventing duplicate instances.
+                        navController.navigate("add_transaction") {
                             launchSingleTop = true
                         }
                     }
@@ -133,7 +115,7 @@ fun ExpensesScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    items(allTransactions) { transaction ->  //Displays a scrollable list efficiently, only rendering visible items (like RecyclerView).
+                    items(allTransactions) { transaction ->
                         TransactionCard(transaction = transaction)
                         Spacer(modifier = Modifier.height(10.dp))
                     }
@@ -146,12 +128,12 @@ fun ExpensesScreen(
 @Composable
 private fun TransactionCard(transaction: ExpenseEntity) {
     val isIncome = transaction.type == "income"
-    val amountColor = if (isIncome) IncomeGreen else ExpenseRed
+    val amountColor = if (isIncome) Color(0xFF43A047) else Color(0xFFE53935)
     val amountPrefix = if (isIncome) "+R" else "-R"
 
     val displayDate = remember(transaction.date) {
         try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())  //Converts stored date into a user-friendly format.
+            val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val outputFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
             val parsedDate = inputFormat.parse(transaction.date)
             if (parsedDate != null) outputFormat.format(parsedDate) else transaction.date
@@ -225,7 +207,7 @@ private fun TransactionCard(transaction: ExpenseEntity) {
             ) {
                 Text(
                     text = transaction.type.replaceFirstChar { it.uppercase() },
-                    color = if (isIncome) IncomeGreen else ExpenseRed,
+                    color = if (isIncome) Color(0xFF43A047) else Color(0xFFE53935),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -247,7 +229,6 @@ private fun TransactionCard(transaction: ExpenseEntity) {
 
             if (transaction.note.isNotBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-
                 Text(
                     text = transaction.note,
                     color = Color.Gray,
@@ -257,7 +238,6 @@ private fun TransactionCard(transaction: ExpenseEntity) {
 
             if (!transaction.photoPath.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(6.dp))
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Image,
@@ -265,9 +245,7 @@ private fun TransactionCard(transaction: ExpenseEntity) {
                         tint = BrandGreen,
                         modifier = Modifier.size(16.dp)
                     )
-
                     Spacer(modifier = Modifier.width(4.dp))
-
                     Text(
                         text = "Photo attached",
                         color = BrandGreen,
@@ -278,7 +256,6 @@ private fun TransactionCard(transaction: ExpenseEntity) {
 
             if (transaction.isRecurring) {
                 Spacer(modifier = Modifier.height(6.dp))
-
                 Text(
                     text = "Recurring transaction",
                     color = BrandGreen,
