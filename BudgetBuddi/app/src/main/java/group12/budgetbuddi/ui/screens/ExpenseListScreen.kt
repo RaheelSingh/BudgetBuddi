@@ -20,12 +20,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.ui.theme.BrandGreen
@@ -39,13 +41,7 @@ import androidx.compose.ui.platform.LocalLocale
 // Light green background color
 val LightGreenBg = Color(0xFFE8F5E9)
 
-// Colorful accent colors
-val AccentOrange = Color(0xFFFF9800)
-val AccentBlue = Color(0xFF2196F3)
-val AccentPurple = Color(0xFF9C27B0)
-val AccentPink = Color(0xFFE91E63)
-val AccentTeal = Color(0xFF009688)
-val ExpenseRed = Color(0xFFE53935)
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +105,7 @@ fun ExpenseListScreen(
         filteredExpenses.sumOf { it.amount }
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", LocalLocale.current.platformLocale)
 
     fun toggleCategory(category: String) {
         expandedCategories = if (expandedCategories.contains(category)) {
@@ -138,7 +134,7 @@ fun ExpenseListScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(LightGreenBg)  // <-- Light green background added here
+                .background(LightGreenBg)
                 .graphicsLayer(alpha = contentAlpha)
         ) {
             // Colorful Gradient Header
@@ -428,6 +424,8 @@ fun ExpenseListScreen(
                         val isExpanded = expandedCategories.contains(category)
                         val categoryTotal = expenses.sumOf { it.amount }
                         val categoryColor = getCategoryColor(category)
+                        // Get first expense's photo (if any)
+                        val firstExpensePhoto = expenses.firstOrNull()?.photoPath
 
                         // Category Card
                         Card(
@@ -452,17 +450,31 @@ fun ExpenseListScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        // Category Icon
+                                        // Category Icon - Show photo if available, else emoji
                                         Surface(
                                             modifier = Modifier.size(48.dp),
                                             shape = CircleShape,
                                             color = categoryColor.copy(alpha = 0.15f)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = getExpenseCategoryEmoji(category),
-                                                    fontSize = 24.sp
-                                                )
+                                                if (!firstExpensePhoto.isNullOrBlank()) {
+                                                    AsyncImage(
+                                                        model = firstExpensePhoto,
+                                                        contentDescription = category,
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .clip(CircleShape),
+                                                        contentScale = ContentScale.Crop,
+                                                        error = androidx.compose.ui.res.painterResource(
+                                                            id = android.R.drawable.ic_menu_gallery
+                                                        )
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        text = getExpenseCategoryEmoji(category),
+                                                        fontSize = 24.sp
+                                                    )
+                                                }
                                             }
                                         }
                                         Spacer(modifier = Modifier.width(14.dp))
