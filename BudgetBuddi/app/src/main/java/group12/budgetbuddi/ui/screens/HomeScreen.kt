@@ -1,4 +1,4 @@
-// HomeScreen.kt - Colorful Premium Version
+// HomeScreen.kt - Complete Fancy Version (No Errors)
 package group12.budgetbuddi.ui.screens
 
 import androidx.compose.animation.core.*
@@ -39,19 +39,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.platform.LocalLocale
 
-// Color palette (keeping BrandGreen as primary)
-val AccentOrange = Color(0xFFFF9800)
-val AccentBlue = Color(0xFF2196F3)
-val AccentPurple = Color(0xFF9C27B0)
-val AccentPink = Color(0xFFE91E63)
-val AccentTeal = Color(0xFF009688)
-val AccentYellow = Color(0xFFFFC107)
-val SuccessGreen = Color(0xFF4CAF50)
-val DangerRed = Color(0xFFE53935)
-val IncomeGreen = Color(0xFF43A047)
-val ExpenseRed = Color(0xFFE53935)
-val CardGradientStart = Color(0xFFFFFFFF)
-val CardGradientEnd = Color(0xFFF8F9FA)
 
 @Composable
 fun HomeScreen(
@@ -63,6 +50,7 @@ fun HomeScreen(
     val displayName = currentUser?.username ?: "User"
     val allTransactions by expenseViewModel.allExpenses.collectAsState()
 
+    // Get current month and date info
     val calendar = Calendar.getInstance()
     val currentMonth = calendar.get(Calendar.MONTH)
     val currentYear = calendar.get(Calendar.YEAR)
@@ -74,6 +62,7 @@ fun HomeScreen(
     )
     val currentMonthName = monthNames[currentMonth]
 
+    // Filter transactions for current month
     val monthlyTransactions = remember(allTransactions, currentMonth, currentYear) {
         allTransactions.filter { transaction ->
             try {
@@ -84,8 +73,13 @@ fun HomeScreen(
         }
     }
 
-    val monthlyExpenses = remember(monthlyTransactions) { monthlyTransactions.filter { it.type == "expense" } }
-    val monthlyIncome = remember(monthlyTransactions) { monthlyTransactions.filter { it.type == "income" } }
+    val monthlyExpenses = remember(monthlyTransactions) {
+        monthlyTransactions.filter { it.type == "expense" }
+    }
+
+    val monthlyIncome = remember(monthlyTransactions) {
+        monthlyTransactions.filter { it.type == "income" }
+    }
 
     val totalMonthlyExpenses = remember(monthlyExpenses) { monthlyExpenses.sumOf { it.amount } }
     val totalMonthlyIncome = remember(monthlyIncome) { monthlyIncome.sumOf { it.amount } }
@@ -95,6 +89,7 @@ fun HomeScreen(
         allTransactions.filter { it.date == today && it.type == "expense" }.sumOf { it.amount }
     }
 
+    // Get top spending categories
     val topCategories = remember(monthlyExpenses) {
         monthlyExpenses.groupBy { it.category }
             .map { (category, expenses) -> category to expenses.sumOf { it.amount } }
@@ -102,10 +97,12 @@ fun HomeScreen(
             .take(5)
     }
 
+    // Recent transactions (last 5)
     val recentTransactions = remember(monthlyTransactions) {
         monthlyTransactions.sortedByDescending { it.date }.take(5)
     }
 
+    // Animation
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
 
@@ -124,14 +121,18 @@ fun HomeScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(BackgroundWhite)
+                .background(Color(0xFFE8F5E9))
                 .graphicsLayer(alpha = contentAlpha)
         ) {
-            // Colorful Gradient Header
+            // Fancy Header with Gradient
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(8.dp, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp), clip = false)
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+                        clip = false
+                    )
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -142,13 +143,13 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                brush = Brush.horizontalGradient(
+                                brush = Brush.verticalGradient(
                                     colors = listOf(
                                         BrandGreen,
-                                        Color(0xFF0D8B5E),
-                                        Color(0xFF139A43),
-                                        Color(0xFF1EAB5A)
-                                    )
+                                        Color(0xFF0D8B5E)
+                                    ),
+                                    startY = 0f,
+                                    endY = Float.POSITIVE_INFINITY
                                 )
                             )
                     ) {
@@ -164,26 +165,25 @@ fun HomeScreen(
                             ) {
                                 Column {
                                     Text(
-                                        text = "Good ${getTimeOfDay()}!",
-                                        fontSize = 16.sp,
+                                        text = "Good ${getTimeOfDay()},",
+                                        fontSize = 18.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color.White.copy(alpha = 0.9f),
+                                        color = Color.White.copy(alpha = 0.85f),
                                         letterSpacing = 0.5.sp
                                     )
                                     Text(
                                         text = displayName,
-                                        fontSize = 32.sp,
+                                        fontSize = 34.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Color.White,
                                         letterSpacing = 1.sp,
                                         modifier = Modifier.padding(top = 4.dp)
                                     )
-                                    // Colorful motivational message that changes
                                     Text(
-                                        text = getMotivationalMessage(),
-                                        fontSize = 13.sp,
+                                        text = "💰 Ready to save today?",
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal,
-                                        color = Color.White.copy(alpha = 0.85f),
+                                        color = Color.White.copy(alpha = 0.7f),
                                         modifier = Modifier.padding(top = 8.dp)
                                     )
                                 }
@@ -206,9 +206,8 @@ fun HomeScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
 
-                            // Colorful Welcome Card
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
@@ -220,37 +219,27 @@ fun HomeScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(14.dp),
+                                        .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Animated sparkle
-                                    val infiniteTransition = rememberInfiniteTransition()
-                                    val sparkleScale by infiniteTransition.animateFloat(
-                                        initialValue = 0.8f,
-                                        targetValue = 1.2f,
-                                        animationSpec = infiniteRepeatable(
-                                            animation = tween(1000, easing = FastOutSlowInEasing),
-                                            repeatMode = RepeatMode.Reverse
-                                        )
-                                    )
                                     Icon(
-                                        Icons.Default.AutoAwesome,
+                                        Icons.Default.Star,
                                         contentDescription = null,
                                         tint = Color(0xFFFFD700),
-                                        modifier = Modifier.size(24.dp).graphicsLayer(scaleX = sparkleScale, scaleY = sparkleScale)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(
-                                            text = "You're doing great! 🎉",
-                                            fontSize = 14.sp,
+                                            text = "Welcome to Budget Buddi!",
+                                            fontSize = 15.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color.White
                                         )
                                         Text(
-                                            text = "Keep tracking your expenses daily",
-                                            fontSize = 11.sp,
-                                            color = Color.White.copy(alpha = 0.85f)
+                                            text = "Track your spending and reach your goals",
+                                            fontSize = 12.sp,
+                                            color = Color.White.copy(alpha = 0.8f)
                                         )
                                     }
                                 }
@@ -265,7 +254,7 @@ fun HomeScreen(
                 contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Monthly Summary Card - Colorful Stats
+                // Monthly Summary Card
                 item {
                     Card(
                         modifier = Modifier
@@ -304,14 +293,16 @@ fun HomeScreen(
                                 Surface(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .clickable { navController.navigate("category_totals") },
+                                        .clickable {
+                                            navController.navigate("category_totals")
+                                        },
                                     shape = CircleShape,
                                     color = BrandGreen.copy(alpha = 0.1f)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Default.TrendingUp,
-                                            contentDescription = "View Report",
+                                            contentDescription = "View Monthly Report",
                                             tint = BrandGreen,
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -325,33 +316,33 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceEvenly
                             ) {
-                                ColorfulStatItem(
+                                FancyStatItem(
                                     title = "Income",
                                     amount = totalMonthlyIncome,
-                                    color = IncomeGreen,
+                                    color = Color(0xFF43A047),
                                     icon = Icons.Default.TrendingUp,
-                                    bgColor = IncomeGreen.copy(alpha = 0.15f)
+                                    bgColor = Color(0xFFE8F5E9)
                                 )
-                                ColorfulStatItem(
+                                FancyStatItem(
                                     title = "Expenses",
                                     amount = totalMonthlyExpenses,
-                                    color = ExpenseRed,
+                                    color = Color(0xFFE53935),
                                     icon = Icons.Default.TrendingDown,
-                                    bgColor = ExpenseRed.copy(alpha = 0.15f)
+                                    bgColor = Color(0xFFFFEBEE)
                                 )
-                                ColorfulStatItem(
+                                FancyStatItem(
                                     title = "Net",
                                     amount = netMonthly,
-                                    color = if (netMonthly >= 0) IncomeGreen else ExpenseRed,
+                                    color = if (netMonthly >= 0) Color(0xFF43A047) else Color(0xFFE53935),
                                     icon = Icons.Default.AccountBalanceWallet,
-                                    bgColor = if (netMonthly >= 0) IncomeGreen.copy(alpha = 0.15f) else ExpenseRed.copy(alpha = 0.15f)
+                                    bgColor = if (netMonthly >= 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
                                 )
                             }
                         }
                     }
                 }
 
-                // Today's Spending Card - Colorful accent
+                // Today's Spending Card
                 item {
                     Card(
                         modifier = Modifier
@@ -359,7 +350,7 @@ fun HomeScreen(
                             .padding(horizontal = 16.dp)
                             .shadow(4.dp, RoundedCornerShape(20.dp)),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = BrandGreen.copy(alpha = 0.05f))
                     ) {
                         Row(
                             modifier = Modifier
@@ -372,13 +363,13 @@ fun HomeScreen(
                                 Surface(
                                     modifier = Modifier.size(50.dp),
                                     shape = CircleShape,
-                                    color = AccentOrange.copy(alpha = 0.15f)
+                                    color = BrandGreen.copy(alpha = 0.15f)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Default.Today,
                                             contentDescription = null,
-                                            tint = AccentOrange,
+                                            tint = BrandGreen,
                                             modifier = Modifier.size(28.dp)
                                         )
                                     }
@@ -424,29 +415,17 @@ fun HomeScreen(
                                 .padding(20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.PieChart,
-                                    contentDescription = null,
-                                    tint = BrandGreen,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Income vs Expenses",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextBlack
-                                )
-                            }
+                            Text(
+                                text = "Income vs Expenses",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextBlack,
+                                modifier = Modifier.fillMaxWidth()
+                            )
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            ColorfulPieChart(
+                            HomeIncomeExpensePieChart(
                                 income = totalMonthlyIncome,
                                 expenses = totalMonthlyExpenses
                             )
@@ -454,7 +433,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Top Spending Categories - Colorful ranking
+                // Top Spending Categories
                 if (topCategories.isNotEmpty()) {
                     item {
                         Card(
@@ -482,7 +461,7 @@ fun HomeScreen(
                                         color = TextBlack
                                     )
                                     Icon(
-                                        Icons.Default.BarChart,
+                                        Icons.Default.ShowChart,
                                         contentDescription = null,
                                         tint = BrandGreen,
                                         modifier = Modifier.size(20.dp)
@@ -492,7 +471,7 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 topCategories.forEachIndexed { index, (category, amount) ->
-                                    ColorfulCategoryProgressRow(
+                                    FancyCategoryProgressRow(
                                         category = category,
                                         amount = amount,
                                         total = totalMonthlyExpenses,
@@ -508,7 +487,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Recent Transactions - Colorful items
+                // Recent Transactions
                 if (recentTransactions.isNotEmpty()) {
                     item {
                         Card(
@@ -545,7 +524,7 @@ fun HomeScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 recentTransactions.forEachIndexed { index, transaction ->
-                                    ColorfulRecentTransactionItem(transaction = transaction)
+                                    FancyRecentTransactionItem(transaction = transaction)
                                     if (index < recentTransactions.size - 1) {
                                         HorizontalDivider(
                                             modifier = Modifier.padding(vertical = 10.dp),
@@ -558,7 +537,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Quick Actions - Colorful buttons
+                // Quick Actions
                 item {
                     Card(
                         modifier = Modifier
@@ -586,27 +565,24 @@ fun HomeScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                ColorfulQuickActionButton(
+                                FancyQuickActionButton(
                                     icon = Icons.Default.AddCircle,
                                     label = "Add",
                                     subtitle = "Transaction",
-                                    color = BrandGreen,
                                     onClick = { navController.navigate("add_transaction") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                ColorfulQuickActionButton(
+                                FancyQuickActionButton(
                                     icon = Icons.Default.Category,
                                     label = "Manage",
                                     subtitle = "Categories",
-                                    color = AccentPurple,
                                     onClick = { navController.navigate("categories") },
                                     modifier = Modifier.weight(1f)
                                 )
-                                ColorfulQuickActionButton(
+                                FancyQuickActionButton(
                                     icon = Icons.Default.TrackChanges,
                                     label = "Budget",
                                     subtitle = "Goals",
-                                    color = AccentOrange,
                                     onClick = { navController.navigate("budget_goals") },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -619,6 +595,7 @@ fun HomeScreen(
     }
 }
 
+// Helper function to get time of day
 fun getTimeOfDay(): String {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when (hour) {
@@ -628,22 +605,8 @@ fun getTimeOfDay(): String {
     }
 }
 
-fun getMotivationalMessage(): String {
-    val messages = listOf(
-        "💰 Every rand saved is a step closer to your dreams!",
-        "📊 Track today, conquer tomorrow!",
-        "🎯 You're 1% closer to your financial goals!",
-        "💪 Small savings add up to big results!",
-        "🌟 Keep going! You're doing amazing!",
-        "📈 Your financial journey starts here!",
-        "🦸‍♂️ Be the hero of your finances!",
-        "🚀 Sky's the limit for your savings!"
-    )
-    return messages.random()
-}
-
 @Composable
-fun ColorfulStatItem(
+fun FancyStatItem(
     title: String,
     amount: Double,
     color: Color,
@@ -672,13 +635,13 @@ fun ColorfulStatItem(
         Text(
             text = title,
             fontSize = 11.sp,
-            color = color
+            color = Color.Gray
         )
     }
 }
 
 @Composable
-fun ColorfulCategoryProgressRow(
+fun FancyCategoryProgressRow(
     category: String,
     amount: Double,
     total: Double,
@@ -688,23 +651,11 @@ fun ColorfulCategoryProgressRow(
     val percentage = if (total > 0) (amount / total) else 0.0
     val barWidth = if (maxAmount > 0) (amount / maxAmount).toFloat().coerceIn(0f, 1f) else 0f
 
-    // Colorful rank badges
     val rankColor = when (rank) {
-        1 -> Color(0xFFFFD700) // Gold
-        2 -> Color(0xFFC0C0C0) // Silver
-        3 -> Color(0xFFCD7F32) // Bronze
-        else -> AccentBlue.copy(alpha = 0.5f)
-    }
-
-    val categoryColor = when (category.lowercase()) {
-        "food", "groceries", "restaurant" -> AccentOrange
-        "transport", "car", "fuel" -> AccentBlue
-        "shopping", "clothing" -> AccentPurple
-        "entertainment", "movies" -> AccentPink
-        "bills", "utilities" -> Color(0xFF607D8B)
-        "health", "medical" -> SuccessGreen
-        "education" -> AccentTeal
-        else -> BrandGreen
+        1 -> Color(0xFFFFD700)
+        2 -> Color(0xFFC0C0C0)
+        3 -> Color(0xFFCD7F32)
+        else -> Color.Gray.copy(alpha = 0.3f)
     }
 
     Row(
@@ -713,20 +664,17 @@ fun ColorfulCategoryProgressRow(
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(28.dp)
                 .clip(CircleShape)
                 .background(rankColor),
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (rank <= 3) "#$rank" else "",
-                fontSize = 11.sp,
+                text = "$rank",
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (rank <= 3) Color.Black else Color.White
             )
-            if (rank > 3) {
-                Icon(Icons.Default.Straighten, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -744,7 +692,7 @@ fun ColorfulCategoryProgressRow(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = category,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = TextBlack
                     )
@@ -753,7 +701,7 @@ fun ColorfulCategoryProgressRow(
                     text = "R${String.format("%.2f", amount)}",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = categoryColor
+                    color = TextBlack
                 )
             }
 
@@ -771,12 +719,12 @@ fun ColorfulCategoryProgressRow(
                         .fillMaxWidth(barWidth)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(4.dp))
-                        .background(categoryColor)
+                        .background(BrandGreen)
                 )
             }
 
             Text(
-                text = "${(percentage * 100).toInt()}% of total spending",
+                text = "${(percentage * 100).toInt()}% of total • Rank #$rank",
                 fontSize = 10.sp,
                 color = Color.Gray
             )
@@ -785,18 +733,8 @@ fun ColorfulCategoryProgressRow(
 }
 
 @Composable
-fun ColorfulRecentTransactionItem(transaction: group12.budgetbuddi.data.entity.ExpenseEntity) {
+fun FancyRecentTransactionItem(transaction: group12.budgetbuddi.data.entity.ExpenseEntity) {
     val isExpense = transaction.type == "expense"
-    val transactionColor = if (isExpense) ExpenseRed else IncomeGreen
-
-    val categoryColor = when (transaction.category.lowercase()) {
-        "food", "groceries", "restaurant" -> AccentOrange
-        "transport", "car", "fuel" -> AccentBlue
-        "shopping", "clothing" -> AccentPurple
-        "entertainment", "movies" -> AccentPink
-        else -> BrandGreen
-    }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -809,7 +747,7 @@ fun ColorfulRecentTransactionItem(transaction: group12.budgetbuddi.data.entity.E
             Surface(
                 modifier = Modifier.size(44.dp),
                 shape = CircleShape,
-                color = categoryColor.copy(alpha = 0.15f)
+                color = BrandGreen.copy(alpha = 0.1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -850,17 +788,16 @@ fun ColorfulRecentTransactionItem(transaction: group12.budgetbuddi.data.entity.E
             text = "${if (isExpense) "-" else "+"}R${String.format("%.2f", transaction.amount)}",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = transactionColor
+            color = if (isExpense) Color(0xFFE53935) else Color(0xFF43A047)
         )
     }
 }
 
 @Composable
-fun ColorfulQuickActionButton(
+fun FancyQuickActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     subtitle: String,
-    color: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -868,20 +805,20 @@ fun ColorfulQuickActionButton(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .background(color.copy(alpha = 0.1f))
+            .background(Color(0xFFF8F9FA))
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Surface(
             modifier = Modifier.size(50.dp),
             shape = CircleShape,
-            color = color.copy(alpha = 0.2f)
+            color = BrandGreen.copy(alpha = 0.1f)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     icon,
                     contentDescription = label,
-                    tint = color,
+                    tint = BrandGreen,
                     modifier = Modifier.size(26.dp)
                 )
             }
@@ -891,7 +828,7 @@ fun ColorfulQuickActionButton(
             text = label,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
-            color = color
+            color = TextBlack
         )
         Text(
             text = subtitle,
@@ -902,7 +839,7 @@ fun ColorfulQuickActionButton(
 }
 
 @Composable
-fun ColorfulPieChart(
+fun HomeIncomeExpensePieChart(
     income: Double,
     expenses: Double
 ) {
@@ -949,8 +886,8 @@ fun ColorfulPieChart(
     val incomeAngle = incomePercentage * 360f
     val expenseAngle = expensePercentage * 360f
 
-    val incomeColor = IncomeGreen
-    val expenseColor = ExpenseRed
+    val incomeColor = Color(0xFF43A047)
+    val expenseColor = Color(0xFFE53935)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1055,7 +992,7 @@ fun ColorfulPieChart(
     }
 }
 
-// Existing helper functions
+// Helper functions
 fun getHomeCategoryEmoji(category: String): String {
     return when (category.lowercase()) {
         "food", "groceries", "restaurant" -> "🍔"

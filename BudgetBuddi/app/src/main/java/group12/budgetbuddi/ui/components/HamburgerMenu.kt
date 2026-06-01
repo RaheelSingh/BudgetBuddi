@@ -103,7 +103,7 @@ fun HamburgerMenu(
                 selected = selectedRoute == "category_totals",
                 onClick = onCategoryTotalsClick,
                 icon = { Icon(Icons.Default.PieChart, contentDescription = "Category Totals") },
-                label = { Text("Category Totals") }
+                label = { Text("Category Goals Report") }
             )
 
             // Logout is not linked to a selected screen, so selected remains false.

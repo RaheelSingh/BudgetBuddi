@@ -34,14 +34,21 @@ import group12.budgetbuddi.ui.theme.BrandGreen
 import group12.budgetbuddi.ui.theme.TextBlack
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.painterResource
 
-// Light green background color
+// Light green background
 val LightGreenBg = Color(0xFFE8F5E9)
 
-
+// Accent colors for categories (optional, can be removed if you want uniform color)
+val AccentOrange = Color(0xFFFF9800)
+val AccentBlue = Color(0xFF2196F3)
+val AccentPurple = Color(0xFF9C27B0)
+val AccentPink = Color(0xFFE91E63)
+val AccentTeal = Color(0xFF009688)
+val ExpenseRed = Color(0xFFE53935)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,21 +60,17 @@ fun ExpenseListScreen(
     val context = LocalContext.current
     val allExpenses by expenseViewModel.allExpenses.collectAsState()
 
-    // Filter to show only expenses (not income)
     val expensesOnly = remember(allExpenses) {
         allExpenses.filter { it.type == "expense" }
     }
 
-    // Date filter state
     var startDate by remember { mutableStateOf<Date?>(null) }
     var endDate by remember { mutableStateOf<Date?>(null) }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
-    // State for expanded categories
     var expandedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    // Filter expenses by date range
     val filteredExpenses = remember(expensesOnly, startDate, endDate) {
         var filtered = expensesOnly
         startDate?.let { start ->
@@ -89,7 +92,6 @@ fun ExpenseListScreen(
         filtered
     }
 
-    // Group expenses by category
     val groupedExpenses = remember(filteredExpenses) {
         filteredExpenses.groupBy { it.category }
             .map { (category, expenses) ->
@@ -102,7 +104,7 @@ fun ExpenseListScreen(
         filteredExpenses.sumOf { it.amount }
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", LocalLocale.current.platformLocale)
+    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
 
     fun toggleCategory(category: String) {
         expandedCategories = if (expandedCategories.contains(category)) {
@@ -112,7 +114,6 @@ fun ExpenseListScreen(
         }
     }
 
-    // Animation
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
 
@@ -134,7 +135,7 @@ fun ExpenseListScreen(
                 .background(LightGreenBg)
                 .graphicsLayer(alpha = contentAlpha)
         ) {
-            // Colorful Gradient Header (same as before)
+            // Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -205,7 +206,7 @@ fun ExpenseListScreen(
                 }
             }
 
-            // Stats and Filter Card (same as before)
+            // Stats and Filter Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -262,7 +263,6 @@ fun ExpenseListScreen(
                                 .clip(RoundedCornerShape(50.dp))
                         )
                     }
-                    // Date Range Display (same)
                     if (startDate != null || endDate != null) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Card(
@@ -298,7 +298,6 @@ fun ExpenseListScreen(
 
             // Expense List
             if (groupedExpenses.isEmpty()) {
-                // Empty state (same as before)
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -364,7 +363,6 @@ fun ExpenseListScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        // Category Icon: Clickable photo or emoji
                                         Surface(
                                             modifier = Modifier
                                                 .size(48.dp)
@@ -372,7 +370,7 @@ fun ExpenseListScreen(
                                                 .then(
                                                     if (!firstExpensePhoto.isNullOrBlank()) {
                                                         Modifier.clickable {
-                                                            val encodedPath = java.net.URLEncoder.encode(firstExpensePhoto, "UTF-8")
+                                                            val encodedPath = URLEncoder.encode(firstExpensePhoto, "UTF-8")
                                                             navController.navigate("photo_viewer/$encodedPath")
                                                         }
                                                     } else Modifier
@@ -387,10 +385,15 @@ fun ExpenseListScreen(
                                                         contentDescription = category,
                                                         modifier = Modifier.fillMaxSize().clip(CircleShape),
                                                         contentScale = ContentScale.Crop,
-                                                        error = androidx.compose.ui.res.painterResource(id = android.R.drawable.ic_menu_gallery)
+                                                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
                                                     )
                                                 } else {
-                                                    Text(text = getExpenseCategoryEmoji(category), fontSize = 24.sp)
+                                                    Icon(
+                                                        imageVector = Icons.Default.Image,
+                                                        contentDescription = "No photo",
+                                                        tint = categoryColor,
+                                                        modifier = Modifier.size(28.dp)
+                                                    )
                                                 }
                                             }
                                         }
@@ -411,7 +414,7 @@ fun ExpenseListScreen(
                                     }
                                 }
 
-                                // Expanded Expenses List (unchanged)
+                                // Expanded Expenses List
                                 if (isExpanded) {
                                     Column(
                                         modifier = Modifier
@@ -425,6 +428,10 @@ fun ExpenseListScreen(
                                                 expense = expense,
                                                 onClick = {
                                                     Toast.makeText(context, "${expense.category}: R${expense.amount}", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onPhotoClick = { photoPath ->
+                                                    val encodedPath = URLEncoder.encode(photoPath, "UTF-8")
+                                                    navController.navigate("photo_viewer/$encodedPath")
                                                 }
                                             )
                                             if (index < expenses.size - 1) {
@@ -442,7 +449,6 @@ fun ExpenseListScreen(
         }
     }
 
-    // Date picker dialogs (unchanged)
     if (showStartDatePicker) {
         DatePickerDialog(
             title = "Select Start Date",
@@ -467,17 +473,49 @@ fun ExpenseListScreen(
     }
 }
 
-// Helper functions (unchanged)
 @Composable
-fun ColorfulExpenseListItem(expense: ExpenseEntity, onClick: () -> Unit) {
+fun ColorfulExpenseListItem(
+    expense: ExpenseEntity,
+    onClick: () -> Unit,
+    onPhotoClick: (String) -> Unit
+) {
     val categoryColor = getCategoryColor(expense.category)
+    val hasPhoto = !expense.photoPath.isNullOrBlank()
+
     Row(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(categoryColor))
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .then(if (hasPhoto) Modifier.clickable { onPhotoClick(expense.photoPath!!) } else Modifier),
+                shape = CircleShape,
+                color = categoryColor.copy(alpha = 0.15f)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (hasPhoto) {
+                        AsyncImage(
+                            model = expense.photoPath,
+                            contentDescription = expense.category,
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                            contentScale = ContentScale.Crop,
+                            error = painterResource(id = android.R.drawable.ic_menu_gallery)
+                        )
+                    } else {
+                        Text(text = getExpenseCategoryEmoji(expense.category), fontSize = 20.sp)
+                    }
+                }
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(text = expense.subCategory.ifBlank { expense.category }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextBlack)
