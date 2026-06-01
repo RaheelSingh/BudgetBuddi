@@ -38,11 +38,12 @@ import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalLocale
 
 // Light green background
 val LightGreenBg = Color(0xFFE8F5E9)
 
-// Accent colors for categories (optional, can be removed if you want uniform color)
+// Accent colors for categories
 val AccentOrange = Color(0xFFFF9800)
 val AccentBlue = Color(0xFF2196F3)
 val AccentPurple = Color(0xFF9C27B0)
@@ -70,6 +71,10 @@ fun ExpenseListScreen(
     var showEndDatePicker by remember { mutableStateOf(false) }
 
     var expandedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    // State for delete confirmation dialog
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var expenseToDelete by remember { mutableStateOf<ExpenseEntity?>(null) }
 
     val filteredExpenses = remember(expensesOnly, startDate, endDate) {
         var filtered = expensesOnly
@@ -104,7 +109,7 @@ fun ExpenseListScreen(
         filteredExpenses.sumOf { it.amount }
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", LocalLocale.current.platformLocale)
 
     fun toggleCategory(category: String) {
         expandedCategories = if (expandedCategories.contains(category)) {
@@ -414,7 +419,7 @@ fun ExpenseListScreen(
                                     }
                                 }
 
-                                // Expanded Expenses List
+                                // Expanded Expenses List with delete button
                                 if (isExpanded) {
                                     Column(
                                         modifier = Modifier
@@ -432,6 +437,10 @@ fun ExpenseListScreen(
                                                 onPhotoClick = { photoPath ->
                                                     val encodedPath = URLEncoder.encode(photoPath, "UTF-8")
                                                     navController.navigate("photo_viewer/$encodedPath")
+                                                },
+                                                onDeleteClick = {
+                                                    expenseToDelete = expense
+                                                    showDeleteDialog = true
                                                 }
                                             )
                                             if (index < expenses.size - 1) {
@@ -449,6 +458,7 @@ fun ExpenseListScreen(
         }
     }
 
+    // Date picker dialogs
     if (showStartDatePicker) {
         DatePickerDialog(
             title = "Select Start Date",
@@ -471,13 +481,46 @@ fun ExpenseListScreen(
             onDismiss = { showEndDatePicker = false }
         )
     }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog && expenseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                expenseToDelete = null
+            },
+            title = { Text("Delete Expense") },
+            text = { Text("Are you sure you want to delete this expense?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        expenseToDelete?.let { expenseViewModel.deleteExpense(it) }
+                        showDeleteDialog = false
+                        expenseToDelete = null
+                        Toast.makeText(context, "Expense deleted", Toast.LENGTH_SHORT).show()
+                    }
+                ) {
+                    Text("Delete", color = ExpenseRed, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    expenseToDelete = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun ColorfulExpenseListItem(
     expense: ExpenseEntity,
     onClick: () -> Unit,
-    onPhotoClick: (String) -> Unit
+    onPhotoClick: (String) -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     val categoryColor = getCategoryColor(expense.category)
     val hasPhoto = !expense.photoPath.isNullOrBlank()
@@ -485,15 +528,16 @@ fun ColorfulExpenseListItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Thumbnail (photo or emoji) - clickable
             Surface(
                 modifier = Modifier
                     .size(40.dp)
@@ -516,17 +560,51 @@ fun ColorfulExpenseListItem(
                     }
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(text = expense.subCategory.ifBlank { expense.category }, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = TextBlack)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+
+            // Expense details (clickable for details)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onClick() }
+            ) {
+                Text(
+                    text = expense.subCategory.ifBlank { expense.category },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextBlack
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(text = formatExpenseDate(expense.date), fontSize = 11.sp, color = Color.Gray)
                     if (expense.paymentMethod.isNotBlank()) Text(text = "• ${expense.paymentMethod}", fontSize = 11.sp, color = Color.Gray)
                     if (expense.note.isNotBlank()) Text(text = "• ${expense.note.take(15)}", fontSize = 11.sp, color = Color.Gray)
                 }
             }
         }
-        Text(text = "-R${String.format("%.2f", expense.amount)}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = ExpenseRed)
+
+        // Delete button
+        IconButton(
+            onClick = onDeleteClick,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Delete",
+                tint = ExpenseRed,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // Amount
+        Text(
+            text = "-R${String.format("%.2f", expense.amount)}",
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = ExpenseRed,
+            modifier = Modifier.padding(start = 8.dp)
+        )
     }
 }
 
