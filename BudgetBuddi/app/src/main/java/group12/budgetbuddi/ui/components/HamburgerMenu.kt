@@ -10,10 +10,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PieChart
-
-
 import androidx.compose.material.icons.filled.TrackChanges
-
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalDrawerSheet
@@ -35,12 +32,10 @@ fun HamburgerMenu(
     onHomeClick: () -> Unit,
     onCategoriesClick: () -> Unit,
     onExpensesClick: () -> Unit,
-
     onCategorySummaryClick: () -> Unit,
-
     onBudgetGoalsClick: () -> Unit,
     onCategoryTotalsClick: () -> Unit,
-
+    onBudgetReportClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     ModalDrawerSheet {
@@ -51,13 +46,14 @@ fun HamburgerMenu(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
 
-            // The selected route is used to highlight the current menu item.
+
             NavigationDrawerItem(
                 selected = selectedRoute == "home",
                 onClick = onHomeClick,
                 icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
                 label = { Text("Home") }
             )
+
 
             NavigationDrawerItem(
                 selected = selectedRoute == "categories",
@@ -66,6 +62,7 @@ fun HamburgerMenu(
                 label = { Text("Categories") }
             )
 
+
             NavigationDrawerItem(
                 selected = selectedRoute == "expenses",
                 onClick = onExpensesClick,
@@ -73,24 +70,18 @@ fun HamburgerMenu(
                 label = { Text("Transactions") }
             )
 
-            // NEW: Category Summary Menu Item
+
             NavigationDrawerItem(
                 selected = selectedRoute == "category_summary",
                 onClick = onCategorySummaryClick,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.PieChart,
-                        contentDescription = "Category Summary"
-                    )
-                },
+                icon = { Icon(Icons.Default.PieChart, contentDescription = "Category Summary") },
                 label = { Text("Category Summary") }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
-
             HorizontalDivider()
-
             Spacer(modifier = Modifier.height(8.dp))
+
 
             NavigationDrawerItem(
                 selected = selectedRoute == "budget_goals",
@@ -99,6 +90,7 @@ fun HamburgerMenu(
                 label = { Text("Budget Goals") }
             )
 
+
             NavigationDrawerItem(
                 selected = selectedRoute == "category_totals",
                 onClick = onCategoryTotalsClick,
@@ -106,7 +98,19 @@ fun HamburgerMenu(
                 label = { Text("Category Goals Report") }
             )
 
-            // Logout is not linked to a selected screen, so selected remains false.
+
+            NavigationDrawerItem(
+                selected = selectedRoute == "budget_report",
+                onClick = onBudgetReportClick,
+                icon = { Icon(Icons.Default.PieChart, contentDescription = "Budget Report") },
+                label = { Text("Budget Report") }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(8.dp))
+
+
             NavigationDrawerItem(
                 selected = false,
                 onClick = onLogoutClick,

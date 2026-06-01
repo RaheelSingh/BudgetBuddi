@@ -20,6 +20,7 @@ Author: Android Developers
 Description: Used as reference for Compose navigation actions such as navigate, popUpTo, and launchSingleTop.
 Reference: Android Developers. n.d. Navigation with Compose | Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/navigation [Accessed 29 April 2026].
 */
+
 @Composable
 fun AppScaffold(
     navController: NavController,
@@ -28,20 +29,20 @@ fun AppScaffold(
     content: @Composable (Modifier) -> Unit
 ) {
 
-    // This controls whether the side drawer is currently open or closed.
+
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
-    // Drawer open and close functions are suspend functions, so they are launched in a coroutine.
+
     val scope = rememberCoroutineScope()
 
-    // This makes the drawer open from the right side.
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         ModalNavigationDrawer(
             drawerState = drawerState,
 
             drawerContent = {
 
-                // The drawer opens from the right, but the menu text itself stays left-to-right.
+
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                     HamburgerMenu(
                         selectedRoute = selectedRoute,
@@ -89,19 +90,27 @@ fun AppScaffold(
                             }
                         },
 
+
+                        onBudgetReportClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("budget_report") {
+                                launchSingleTop = true
+                            }
+                        },
+
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
                             navController.navigate("welcome") {
                                 popUpTo("home") { inclusive = true }
                             }
-                        }
+                        },
                     )
                 }
             }
         ) {
 
-            // The main app content also stays left-to-right.
+
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Scaffold(
                     bottomBar = {
@@ -115,7 +124,7 @@ fun AppScaffold(
                     }
                 ) { padding ->
 
-                    // The screen content is injected here so all screens can reuse the same scaffold.
+
                     content(Modifier.padding(padding))
                 }
             }

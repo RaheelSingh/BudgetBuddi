@@ -81,6 +81,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalLocale
 
 
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategorySummaryScreen(
@@ -191,6 +193,10 @@ fun CategorySummaryScreen(
                             scope.launch { drawerState.close() }
                             navController.navigate("category_totals") { launchSingleTop = true }
                         },
+                        onBudgetReportClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("budget_report") { launchSingleTop = true }
+                        },
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()
@@ -254,7 +260,7 @@ fun CategorySummaryScreen(
                             .background(LightGreenBg)
                             .padding(paddingValues)
                     ) {
-                        // Date Filter Card
+                        // Date Filter Card (unchanged)
                         Card(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),
                             shape = RoundedCornerShape(20.dp),
@@ -353,7 +359,6 @@ fun CategorySummaryScreen(
                                 items(categorySummary.keys.toList().sorted()) { category ->
                                     val subCategories = categorySummary[category] ?: emptyMap()
                                     val categoryTotal = subCategories.values.sum()
-                                    val categoryColor = getCategoryColorForSummary(category)
 
                                     Card(
                                         modifier = Modifier.fillMaxWidth(),
@@ -361,18 +366,18 @@ fun CategorySummaryScreen(
                                         elevation = CardDefaults.cardElevation(2.dp)
                                     ) {
                                         Column(modifier = Modifier.padding(16.dp)) {
-                                            // Main Category Row with icon
+                                            // Main Category Row with fixed BrandGreen icon background
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    // Emoji icon in circular background
+                                                    // Fixed colour background (BrandGreen)
                                                     Surface(
                                                         modifier = Modifier.size(40.dp),
                                                         shape = CircleShape,
-                                                        color = categoryColor.copy(alpha = 0.15f)
+                                                        color = BrandGreen.copy(alpha = 0.15f)
                                                     ) {
                                                         Box(contentAlignment = Alignment.Center) {
                                                             Text(
@@ -478,20 +483,7 @@ fun CategorySummaryScreen(
     }
 }
 
-// Helper functions for consistent colors and emojis
-fun getCategoryColorForSummary(category: String): Color {
-    return when (category.lowercase()) {
-        "food", "groceries", "restaurant" -> AccentOrange
-        "transport", "car", "fuel" -> AccentBlue
-        "shopping", "clothing" -> AccentPurple
-        "entertainment", "movies" -> AccentPink
-        "bills", "utilities" -> Color(0xFF607D8B)
-        "health", "medical" -> Color(0xFF4CAF50)
-        "education" -> AccentTeal
-        else -> BrandGreen
-    }
-}
-
+// Only keep the emoji helper (colour function removed)
 fun getCategoryEmojiForSummary(category: String): String {
     return when (category.lowercase()) {
         "food", "groceries", "restaurant" -> "🍔"

@@ -24,7 +24,6 @@ import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.BudgetGoalViewModel
 import java.net.URLDecoder
 
-
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,7 +87,6 @@ fun AppNavigation() {
 
         composable("add_category/{categoryType}") { backStackEntry ->
             val categoryType = backStackEntry.arguments?.getString("categoryType") ?: "expense"
-
             AddCategoryScreen(
                 navController = navController,
                 initialCategoryType = categoryType
@@ -117,7 +115,7 @@ fun AppNavigation() {
             ExpenseListScreen(navController = navController)
         }
         composable("category_summary") {
-            CategorySummaryScreen(navController = navController)
+            CategorySummaryScreen(navController = navController,)
         }
         composable("photo_viewer/{encodedPath}") { backStackEntry ->
             val encodedPath = backStackEntry.arguments?.getString("encodedPath") ?: ""
@@ -138,6 +136,9 @@ fun AppNavigation() {
                 navController = navController,
                 budgetGoalViewModel = budgetGoalViewModel
             )
+        }
+        composable("budget_report") {
+            BudgetReportScreen(navController)
         }
     }
 }
