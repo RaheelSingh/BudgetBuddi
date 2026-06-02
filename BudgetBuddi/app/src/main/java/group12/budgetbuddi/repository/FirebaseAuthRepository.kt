@@ -124,7 +124,21 @@ class FirebaseAuthRepository {
                 "email" to email.lowercase(),
                 "username" to username,
                 "createdAt" to System.currentTimeMillis(),
-                "lastLogin" to System.currentTimeMillis()
+                "lastLogin" to System.currentTimeMillis(),
+                // GAMIFICATION FIELDS - NEW USER
+                "xp" to 0,
+                "level" to 1,
+                "levelTitle" to "Novice Budgeter",
+                "currentStreak" to 0,
+                "longestStreak" to 0,
+                "lastLoginDate" to "",
+                "selectedAvatarBadgeId" to "",
+                "unlockedBadges" to emptyList<String>(),
+                "totalExpenses" to 0,
+                "totalIncome" to 0,
+                "totalBudgetGoals" to 0,
+                "totalCategoriesCreated" to 0,
+                "totalPhotosAdded" to 0
             )
             firestore.collection(USERS_COLLECTION).document(uid).set(userData).await()
             Log.d(TAG, "Firestore user document created for: $email")
@@ -144,11 +158,45 @@ class FirebaseAuthRepository {
                     "username" to username,
                     "createdAt" to System.currentTimeMillis(),
                     "lastLogin" to System.currentTimeMillis(),
-                    "migrated" to true
+                    "migrated" to true,
+                    // GAMIFICATION FIELDS - EXISTING USER
+                    "xp" to 0,
+                    "level" to 1,
+                    "levelTitle" to "Novice Budgeter",
+                    "currentStreak" to 0,
+                    "longestStreak" to 0,
+                    "lastLoginDate" to "",
+                    "selectedAvatarBadgeId" to "",
+                    "unlockedBadges" to emptyList<String>(),
+                    "totalExpenses" to 0,
+                    "totalIncome" to 0,
+                    "totalBudgetGoals" to 0,
+                    "totalCategoriesCreated" to 0,
+                    "totalPhotosAdded" to 0
                 )
                 userDocRef.set(userData).await()
                 Log.d(TAG, "Firestore user document created for existing user: $email")
             } else {
+                // Check if existing user needs gamification fields (migration)
+                if (!snapshot.contains("xp")) {
+                    val updates = mapOf<String, Any>(
+                        "xp" to 0,
+                        "level" to 1,
+                        "levelTitle" to "Novice Budgeter",
+                        "currentStreak" to 0,
+                        "longestStreak" to 0,
+                        "lastLoginDate" to "",
+                        "selectedAvatarBadgeId" to "",
+                        "unlockedBadges" to emptyList<String>(),
+                        "totalExpenses" to 0,
+                        "totalIncome" to 0,
+                        "totalBudgetGoals" to 0,
+                        "totalCategoriesCreated" to 0,
+                        "totalPhotosAdded" to 0
+                    )
+                    userDocRef.update(updates).await()
+                    Log.d(TAG, "Added gamification fields to existing user: $email")
+                }
                 userDocRef.update("lastLogin", System.currentTimeMillis()).await()
                 Log.d(TAG, "Updated last login for: $email")
             }
