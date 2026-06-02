@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import group12.budgetbuddi.data.entity.CategoryEntity
 import group12.budgetbuddi.repository.CategoryRepository
+import group12.budgetbuddi.utils.AchievementManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -19,6 +20,12 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
 
     private val repository = CategoryRepository()
     private val auth = FirebaseAuth.getInstance()
+
+    // Remove this - we'll use AchievementManager instead
+    // private var userProfileViewModel: UserProfileViewModel? = null
+
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
     private val userIdFlow: StateFlow<String?> =
         callbackFlow {
@@ -159,6 +166,9 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         return userIdFlow.value
     }
 
+    // Remove this function
+    // fun setUserProfileViewModel(viewModel: UserProfileViewModel) { ... }
+
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
@@ -196,19 +206,40 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         }
 
         viewModelScope.launch {
+            _isSaving.value = true
             try {
+                Log.d(TAG, "Starting category insertion for: ${category.mainCategory}/${category.subCategory}")
+
                 repository.insertCategory(
                     userId = userId,
                     category = category.copy(userId = userId)
                 )
+
+                Log.d(TAG, "Category insertion completed successfully")
                 _uiMessage.value = "Category added successfully"
+
+                // ===== ACHIEVEMENT TRACKING USING SINGLETON =====
+                if (AchievementManager.isInitialized()) {
+                    AchievementManager.userProfileViewModel.onCategoryCreated()
+                    Log.d(TAG, "Achievement: onCategoryCreated called via Singleton")
+                } else {
+                    Log.e(TAG, "AchievementManager not initialized! Cannot track category achievement.")
+                }
+                // ===== END ACHIEVEMENT TRACKING =====
+
+                // Small delay to ensure Firestore update completes
+                kotlinx.coroutines.delay(500)
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to insert category: ${e.message}", e)
                 _uiMessage.value = "Failed to add category: ${e.message}"
+            } finally {
+                _isSaving.value = false
             }
         }
     }
 
+    // Rest of your functions remain the same...
     fun updateCategory(category: CategoryEntity) {
         val userId = currentUserId()
 

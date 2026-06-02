@@ -197,6 +197,18 @@ fun CategorySummaryScreen(
                             scope.launch { drawerState.close() }
                             navController.navigate("budget_report") { launchSingleTop = true }
                         },
+                        onAchievementsClick = {
+                            scope.launch { drawerState.close() }
+                            navController.navigate("achievements") {
+                                launchSingleTop = true
+                            }
+                        },
+                        onUserProfileClick = {  // ← ADD THIS
+                            scope.launch { drawerState.close() }
+                            navController.navigate("user_profile") {
+                                launchSingleTop = true
+                            }
+                        },
                         onLogoutClick = {
                             scope.launch { drawerState.close() }
                             authViewModel.logout()

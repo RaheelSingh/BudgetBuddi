@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import group12.budgetbuddi.SupabaseClient
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.ExpenseRepository
+import group12.budgetbuddi.utils.AchievementManager
 import io.github.jan.supabase.storage.storage
 import io.ktor.http.ContentType
 import kotlinx.coroutines.flow.*
@@ -59,6 +60,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         observeExpensesForCurrentUser()
+        Log.d(TAG, "ExpenseViewModel CREATED - using AchievementManager")
     }
 
     private fun observeExpensesForCurrentUser() {
@@ -228,7 +230,24 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                 )
 
                 _uiMessage.value = "Saved successfully"
+
+                // ===== ACHIEVEMENT TRACKING USING SINGLETON =====
+                if (AchievementManager.isInitialized()) {
+                    if (cleanType == "expense") {
+                        val hasPhoto = !photoPath.isNullOrBlank()
+                        AchievementManager.userProfileViewModel.onExpenseAdded(hasPhoto)
+                        Log.d(TAG, "Achievement: onExpenseAdded called via Singleton (hasPhoto=$hasPhoto)")
+                    } else if (cleanType == "income") {
+                        AchievementManager.userProfileViewModel.onIncomeAdded()
+                        Log.d(TAG, "Achievement: onIncomeAdded called via Singleton")
+                    }
+                } else {
+                    Log.e(TAG, "AchievementManager not initialized! Cannot track achievements.")
+                }
+                // ===== END ACHIEVEMENT TRACKING =====
+
                 _saveSuccess.value = true
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save transaction: ${e.message}", e)
                 _uiMessage.value = "Failed to save transaction: ${e.message}"

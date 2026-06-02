@@ -214,6 +214,28 @@ class FirebaseAuthRepository {
             null
         }
     }
+
+    // ===== ADD THIS FUNCTION FOR USERNAME UPDATE =====
+    suspend fun updateUsername(uid: String, newUsername: String) {
+        try {
+            // Update Firestore user document
+            val userDocRef = firestore.collection(USERS_COLLECTION).document(uid)
+            userDocRef.update("username", newUsername).await()
+
+            // Update Firebase Auth display name
+            val user = auth.currentUser
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(newUsername)
+                .build()
+            user?.updateProfile(profileUpdates)?.await()
+
+            Log.d(TAG, "Username updated to: $newUsername for user: $uid")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update username: ${e.message}", e)
+            throw e
+        }
+    }
+    // ===== END OF ADDED FUNCTION =====
 }
 
 sealed class AuthResult {

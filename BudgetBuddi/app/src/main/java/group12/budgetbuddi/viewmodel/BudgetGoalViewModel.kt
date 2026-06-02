@@ -10,6 +10,7 @@ import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.repository.BudgetGoalRepository
 import group12.budgetbuddi.repository.CategoryRepository
 import group12.budgetbuddi.repository.ExpenseRepository
+import group12.budgetbuddi.utils.AchievementManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -531,6 +532,16 @@ class BudgetGoalViewModel : ViewModel() {
                         error = null
                     )
                 }
+
+                // ===== ACHIEVEMENT TRACKING USING SINGLETON =====
+                if (AchievementManager.isInitialized()) {
+                    AchievementManager.userProfileViewModel.onBudgetGoalCreated()
+                    Log.d(TAG, "Achievement: onBudgetGoalCreated called via Singleton")
+                } else {
+                    Log.e(TAG, "AchievementManager not initialized! Cannot track budget goal achievement.")
+                }
+                // ===== END ACHIEVEMENT TRACKING =====
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving budget goal: ${e.message}", e)
 

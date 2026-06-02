@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.HorizontalDivider
@@ -36,6 +37,8 @@ fun HamburgerMenu(
     onBudgetGoalsClick: () -> Unit,
     onCategoryTotalsClick: () -> Unit,
     onBudgetReportClick: () -> Unit,
+    onAchievementsClick: () -> Unit,
+    onUserProfileClick: () -> Unit,
     onLogoutClick: () -> Unit
 ) {
     ModalDrawerSheet {
@@ -106,6 +109,20 @@ fun HamburgerMenu(
                 label = { Text("Budget Report") }
             )
 
+            NavigationDrawerItem(
+                selected = selectedRoute == "achievements",
+                onClick = onAchievementsClick,
+                icon = { Icon(imageVector = Icons.Default.Category, contentDescription = "Achievements") },
+                label = { Text("Achievements") }
+                    )
+
+            NavigationDrawerItem(
+                selected = selectedRoute == "user_profile",
+                onClick = onUserProfileClick,
+                icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
+                label = { Text("My Profile") }
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(8.dp))
@@ -117,6 +134,12 @@ fun HamburgerMenu(
                 icon = { Icon(Icons.Default.Logout, contentDescription = "Logout") },
                 label = { Text("Logout") }
             )
+            // Add to function parameters
+
+
+// Add this menu item in the Column (put it after Categories or wherever you want)
+
+
         }
     }
 }

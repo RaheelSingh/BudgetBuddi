@@ -114,6 +114,15 @@ class UserProfileViewModel : ViewModel() {
         }
     }
 
+    // ===== ADD THIS FUNCTION FOR AVATAR UPDATES =====
+    fun updateAvatar(badgeId: String?) {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            repository.updateUserAvatar(userId, badgeId)
+        }
+    }
+    // ===== END OF ADDED FUNCTION =====
+
     fun onExpenseAdded(hasPhoto: Boolean = false) {
         val userId = currentUserId ?: return
         viewModelScope.launch {

@@ -20,8 +20,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import group12.budgetbuddi.ui.screens.*
 import group12.budgetbuddi.ui.theme.BudgetBuddiTheme
+import group12.budgetbuddi.utils.AchievementManager
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.BudgetGoalViewModel
+import group12.budgetbuddi.viewmodel.CategoryViewModel
+import group12.budgetbuddi.viewmodel.ExpenseViewModel
+import group12.budgetbuddi.viewmodel.UserProfileViewModel
 import java.net.URLDecoder
 
 class MainActivity : ComponentActivity() {
@@ -51,6 +55,25 @@ fun AppNavigation() {
     val currentUser by authViewModel.currentUser.collectAsState()
     val budgetGoalViewModel: BudgetGoalViewModel = viewModel()
 
+    // ===== CREATE VIEWMODELS =====
+    val userProfileViewModel: UserProfileViewModel = viewModel()
+    val expenseViewModel: ExpenseViewModel = viewModel()
+    val categoryViewModel: CategoryViewModel = viewModel()
+
+    // ===== INITIALIZE ACHIEVEMENT MANAGER (SINGLETON) =====
+    // All ViewModels will use this singleton for achievement tracking
+    AchievementManager.init(userProfileViewModel)
+
+    // ===== SET USER ID WHEN USER LOGS IN =====
+    LaunchedEffect(currentUser) {
+        currentUser?.uid?.let { userId ->
+            userProfileViewModel.setUserId(userId)
+            userProfileViewModel.updateLoginStreak()
+            android.util.Log.d("MainActivity", "UserProfileViewModel initialized with user: $userId")
+            android.util.Log.d("MainActivity", "AchievementManager initialized: ${AchievementManager.isInitialized()}")
+        }
+    }
+
     val startDestination = if (currentUser != null) "home" else "welcome"
 
     LaunchedEffect(currentUser) {
@@ -77,6 +100,9 @@ fun AppNavigation() {
         }
         composable("forgot") {
             ForgotPasswordScreen(navController)
+        }
+        composable("achievements") {
+            AchievementsScreen(navController)
         }
         composable("home") {
             HomeScreen(navController)
@@ -136,6 +162,9 @@ fun AppNavigation() {
                 navController = navController,
                 budgetGoalViewModel = budgetGoalViewModel
             )
+        }
+        composable("user_profile") {
+            UserProfileScreen(navController)
         }
         composable("budget_report") {
             BudgetReportScreen(navController)

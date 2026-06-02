@@ -116,9 +116,7 @@ class AuthViewModel : ViewModel() {
                     Log.d(TAG, "Register success: ${result.email}")
 
                     // Sign out immediately after registration
-                    // This prevents auto-login and ensures Firestore document is created
-                    // before the user is logged out, and they must explicitly log in
-                    kotlinx.coroutines.delay(500) // Small delay to ensure Firestore write completes
+                    kotlinx.coroutines.delay(500)
                     authRepository.signOut()
                     _currentUser.update { null }
 
@@ -145,7 +143,6 @@ class AuthViewModel : ViewModel() {
                 return@launch
             }
 
-            // This calls Firebase's sendPasswordResetEmail
             val result = authRepository.sendPasswordResetEmail(email.trim())
 
             when (result) {
@@ -169,6 +166,31 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+
+    // ===== ADD THIS FUNCTION FOR USERNAME UPDATE =====
+    fun updateUsername(newUsername: String) {
+        viewModelScope.launch {
+            try {
+                val userId = _currentUser.value?.uid
+                if (userId.isNullOrBlank()) {
+                    Log.e(TAG, "No user logged in")
+                    return@launch
+                }
+
+                authRepository.updateUsername(userId, newUsername)
+
+                // Update local state
+                _currentUser.update { currentUser ->
+                    currentUser?.copy(username = newUsername)
+                }
+
+                Log.d(TAG, "Username updated to: $newUsername")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update username: ${e.message}", e)
+            }
+        }
+    }
+    // ===== END OF ADDED FUNCTION =====
 
     fun logout() {
         viewModelScope.launch {

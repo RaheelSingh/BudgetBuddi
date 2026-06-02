@@ -41,8 +41,8 @@ class UserProfileRepository {
                     userId = snapshot.id,
                     email = snapshot.getString("email") ?: "",
                     username = snapshot.getString("username") ?: "",
-                    createdAt = snapshot.getTimestamp("createdAt"),
-                    lastLogin = snapshot.getTimestamp("lastLogin"),
+                    createdAt = null,
+                    lastLogin = null,
                     xp = snapshot.getLong("xp")?.toInt() ?: 0,
                     level = snapshot.getLong("level")?.toInt() ?: 1,
                     levelTitle = snapshot.getString("levelTitle") ?: "Novice Budgeter",
@@ -94,10 +94,17 @@ class UserProfileRepository {
         updateUserProfile(userId, mapOf(
             "lastLoginDate" to today,
             "currentStreak" to newStreak,
-            "longestStreak" to maxOf(longestStreak, newStreak),
-            "lastLogin" to com.google.firebase.Timestamp.now()
+            "longestStreak" to maxOf(longestStreak, newStreak)
         ))
     }
+
+    // ===== ADD THIS FUNCTION HERE =====
+    suspend fun updateUserAvatar(userId: String, badgeId: String?) {
+        val finalBadgeId = badgeId ?: ""
+        updateUserProfile(userId, mapOf("selectedAvatarBadgeId" to finalBadgeId))
+        Log.d(TAG, "User avatar updated for $userId to: $finalBadgeId")
+    }
+    // ===== END OF ADDED FUNCTION =====
 
     suspend fun unlockAchievement(userId: String, achievementId: String): AchievementEntity? {
         val snapshot = userDocument(userId).get().await()
@@ -120,7 +127,6 @@ class UserProfileRepository {
             "levelTitle" to newLevelTitle
         )
 
-        // If this is the first unlocked badge, set it as default avatar
         if (unlockedBadges.isEmpty() && snapshot.getString("selectedAvatarBadgeId").isNullOrEmpty()) {
             updates["selectedAvatarBadgeId"] = achievementId
         }

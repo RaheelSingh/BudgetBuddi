@@ -27,24 +27,8 @@ import group12.budgetbuddi.R
 import group12.budgetbuddi.ui.components.*
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.CategoryViewModel
-
-/*
-Author: Android Developers
-Description: Used as reference for handling local UI state in Compose using remember and mutableStateOf.
-Reference: Android Developers. 2024. State and Jetpack Compose. [Online]. Available at: https://developer.android.com/develop/ui/compose/state [Accessed 29 April 2026].
-*/
-
-/*
-Author: Android Developers
-Description: Used as reference for text input fields and value changes using Material 3 text field components.
-Reference: Android Developers. 2024. Handle user input. [Online]. Available at: https://developer.android.com/develop/ui/compose/text/user-input [Accessed 29 April 2026].
-*/
-
-/*
-Author: Android Developers
-Description: Used as reference for creating dropdown menu behaviour using ExposedDropdownMenuBox and menu items.
-Reference: Android Developers. 2025. Menus. [Online]. Available at: https://developer.android.com/develop/ui/compose/components/menu [Accessed 29 April 2026].
-*/
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val BudgetGreen = Color(0xFF139A43)
 
@@ -56,7 +40,10 @@ fun AddCategoryScreen(
     authViewModel: AuthViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
+    val scope = rememberCoroutineScope()
     val allCategories by categoryViewModel.allCategories.collectAsState()
+    val isSaving by categoryViewModel.isSaving.collectAsState()
+    var isNavigating by remember { mutableStateOf(false) }
 
     var selectedCategoryType by remember {
         mutableStateOf(
@@ -87,6 +74,30 @@ fun AddCategoryScreen(
                 mainCategory.isNotBlank() &&
                 subCategory.isNotBlank() &&
                 visualValue.isNotBlank()
+
+    // Function to save and navigate
+    fun saveAndNavigate() {
+        if (isNavigating) return
+        isNavigating = true
+
+        scope.launch {
+            // Save the category
+            categoryViewModel.addCategory(
+                categoryType = selectedCategoryType,
+                mainCategory = mainCategory,
+                subCategory = subCategory,
+                visualType = visualType,
+                visualValue = visualValue,
+                outlineColor = outlineColor
+            )
+
+            // Wait for the operation to complete (500ms is enough for Firestore and achievement)
+            delay(800)
+
+            // Navigate back
+            navController.popBackStack()
+        }
+    }
 
     AppScaffold(
         navController = navController,
@@ -126,24 +137,22 @@ fun AddCategoryScreen(
                 Spacer(modifier = Modifier.weight(1f))
 
                 IconButton(
-                    onClick = {
-                        categoryViewModel.addCategory(
-                            categoryType = selectedCategoryType,
-                            mainCategory = mainCategory,
-                            subCategory = subCategory,
-                            visualType = visualType,
-                            visualValue = visualValue,
-                            outlineColor = outlineColor
-                        )
-                        navController.popBackStack()
-                    },
-                    enabled = canAdd
+                    onClick = { saveAndNavigate() },
+                    enabled = canAdd && !isNavigating
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Save Category",
-                        tint = BudgetGreen
-                    )
+                    if (isNavigating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = BudgetGreen,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Save Category",
+                            tint = BudgetGreen
+                        )
+                    }
                 }
             }
 
@@ -344,23 +353,13 @@ fun AddCategoryScreen(
             Spacer(modifier = Modifier.height(30.dp))
 
             OutlinedButton(
-                onClick = {
-                    categoryViewModel.addCategory(
-                        categoryType = selectedCategoryType,
-                        mainCategory = mainCategory,
-                        subCategory = subCategory,
-                        visualType = visualType,
-                        visualValue = visualValue,
-                        outlineColor = outlineColor
-                    )
-                    navController.popBackStack()
-                },
-                enabled = canAdd,
+                onClick = { saveAndNavigate() },
+                enabled = canAdd && !isNavigating,
                 colors = ButtonDefaults.outlinedButtonColors(
                     contentColor = BudgetGreen
                 ),
                 border = ButtonDefaults.outlinedButtonBorder(
-                    enabled = canAdd
+                    enabled = canAdd && !isNavigating
                 ).copy(
                     brush = SolidColor(BudgetGreen)
                 ),
@@ -368,7 +367,15 @@ fun AddCategoryScreen(
                     .align(Alignment.CenterHorizontally)
                     .width(150.dp)
             ) {
-                Text("Add")
+                if (isNavigating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = BudgetGreen,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text("Add")
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
