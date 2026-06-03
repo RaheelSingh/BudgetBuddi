@@ -4,10 +4,11 @@ import group12.budgetbuddi.data.entity.AchievementEntity
 
 object AchievementsData {
 
-    // REPLACE with your Supabase bucket URL
+
     private const val BADGE_BASE_URL = "https://raygwqqsmrwtlaviqvei.supabase.co/storage/v1/object/public/achievement-badges/"
 
     val achievements = listOf(
+
         AchievementEntity(
             id = "first_expense",
             name = "First Drop",
@@ -57,12 +58,117 @@ object AchievementsData {
             tier = 1,
             criteriaType = "transaction_with_photo",
             criteriaValue = 1
+        ),
+
+
+        AchievementEntity(
+            id = "streak_7",
+            name = "Week Warrior",
+            description = "Login for 7 days in a row",
+            badgeUrl = "${BADGE_BASE_URL}badge_streak_7.png",
+            xpReward = 100,
+            tier = 2,
+            criteriaType = "streak",
+            criteriaValue = 7
+        ),
+        AchievementEntity(
+            id = "streak_30",
+            name = "Monthly Master",
+            description = "Login for 30 days in a row",
+            badgeUrl = "${BADGE_BASE_URL}badge_streak_30.png",
+            xpReward = 500,
+            tier = 2,
+            criteriaType = "streak",
+            criteriaValue = 30
+        ),
+        AchievementEntity(
+            id = "expense_master_10",
+            name = "Budget Beginner",
+            description = "Track 10 expenses",
+            badgeUrl = "${BADGE_BASE_URL}badge_expense_10.png",
+            xpReward = 100,
+            tier = 2,
+            criteriaType = "expense_count",
+            criteriaValue = 10
+        ),
+        AchievementEntity(
+            id = "expense_master_25",
+            name = "Budget Builder",
+            description = "Track 25 expenses",
+            badgeUrl = "${BADGE_BASE_URL}badge_expense_25.png",
+            xpReward = 150,
+            tier = 2,
+            criteriaType = "expense_count",
+            criteriaValue = 25
+        ),
+        AchievementEntity(
+            id = "income_master_10",
+            name = "Earning Early",
+            description = "Track 10 income entries",
+            badgeUrl = "${BADGE_BASE_URL}badge_income_10.png",
+            xpReward = 100,
+            tier = 2,
+            criteriaType = "income_count",
+            criteriaValue = 10
+        ),
+
+
+        AchievementEntity(
+            id = "saver_1000",
+            name = "Saver",
+            description = "Save R1000 in a single month",
+            badgeUrl = "${BADGE_BASE_URL}badge_saver_1000.png",
+            xpReward = 200,
+            tier = 3,
+            criteriaType = "monthly_saved",
+            criteriaValue = 1000
+        ),
+        AchievementEntity(
+            id = "budget_stay_under",
+            name = "Budget Master",
+            description = "Stay under budget across ALL categories for a month",
+            badgeUrl = "${BADGE_BASE_URL}badge_budget_master.png",
+            xpReward = 300,
+            tier = 3,
+            criteriaType = "all_categories_under_budget",
+            criteriaValue = 1
+        ),
+        AchievementEntity(
+            id = "goal_achiever_3",
+            name = "Goal Crusher",
+            description = "Achieve 3 budget goals",
+            badgeUrl = "${BADGE_BASE_URL}badge_goal_crusher.png",
+            xpReward = 200,
+            tier = 3,
+            criteriaType = "budget_goals_achieved",
+            criteriaValue = 3
+        ),
+        AchievementEntity(
+            id = "perfect_month",
+            name = "Perfect Month",
+            description = "Log every single day of a month",
+            badgeUrl = "${BADGE_BASE_URL}badge_perfect_month.png",
+            xpReward = 1000,
+            tier = 3,
+            criteriaType = "monthly_login_completion",
+            criteriaValue = 100
+        ),
+        AchievementEntity(
+            id = "category_food_master",
+            name = "Foodie",
+            description = "Add 30 expenses in Food category",
+            badgeUrl = "${BADGE_BASE_URL}badge_foodie.png",
+            xpReward = 150,
+            tier = 3,
+            criteriaType = "category_expense_count",
+            criteriaValue = 30,
+            criteriaCategory = "Food"
         )
     )
 
     fun getAchievementById(id: String): AchievementEntity? = achievements.find { it.id == id }
 
-    // Calculate level based on XP (increasing XP requirements)
+    // Calculate level based on XP
     fun calculateLevel(xp: Int): Int {
         return when {
             xp >= 6700 -> 15

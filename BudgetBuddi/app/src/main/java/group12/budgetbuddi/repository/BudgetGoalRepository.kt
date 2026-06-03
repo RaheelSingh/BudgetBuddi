@@ -6,6 +6,7 @@ import group12.budgetbuddi.data.entity.BudgetGoalEntity
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
 
 class BudgetGoalRepository {
@@ -93,6 +94,26 @@ class BudgetGoalRepository {
         }
     }
 
+
+    suspend fun getGoalsForMonth(userId: String, month: Int, year: Int): List<BudgetGoalEntity> {
+        return try {
+            val snapshot = budgetGoalsCollection(userId)
+                .whereEqualTo("month", month)
+                .whereEqualTo("year", year)
+                .get()
+                .await()
+
+            snapshot.documents.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                mapToGoal(doc.id, userId, data)
+            }.filter { it.userId == userId }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting goals for month: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+
     suspend fun saveGoal(userId: String, goal: BudgetGoalEntity): String {
         if (userId.isBlank()) {
             throw IllegalArgumentException("Cannot save goal: userId is blank")
@@ -175,7 +196,7 @@ class BudgetGoalRepository {
             .get()
             .await()
 
-        val hasOtherDuplicate = duplicateSnapshot.documents.any { it.id != goal.id }
+        val hasOtherDuplicate = duplicateSnapshot.documents.any { doc -> doc.id != goal.id }
 
         if (hasOtherDuplicate) {
             throw IllegalArgumentException("A goal for this category already exists this month")

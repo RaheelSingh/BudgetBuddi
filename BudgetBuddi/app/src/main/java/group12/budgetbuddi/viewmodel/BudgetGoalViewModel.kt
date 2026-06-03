@@ -14,6 +14,7 @@ import group12.budgetbuddi.utils.AchievementManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.util.Calendar
 
 data class GoalWithProgress(
@@ -70,11 +71,15 @@ class BudgetGoalViewModel : ViewModel() {
     private val userIdFlow: StateFlow<String?> =
         callbackFlow {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-                trySend(firebaseAuth.currentUser?.uid)
+                val uid = firebaseAuth.currentUser?.uid
+                Log.d(TAG, "Auth state changed, userId: $uid")
+                trySend(uid)
             }
 
             auth.addAuthStateListener(listener)
-            trySend(auth.currentUser?.uid)
+            val currentUid = auth.currentUser?.uid
+            Log.d(TAG, "Initial userId: $currentUid")
+            trySend(currentUid)
 
             awaitClose {
                 auth.removeAuthStateListener(listener)
@@ -116,6 +121,7 @@ class BudgetGoalViewModel : ViewModel() {
             )
 
     init {
+        Log.d(TAG, "BudgetGoalViewModel initialized")
         observeCategories()
     }
 
@@ -129,21 +135,36 @@ class BudgetGoalViewModel : ViewModel() {
             cal.getActualMaximum(Calendar.DAY_OF_MONTH)
         )
 
+        Log.d(TAG, "Observing goals for userId: $userId, period: $firstDay to $lastDay")
+
         return combine(
             budgetGoalRepository.getAllGoalsForMonth(userId, currentMonth, currentYear),
             expenseRepository.getExpensesByDateRange(userId, firstDay, lastDay)
         ) { goals, transactions ->
 
+            Log.d(TAG, "Processing ${goals.size} goals with ${transactions.size} transactions")
+
             val expenseGoals = goals
                 .filter { it.goalType == "expense" }
                 .map { goal ->
                     val amount = calculateGoalAmount(goal, transactions)
-
                     val fraction = if (goal.maxGoal > 0.0) {
                         (amount / goal.maxGoal).toFloat()
                     } else {
                         0f
                     }
+
+
+                    if (goal.maxGoal > 0 && amount <= goal.maxGoal) {
+                        Log.d(TAG, "Budget goal achieved: ${goal.goalName} (spent: $amount, budget: ${goal.maxGoal})")
+                        if (AchievementManager.isInitialized()) {
+                            AchievementManager.userProfileViewModel.onBudgetGoalAchieved()
+                            Log.d(TAG, "Achievement: onBudgetGoalAchieved called for expense goal")
+                        } else {
+                            Log.e(TAG, "AchievementManager not initialized for expense goal achievement")
+                        }
+                    }
+
 
                     GoalWithProgress(
                         goal = goal,
@@ -157,12 +178,22 @@ class BudgetGoalViewModel : ViewModel() {
                 .filter { it.goalType == "income" }
                 .map { goal ->
                     val amount = calculateGoalAmount(goal, transactions)
-
                     val fraction = if (goal.minGoal > 0.0) {
                         (amount / goal.minGoal).toFloat()
                     } else {
                         0f
                     }
+
+                    if (goal.minGoal > 0 && amount >= goal.minGoal) {
+                        Log.d(TAG, "Income goal achieved: ${goal.goalName} (earned: $amount, target: ${goal.minGoal})")
+                        if (AchievementManager.isInitialized()) {
+                            AchievementManager.userProfileViewModel.onBudgetGoalAchieved()
+                            Log.d(TAG, "Achievement: onBudgetGoalAchieved called for income goal")
+                        } else {
+                            Log.e(TAG, "AchievementManager not initialized for income goal achievement")
+                        }
+                    }
+
 
                     GoalWithProgress(
                         goal = goal,
@@ -307,7 +338,7 @@ class BudgetGoalViewModel : ViewModel() {
         val cleanCategory = goal.categoryName.trim()
         val cleanSubCategory = goal.subCategoryName.trim()
 
-        return transactions
+        val filteredTransactions = transactions
             .filter { it.type.trim().lowercase() == cleanGoalType }
             .filter { transaction ->
                 when {
@@ -324,7 +355,14 @@ class BudgetGoalViewModel : ViewModel() {
                     }
                 }
             }
-            .sumOf { it.amount }
+
+        val total = filteredTransactions.sumOf { it.amount }
+
+        if (cleanCategory != "Entire Expense" && cleanCategory != "Entire Income") {
+            Log.d(TAG, "calculateGoalAmount: ${goal.goalName} - Found ${filteredTransactions.size} transactions, total: $total")
+        }
+
+        return total
     }
 
     fun selectTab(index: Int) {
@@ -449,6 +487,8 @@ class BudgetGoalViewModel : ViewModel() {
         val state = _addGoalUiState.value
         val category = state.selectedCategory
 
+        Log.d(TAG, "saveGoal called - userId: $userId, isEditMode: ${state.isEditMode}")
+
         if (userId.isNullOrBlank()) {
             _addGoalUiState.update {
                 it.copy(error = "No logged-in user found")
@@ -521,8 +561,10 @@ class BudgetGoalViewModel : ViewModel() {
 
                 if (state.isEditMode && !state.editingGoalId.isNullOrBlank()) {
                     budgetGoalRepository.updateGoal(userId, goal)
+                    Log.d(TAG, "Goal updated: ${goal.goalName}")
                 } else {
                     budgetGoalRepository.saveGoal(userId, goal)
+                    Log.d(TAG, "Goal saved: ${goal.goalName}")
                 }
 
                 _addGoalUiState.update {
@@ -533,14 +575,21 @@ class BudgetGoalViewModel : ViewModel() {
                     )
                 }
 
-                // ===== ACHIEVEMENT TRACKING USING SINGLETON =====
+
+                Log.d(TAG, "AchievementManager.isInitialized() = ${AchievementManager.isInitialized()}")
+
                 if (AchievementManager.isInitialized()) {
+                    Log.d(TAG, "Calling onBudgetGoalCreated for goal: ${goal.goalName}")
                     AchievementManager.userProfileViewModel.onBudgetGoalCreated()
                     Log.d(TAG, "Achievement: onBudgetGoalCreated called via Singleton")
+
+
+                    delay(1000)
+                    Log.d(TAG, "Achievement check should have completed for budget goal")
                 } else {
                     Log.e(TAG, "AchievementManager not initialized! Cannot track budget goal achievement.")
                 }
-                // ===== END ACHIEVEMENT TRACKING =====
+
 
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving budget goal: ${e.message}", e)
@@ -593,6 +642,7 @@ class BudgetGoalViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 budgetGoalRepository.deleteGoal(userId, goalId)
+                Log.d(TAG, "Goal deleted: $goalId")
                 dismissDeleteDialog()
             } catch (e: Exception) {
                 Log.e(TAG, "Error deleting goal: ${e.message}", e)

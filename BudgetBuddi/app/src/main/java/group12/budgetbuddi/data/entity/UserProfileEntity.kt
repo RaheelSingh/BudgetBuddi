@@ -24,5 +24,11 @@ data class UserProfileEntity(
     val totalIncome: Int = 0,
     val totalBudgetGoals: Int = 0,
     val totalCategoriesCreated: Int = 0,
-    val totalPhotosAdded: Int = 0
+    val totalPhotosAdded: Int = 0,
+
+    val budgetGoalsAchieved: Int = 0,  // For Goal Crusher
+    val monthlyLoginDays: Int = 0,  // For Perfect Month
+    val currentMonth: Int = 0,  // Track current month for reset
+    val currentYear: Int = 0,  // Track current year for reset
+    val totalNotesAdded: Int = 0
 )

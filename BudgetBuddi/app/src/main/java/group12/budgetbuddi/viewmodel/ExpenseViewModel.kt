@@ -14,6 +14,7 @@ import io.github.jan.supabase.storage.storage
 import io.ktor.http.ContentType
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class ExpenseViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -60,7 +61,8 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         observeExpensesForCurrentUser()
-        Log.d(TAG, "ExpenseViewModel CREATED - using AchievementManager")
+        Log.d(TAG, "ExpenseViewModel CREATED - currentUserId: $currentUserId")
+        Log.d(TAG, "AchievementManager initialized: ${AchievementManager.isInitialized()}")
     }
 
     private fun observeExpensesForCurrentUser() {
@@ -80,6 +82,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                     _allExpenses.value = emptyList()
                 }
                 .collect { expenses ->
+                    Log.d(TAG, "Collected ${expenses.size} expenses from repository")
                     _allExpenses.value = expenses
                 }
         }
@@ -185,6 +188,7 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 _uiMessage.value = "Saving transaction..."
+                Log.d(TAG, "saveExpense: Starting save for user $userId, type=$cleanType, amount=$amount")
 
                 val finalPhotoPath: String? = if (!photoPath.isNullOrBlank()) {
                     val context = getApplication<Application>().applicationContext
@@ -224,27 +228,40 @@ class ExpenseViewModel(application: Application) : AndroidViewModel(application)
                     updatedAt = now
                 )
 
-                repository.insertExpense(
+                // Save to Firestore first
+                val expenseId = repository.insertExpense(
                     userId = userId,
                     expense = expense
                 )
+                Log.d(TAG, "Expense saved to Firestore with ID: $expenseId")
 
                 _uiMessage.value = "Saved successfully"
 
-                // ===== ACHIEVEMENT TRACKING USING SINGLETON =====
+
+                Log.d(TAG, "AchievementManager.isInitialized() = ${AchievementManager.isInitialized()}")
+
                 if (AchievementManager.isInitialized()) {
+                    Log.d(TAG, "AchievementManager IS initialized, tracking achievement for type: $cleanType")
+
                     if (cleanType == "expense") {
                         val hasPhoto = !photoPath.isNullOrBlank()
+                        Log.d(TAG, "Calling onExpenseAdded with hasPhoto=$hasPhoto")
                         AchievementManager.userProfileViewModel.onExpenseAdded(hasPhoto)
                         Log.d(TAG, "Achievement: onExpenseAdded called via Singleton (hasPhoto=$hasPhoto)")
                     } else if (cleanType == "income") {
+                        Log.d(TAG, "Calling onIncomeAdded")
                         AchievementManager.userProfileViewModel.onIncomeAdded()
                         Log.d(TAG, "Achievement: onIncomeAdded called via Singleton")
                     }
+
+                    // Add a small delay to ensure Firestore has updated before checking achievements
+                    delay(1000)
+                    Log.d(TAG, "Achievement check should have completed")
                 } else {
-                    Log.e(TAG, "AchievementManager not initialized! Cannot track achievements.")
+                    Log.e(TAG, "AchievementManager NOT initialized! Cannot track achievements.")
+                    Log.e(TAG, "Make sure MainActivity initializes AchievementManager after user logs in.")
                 }
-                // ===== END ACHIEVEMENT TRACKING =====
+
 
                 _saveSuccess.value = true
 

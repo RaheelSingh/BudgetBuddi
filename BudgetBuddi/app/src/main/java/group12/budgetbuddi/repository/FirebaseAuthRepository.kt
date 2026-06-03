@@ -41,8 +41,12 @@ class FirebaseAuthRepository {
                 it.updateProfile(profileUpdates).await()
                 Log.d(TAG, "Username set: $username")
 
-                // Create Firestore user document
+
                 createUserDocument(user.uid, email, username)
+
+
+                auth.signOut()
+                Log.d(TAG, "User signed out after registration - will need to login manually")
             }
 
             AuthResult.Success(user?.uid ?: "", user?.email ?: "", user?.displayName ?: username)
@@ -64,7 +68,7 @@ class FirebaseAuthRepository {
             val authResult = auth.signInWithEmailAndPassword(email, password).await()
             val user = authResult.user
 
-            // Sync existing user to Firestore (for users registered before Firestore existed)
+
             user?.let {
                 ensureUserDocumentExists(it.uid, it.email ?: "", it.displayName ?: "")
             }
@@ -94,9 +98,12 @@ class FirebaseAuthRepository {
     suspend fun signOut(): Boolean {
         return try {
             auth.signOut()
+
+            auth.currentUser?.reload()?.await()
             Log.d(TAG, "User signed out")
             true
         } catch (e: Exception) {
+            Log.e(TAG, "Sign out failed: ${e.message}")
             false
         }
     }
@@ -104,7 +111,7 @@ class FirebaseAuthRepository {
     fun observeAuthState(): Flow<FirebaseUser?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
-            if (user != null) {
+            if (user != null && !user.isAnonymous) {
                 trySend(FirebaseUser(user.uid, user.email ?: "", user.displayName ?: ""))
                 Log.d(TAG, "User logged in: ${user.email}")
             } else {
@@ -116,7 +123,7 @@ class FirebaseAuthRepository {
         awaitClose { auth.removeAuthStateListener(listener) }
     }
 
-    // ==================== FIRESTORE USER METHODS ====================
+
 
     private suspend fun createUserDocument(uid: String, email: String, username: String) {
         try {
@@ -125,7 +132,7 @@ class FirebaseAuthRepository {
                 "username" to username,
                 "createdAt" to System.currentTimeMillis(),
                 "lastLogin" to System.currentTimeMillis(),
-                // GAMIFICATION FIELDS - NEW USER
+
                 "xp" to 0,
                 "level" to 1,
                 "levelTitle" to "Novice Budgeter",
@@ -138,10 +145,16 @@ class FirebaseAuthRepository {
                 "totalIncome" to 0,
                 "totalBudgetGoals" to 0,
                 "totalCategoriesCreated" to 0,
-                "totalPhotosAdded" to 0
+                "totalPhotosAdded" to 0,
+
+                "budgetGoalsAchieved" to 0,
+                "monthlyLoginDays" to 0,
+                "currentMonth" to 0,
+                "currentYear" to 0,
+                "totalNotesAdded" to 0
             )
             firestore.collection(USERS_COLLECTION).document(uid).set(userData).await()
-            Log.d(TAG, "Firestore user document created for: $email")
+            Log.d(TAG, "Firestore user document created for: $email with all gamification fields")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create Firestore user document: ${e.message}", e)
         }
@@ -159,7 +172,7 @@ class FirebaseAuthRepository {
                     "createdAt" to System.currentTimeMillis(),
                     "lastLogin" to System.currentTimeMillis(),
                     "migrated" to true,
-                    // GAMIFICATION FIELDS - EXISTING USER
+
                     "xp" to 0,
                     "level" to 1,
                     "levelTitle" to "Novice Budgeter",
@@ -172,12 +185,17 @@ class FirebaseAuthRepository {
                     "totalIncome" to 0,
                     "totalBudgetGoals" to 0,
                     "totalCategoriesCreated" to 0,
-                    "totalPhotosAdded" to 0
+                    "totalPhotosAdded" to 0,
+                    "budgetGoalsAchieved" to 0,
+                    "monthlyLoginDays" to 0,
+                    "currentMonth" to 0,
+                    "currentYear" to 0,
+                    "totalNotesAdded" to 0
                 )
                 userDocRef.set(userData).await()
                 Log.d(TAG, "Firestore user document created for existing user: $email")
             } else {
-                // Check if existing user needs gamification fields (migration)
+
                 if (!snapshot.contains("xp")) {
                     val updates = mapOf<String, Any>(
                         "xp" to 0,
@@ -192,7 +210,12 @@ class FirebaseAuthRepository {
                         "totalIncome" to 0,
                         "totalBudgetGoals" to 0,
                         "totalCategoriesCreated" to 0,
-                        "totalPhotosAdded" to 0
+                        "totalPhotosAdded" to 0,
+                        "budgetGoalsAchieved" to 0,
+                        "monthlyLoginDays" to 0,
+                        "currentMonth" to 0,
+                        "currentYear" to 0,
+                        "totalNotesAdded" to 0
                     )
                     userDocRef.update(updates).await()
                     Log.d(TAG, "Added gamification fields to existing user: $email")
@@ -215,7 +238,7 @@ class FirebaseAuthRepository {
         }
     }
 
-    // ===== ADD THIS FUNCTION FOR USERNAME UPDATE =====
+
     suspend fun updateUsername(uid: String, newUsername: String) {
         try {
             // Update Firestore user document

@@ -1,5 +1,6 @@
 package group12.budgetbuddi.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,6 +43,7 @@ fun RegisterScreen(
     navController: NavController,
     authViewModel: AuthViewModel = viewModel()
 ) {
+    val context = LocalContext.current
 
     var contentVisible by remember { mutableStateOf(false) }
     var cardVisible by remember { mutableStateOf(false) }
@@ -133,12 +136,22 @@ fun RegisterScreen(
 
     val registerState by authViewModel.registerState.collectAsState()
 
+    // Navigate to login on successful registration
     LaunchedEffect(registerState.isSuccess) {
         if (registerState.isSuccess) {
+            Toast.makeText(context, "Registration successful! Please log in.", Toast.LENGTH_LONG).show()
             navController.navigate("login") {
                 popUpTo("register") { inclusive = true }
+                launchSingleTop = true
             }
             authViewModel.resetRegisterState()
+        }
+    }
+
+    // Show error toast if registration fails
+    LaunchedEffect(registerState.error) {
+        if (registerState.error != null && registerState.error!!.isNotEmpty()) {
+            Toast.makeText(context, registerState.error, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -212,7 +225,7 @@ fun RegisterScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(560.dp)
+                    .height(580.dp) // Slightly increased height to accommodate error messages
                     .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 0.dp, bottomEnd = 0.dp)),
                 colors = CardDefaults.cardColors(
                     containerColor = cardBackgroundReg
@@ -222,7 +235,7 @@ fun RegisterScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Email Input
@@ -240,7 +253,7 @@ fun RegisterScreen(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Username Input
                     OutlinedTextField(
@@ -256,9 +269,9 @@ fun RegisterScreen(
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Password Input - UPDATED with new validation
+                    // Password Input
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
@@ -283,15 +296,18 @@ fun RegisterScreen(
                         supportingText = {
                             if (password.isNotEmpty() && passwordErrors.isNotEmpty()) {
                                 Column {
-                                    passwordErrors.forEach { error ->
-                                        Text(error, fontSize = 11.sp, color = errorRedReg)
+                                    passwordErrors.take(2).forEach { error ->
+                                        Text(error, fontSize = 10.sp, color = errorRedReg)
+                                    }
+                                    if (passwordErrors.size > 2) {
+                                        Text("+${passwordErrors.size - 2} more...", fontSize = 10.sp, color = errorRedReg)
                                     }
                                 }
                             }
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Confirm Password Input
                     OutlinedTextField(
@@ -315,11 +331,13 @@ fun RegisterScreen(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-                    // Register Button - UPDATED enabled condition
+                    // Register Button
                     Button(
-                        onClick = { authViewModel.register(email, username, password) },
+                        onClick = {
+                            authViewModel.register(email, username, password)
+                        },
                         enabled = !registerState.isLoading &&
                                 email.isNotBlank() &&
                                 username.isNotBlank() &&
@@ -327,7 +345,7 @@ fun RegisterScreen(
                                 password == confirmPassword,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
+                            .height(52.dp),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = backgroundColorReg
@@ -335,29 +353,32 @@ fun RegisterScreen(
                     ) {
                         if (registerState.isLoading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = textLightReg
+                                modifier = Modifier.size(22.dp),
+                                color = textLightReg,
+                                strokeWidth = 2.dp
                             )
                         } else {
                             Text(
                                 text = "Sign Up",
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = textLightReg
                             )
                         }
                     }
 
-                    registerState.error?.let {
+
+                    if (registerState.error != null && registerState.error!!.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = it,
+                            text = registerState.error!!,
                             color = errorRedReg,
-                            fontSize = 14.sp
+                            fontSize = 12.sp,
+                            maxLines = 2
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Login Link
                     Row(
@@ -367,7 +388,7 @@ fun RegisterScreen(
                         Text(
                             text = "Already have an account? ",
                             color = textDarkReg,
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                         TextButton(
                             onClick = { navController.navigate("login") }
@@ -376,7 +397,7 @@ fun RegisterScreen(
                                 "Login",
                                 fontWeight = FontWeight.Bold,
                                 color = linkGreenReg,
-                                fontSize = 14.sp
+                                fontSize = 13.sp
                             )
                         }
                     }
@@ -390,7 +411,7 @@ fun RegisterScreen(
                             "Back to Welcome",
                             fontWeight = FontWeight.Normal,
                             color = linkGreenReg,
-                            fontSize = 14.sp
+                            fontSize = 13.sp
                         )
                     }
                 }
@@ -398,21 +419,3 @@ fun RegisterScreen(
         }
     }
 }
-
-
-/**
- * references:
- * developer.android (2026) 'State in Compose', Android Developers.
- * Available at: https://developer.android.com/jetpack/compose/state
- * (Accessed: 29 April 2026).
- * developer.android (2026) 'Repository pattern - Result wrapper', Android Developers.
- * Available at: https://developer.android.com/jetpack/guide
- * (Accessed: 29 April 2026).
- * developer.android (2026) 'Text fields in Compose', Android Developers.
- *      Available at: https://developer.android.com/jetpack/compose/text
- *      (Accessed: 29 April 2026).
- * developer.android (2026) 'Form validation in Compose', Android Developers.
- *      Available at: https://developer.android.com/jetpack/compose/validation
- *      (Accessed: 29 April 2026).
- */
-

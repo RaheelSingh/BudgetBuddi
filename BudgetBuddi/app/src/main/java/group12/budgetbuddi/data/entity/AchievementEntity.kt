@@ -8,5 +8,6 @@ data class AchievementEntity(
     val xpReward: Int = 0,
     val tier: Int = 1,
     val criteriaType: String = "",
-    val criteriaValue: Int = 0
+    val criteriaValue: Int = 0,
+    val criteriaCategory: String? = null
 )

@@ -55,22 +55,29 @@ fun AppNavigation() {
     val currentUser by authViewModel.currentUser.collectAsState()
     val budgetGoalViewModel: BudgetGoalViewModel = viewModel()
 
-    // ===== CREATE VIEWMODELS =====
+
     val userProfileViewModel: UserProfileViewModel = viewModel()
     val expenseViewModel: ExpenseViewModel = viewModel()
     val categoryViewModel: CategoryViewModel = viewModel()
 
-    // ===== INITIALIZE ACHIEVEMENT MANAGER (SINGLETON) =====
-    // All ViewModels will use this singleton for achievement tracking
-    AchievementManager.init(userProfileViewModel)
 
-    // ===== SET USER ID WHEN USER LOGS IN =====
     LaunchedEffect(currentUser) {
         currentUser?.uid?.let { userId ->
+            android.util.Log.d("MainActivity", "User logged in: $userId")
+
+
             userProfileViewModel.setUserId(userId)
+
+
+            AchievementManager.init(userProfileViewModel)
+
             userProfileViewModel.updateLoginStreak()
+
             android.util.Log.d("MainActivity", "UserProfileViewModel initialized with user: $userId")
             android.util.Log.d("MainActivity", "AchievementManager initialized: ${AchievementManager.isInitialized()}")
+        } ?: run {
+            android.util.Log.d("MainActivity", "No user logged in, clearing state")
+
         }
     }
 

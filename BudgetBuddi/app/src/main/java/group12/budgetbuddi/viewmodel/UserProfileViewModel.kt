@@ -6,6 +6,7 @@ import group12.budgetbuddi.data.AchievementsData
 import group12.budgetbuddi.data.entity.AchievementEntity
 import group12.budgetbuddi.data.entity.UserProfileEntity
 import group12.budgetbuddi.repository.UserProfileRepository
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.util.Calendar
 
 sealed class UserProfileEvent {
     data class AchievementUnlocked(
@@ -53,6 +55,10 @@ class UserProfileViewModel : ViewModel() {
     fun setUserId(userId: String) {
         currentUserId = userId
         observeUserProfile(userId)
+
+        viewModelScope.launch {
+            checkAndHandleNewAchievements()
+        }
     }
 
     private fun observeUserProfile(userId: String) {
@@ -91,6 +97,7 @@ class UserProfileViewModel : ViewModel() {
 
     suspend fun checkAndHandleNewAchievements(): AchievementEntity? {
         val userId = currentUserId ?: return null
+        println("UserProfileViewModel: Checking achievements for user: $userId")
 
         val snapshot = repository.userDocument(userId).get().await()
         val oldLevel = snapshot.getLong("level")?.toInt() ?: 1
@@ -98,6 +105,7 @@ class UserProfileViewModel : ViewModel() {
         val newAchievement = repository.checkAndUnlockAchievements(userId)
 
         if (newAchievement != null) {
+            println("UserProfileViewModel: Achievement unlocked: ${newAchievement.name}")
             val updatedSnapshot = repository.userDocument(userId).get().await()
             val newLevel = updatedSnapshot.getLong("level")?.toInt() ?: oldLevel
 
@@ -111,46 +119,114 @@ class UserProfileViewModel : ViewModel() {
         val userId = currentUserId ?: return
         viewModelScope.launch {
             repository.updateLoginStreak(userId)
+            checkAndHandleNewAchievements()
         }
     }
 
-    // ===== ADD THIS FUNCTION FOR AVATAR UPDATES =====
     fun updateAvatar(badgeId: String?) {
         val userId = currentUserId ?: return
         viewModelScope.launch {
             repository.updateUserAvatar(userId, badgeId)
         }
     }
-    // ===== END OF ADDED FUNCTION =====
+
+
 
     fun onExpenseAdded(hasPhoto: Boolean = false) {
-        val userId = currentUserId ?: return
+        val userId = currentUserId ?: run {
+            println("UserProfileViewModel: ERROR - No userId for onExpenseAdded")
+            return
+        }
+        println("UserProfileViewModel: onExpenseAdded called - hasPhoto=$hasPhoto")
         viewModelScope.launch {
             repository.incrementCounter(userId, "totalExpenses", hasPhoto)
+
+            delay(500)
             checkAndHandleNewAchievements()
         }
     }
 
     fun onIncomeAdded() {
-        val userId = currentUserId ?: return
+        val userId = currentUserId ?: run {
+            println("UserProfileViewModel: ERROR - No userId for onIncomeAdded")
+            return
+        }
+        println("UserProfileViewModel: onIncomeAdded called")
         viewModelScope.launch {
             repository.incrementCounter(userId, "totalIncome")
+            delay(500)
             checkAndHandleNewAchievements()
         }
     }
 
     fun onBudgetGoalCreated() {
-        val userId = currentUserId ?: return
+        val userId = currentUserId ?: run {
+            println("UserProfileViewModel: ERROR - No userId for onBudgetGoalCreated")
+            return
+        }
+        println("UserProfileViewModel: onBudgetGoalCreated called")
         viewModelScope.launch {
             repository.incrementCounter(userId, "totalBudgetGoals")
+            delay(500)
             checkAndHandleNewAchievements()
         }
     }
 
     fun onCategoryCreated() {
-        val userId = currentUserId ?: return
+        val userId = currentUserId ?: run {
+            println("UserProfileViewModel: ERROR - No userId for onCategoryCreated")
+            return
+        }
+        println("UserProfileViewModel: onCategoryCreated called")
         viewModelScope.launch {
             repository.incrementCounter(userId, "totalCategoriesCreated")
+            delay(500)
+            checkAndHandleNewAchievements()
+        }
+    }
+
+    fun onBudgetGoalAchieved() {
+        val userId = currentUserId ?: run {
+            println("UserProfileViewModel: ERROR - No userId for onBudgetGoalAchieved")
+            return
+        }
+        println("UserProfileViewModel: onBudgetGoalAchieved called")
+        viewModelScope.launch {
+            val currentValue = repository.getCounter(userId, "budgetGoalsAchieved")
+            repository.updateUserProfile(userId, mapOf("budgetGoalsAchieved" to (currentValue + 1)))
+            delay(500)
+            checkAndHandleNewAchievements()
+        }
+    }
+
+    fun onDailyLoginForMonth() {
+        val userId = currentUserId ?: run {
+            println("UserProfileViewModel: ERROR - No userId for onDailyLoginForMonth")
+            return
+        }
+        println("UserProfileViewModel: onDailyLoginForMonth called")
+        viewModelScope.launch {
+            val calendar = Calendar.getInstance()
+            val currentMonth = calendar.get(Calendar.MONTH) + 1
+            val currentYear = calendar.get(Calendar.YEAR)
+
+            val snapshot = repository.userDocument(userId).get().await()
+            val storedMonth = snapshot.getLong("currentMonth")?.toInt() ?: 0
+            val storedYear = snapshot.getLong("currentYear")?.toInt() ?: 0
+            val currentDays = snapshot.getLong("monthlyLoginDays")?.toInt() ?: 0
+
+            val updates = mutableMapOf<String, Any>()
+
+            if (storedMonth != currentMonth || storedYear != currentYear) {
+                updates["monthlyLoginDays"] = 1
+                updates["currentMonth"] = currentMonth
+                updates["currentYear"] = currentYear
+            } else {
+                updates["monthlyLoginDays"] = currentDays + 1
+            }
+
+            repository.updateUserProfile(userId, updates)
+            delay(500)
             checkAndHandleNewAchievements()
         }
     }

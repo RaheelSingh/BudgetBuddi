@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class AuthViewModel : ViewModel() {
 
@@ -65,6 +66,10 @@ class AuthViewModel : ViewModel() {
             when (result) {
                 is AuthResult.Success -> {
                     Log.d(TAG, "Login success: ${result.email}")
+
+
+                    trackDailyLogin(result.uid)
+
                     _loginState.update {
                         it.copy(
                             isLoading = false,
@@ -113,18 +118,29 @@ class AuthViewModel : ViewModel() {
 
             when (result) {
                 is AuthResult.Success -> {
-                    Log.d(TAG, "Register success: ${result.email}")
+                    Log.d(TAG, "Register success for: ${result.email}")
+                    Log.d(TAG, "User has been signed out automatically by repository - ready for manual login")
 
-                    // Sign out immediately after registration
-                    kotlinx.coroutines.delay(500)
-                    authRepository.signOut()
-                    _currentUser.update { null }
 
-                    _registerState.update { it.copy(isLoading = false, isSuccess = true) }
+                    delay(500)
+
+                    _registerState.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                            error = null
+                        )
+                    }
                 }
                 is AuthResult.Error -> {
                     Log.e(TAG, "Register failed: ${result.message}")
-                    _registerState.update { it.copy(isLoading = false, error = result.message) }
+                    _registerState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message,
+                            isSuccess = false
+                        )
+                    }
                 }
             }
         }
@@ -167,7 +183,14 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // ===== ADD THIS FUNCTION FOR USERNAME UPDATE =====
+
+    private fun trackDailyLogin(userId: String) {
+        val userProfileViewModel = UserProfileViewModel()
+        userProfileViewModel.setUserId(userId)
+        userProfileViewModel.onDailyLoginForMonth()
+        Log.d(TAG, "Daily login tracked for Perfect Month achievement")
+    }
+
     fun updateUsername(newUsername: String) {
         viewModelScope.launch {
             try {
@@ -190,7 +213,7 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
-    // ===== END OF ADDED FUNCTION =====
+
 
     fun logout() {
         viewModelScope.launch {

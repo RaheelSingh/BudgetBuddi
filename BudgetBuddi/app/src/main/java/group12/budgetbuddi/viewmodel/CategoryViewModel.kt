@@ -11,6 +11,7 @@ import group12.budgetbuddi.utils.AchievementManager
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class CategoryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -21,20 +22,21 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
     private val repository = CategoryRepository()
     private val auth = FirebaseAuth.getInstance()
 
-    // Remove this - we'll use AchievementManager instead
-    // private var userProfileViewModel: UserProfileViewModel? = null
-
     private val _isSaving = MutableStateFlow(false)
     val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
 
     private val userIdFlow: StateFlow<String?> =
         callbackFlow {
             val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-                trySend(firebaseAuth.currentUser?.uid)
+                val uid = firebaseAuth.currentUser?.uid
+                Log.d(TAG, "Auth state changed, userId: $uid")
+                trySend(uid)
             }
 
             auth.addAuthStateListener(listener)
-            trySend(auth.currentUser?.uid)
+            val currentUid = auth.currentUser?.uid
+            Log.d(TAG, "Initial userId: $currentUid")
+            trySend(currentUid)
 
             awaitClose {
                 auth.removeAuthStateListener(listener)
@@ -61,6 +63,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                 } else {
                     flow {
                         val cached = repository.getCachedCategories(userId)
+                        Log.d(TAG, "Cached categories for userId $userId: ${cached.size}")
 
                         if (cached.isNotEmpty()) {
                             emit(cached)
@@ -69,6 +72,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                         viewModelScope.launch {
                             try {
                                 repository.seedDefaultCategoriesIfNeeded(userId)
+                                Log.d(TAG, "Default categories seeded for userId: $userId")
                             } catch (e: Exception) {
                                 Log.e(TAG, "Failed to seed default categories: ${e.message}", e)
                                 _uiMessage.value = "Failed to load default categories: ${e.message}"
@@ -162,12 +166,18 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                 initialValue = allCategories.value.filter { it.categoryType == "income" }
             )
 
+    init {
+        Log.d(TAG, "CategoryViewModel initialized")
+
+        viewModelScope.launch {
+            delay(500)
+            Log.d(TAG, "AchievementManager initialized: ${AchievementManager.isInitialized()}")
+        }
+    }
+
     private fun currentUserId(): String? {
         return userIdFlow.value
     }
-
-    // Remove this function
-    // fun setUserProfileViewModel(viewModel: UserProfileViewModel) { ... }
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
@@ -205,6 +215,8 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
+        Log.d(TAG, "insertCategory called for user: $userId, category: ${category.mainCategory}/${category.subCategory}")
+
         viewModelScope.launch {
             _isSaving.value = true
             try {
@@ -218,17 +230,22 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                 Log.d(TAG, "Category insertion completed successfully")
                 _uiMessage.value = "Category added successfully"
 
-                // ===== ACHIEVEMENT TRACKING USING SINGLETON =====
+
+                Log.d(TAG, "AchievementManager.isInitialized() = ${AchievementManager.isInitialized()}")
+
                 if (AchievementManager.isInitialized()) {
+                    Log.d(TAG, "Calling onCategoryCreated for category: ${category.mainCategory}/${category.subCategory}")
                     AchievementManager.userProfileViewModel.onCategoryCreated()
                     Log.d(TAG, "Achievement: onCategoryCreated called via Singleton")
+
+                    // Add delay to ensure achievement check completes
+                    delay(1000)
+                    Log.d(TAG, "Achievement check should have completed for category creation")
                 } else {
                     Log.e(TAG, "AchievementManager not initialized! Cannot track category achievement.")
+                    Log.e(TAG, "Make sure MainActivity initializes AchievementManager after user logs in.")
                 }
-                // ===== END ACHIEVEMENT TRACKING =====
 
-                // Small delay to ensure Firestore update completes
-                kotlinx.coroutines.delay(500)
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to insert category: ${e.message}", e)
@@ -239,7 +256,6 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    // Rest of your functions remain the same...
     fun updateCategory(category: CategoryEntity) {
         val userId = currentUserId()
 
@@ -256,6 +272,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                     category = category.copy(userId = userId)
                 )
                 _uiMessage.value = "Category updated successfully"
+                Log.d(TAG, "Category updated: ${category.mainCategory}/${category.subCategory}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update category: ${e.message}", e)
                 _uiMessage.value = "Failed to update category: ${e.message}"
@@ -285,6 +302,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                     selectedCategory = selectedCategory?.copy(userId = userId)
                 )
                 _uiMessage.value = "Category updated successfully"
+                Log.d(TAG, "Category renamed: $oldMainCategory -> $newMainCategory")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update category: ${e.message}", e)
                 _uiMessage.value = "Failed to update category: ${e.message}"
@@ -305,6 +323,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
             try {
                 repository.deleteCategory(userId, category)
                 _uiMessage.value = "Category deleted successfully"
+                Log.d(TAG, "Category deleted: ${category.mainCategory}/${category.subCategory}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to delete category: ${e.message}", e)
                 _uiMessage.value = "Failed to delete category: ${e.message}"
@@ -332,6 +351,7 @@ class CategoryViewModel(application: Application) : AndroidViewModel(application
                     categoryType = categoryType
                 )
                 _uiMessage.value = "Category deleted successfully"
+                Log.d(TAG, "Whole main category deleted: $mainCategory ($categoryType)")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to delete main category: ${e.message}", e)
                 _uiMessage.value = "Failed to delete category: ${e.message}"
