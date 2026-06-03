@@ -50,7 +50,7 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-private val BrandGreen = Color(0xFF4CAF50)
+private val BudgetGreen = Color(0xFF139A43)
 private val LightGreen = Color(0xFFE8F5E9)
 private val ErrorRed = Color(0xFFD32F2F)
 private val ErrorBackground = Color(0xFFFFEBEE)
@@ -196,7 +196,7 @@ fun AddTransactionScreen(
             if (saveSuccess) {
                 expenseViewModel.clearSaveSuccess()
 
-                navController.navigate("daily_report") {
+                navController.navigate("expense_list") {
                     popUpTo("add_transaction") { inclusive = true }
                     launchSingleTop = true
                 }
@@ -206,506 +206,554 @@ fun AddTransactionScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(Color.White)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .background(LightGreen)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                color = BudgetGreen,
+                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
             ) {
-                IconButton(
-                    onClick = { navController.popBackStack() }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = BrandGreen
+                    Text(
+                        text = "New Transaction",
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Add an expense or income entry",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(alpha = 0.82f)
                     )
                 }
-
-                Text(
-                    text = "New Transaction",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(modifier = Modifier.width(48.dp))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Image(
                 painter = painterResource(id = R.drawable.bb_og),
-                contentDescription = "BudgetBuddi logo",
+                contentDescription = "BudgetBuddi character",
                 modifier = Modifier
-                    .size(180.dp)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .size(128.dp)
+                    .clip(RoundedCornerShape(18.dp)),
                 contentScale = ContentScale.Fit
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(2.dp)
             ) {
-                Text(
-                    text = "R",
-                    fontSize = 28.sp,
-                    color = if (amountError != null) ErrorRed else Color.Gray,
-                    fontWeight = FontWeight.Light
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { input ->
-                        val filtered = input.filter { c -> c.isDigit() || c == '.' }
-                        val dotCount = filtered.count { it == '.' }
-
-                        if (dotCount <= 1) {
-                            amountText = filtered
-                        }
-                    },
-                    placeholder = {
-                        Text("0", fontSize = 28.sp, color = Color.LightGray)
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    textStyle = LocalTextStyle.current.copy(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    isError = amountError != null,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        errorBorderColor = Color.Transparent
-                    ),
-                    modifier = Modifier.width(180.dp)
-                )
-            }
-
-            if (amountError != null) {
-                Text(
-                    text = amountError!!,
-                    color = ErrorRed,
-                    fontSize = 12.sp,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 4.dp, bottom = 4.dp)
-                )
-            }
+                        .padding(horizontal = 18.dp, vertical = 18.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFE0E0E0))
-                    .padding(3.dp)
-            ) {
-                listOf("expense" to "Expense", "income" to "Income").forEach { (value, label) ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(if (selectedType == value) BrandGreen else Color.Transparent)
-                            .clickable {
-                                selectedType = value
-                                selectedMainCategory = ""
-                                selectedSubCategory = ""
-                                categoryError = null
-                                expandedMainCategoryInDialog = null
-                            }
-                            .padding(horizontal = 28.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = label,
-                            color = if (selectedType == value) Color.White else Color.Gray,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 14.sp
+                            text = "R",
+                            fontSize = 28.sp,
+                            color = if (amountError != null) ErrorRed else Color.Gray,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        OutlinedTextField(
+                            value = amountText,
+                            onValueChange = { input ->
+                                val filtered = input.filter { c -> c.isDigit() || c == '.' }
+                                val dotCount = filtered.count { it == '.' }
+
+                                if (dotCount <= 1) {
+                                    amountText = filtered
+                                }
+                            },
+                            placeholder = {
+                                Text("0", fontSize = 28.sp, color = Color.LightGray)
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            isError = amountError != null,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                errorBorderColor = Color.Transparent
+                            ),
+                            modifier = Modifier.width(180.dp)
                         )
                     }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                    if (amountError != null) {
+                        Text(
+                            text = amountError!!,
+                            color = ErrorRed,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 4.dp, bottom = 4.dp)
+                        )
+                    }
 
-            FormRow(
-                icon = Icons.Default.Category,
-                label = "Category :",
-                value = if (selectedSubCategory.isNotBlank()) {
-                    "$selectedMainCategory / $selectedSubCategory"
-                } else {
-                    selectedMainCategory
-                },
-                placeholder = if (selectedType == "income") {
-                    "Select income category"
-                } else {
-                    "Select expense category"
-                },
-                onClick = { showCategoryDialog = true },
-                trailingIcon = Icons.Default.List,
-                hasError = categoryError != null
-            )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-            if (categoryError != null) {
-                Text(
-                    text = categoryError!!,
-                    color = ErrorRed,
-                    fontSize = 12.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 28.dp, bottom = 4.dp)
-                )
-            }
-
-            Divider(
-                color = if (categoryError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f),
-                thickness = 1.dp
-            )
-
-            FormRow(
-                icon = Icons.Default.CalendarMonth,
-                label = "Date :",
-                value = selectedDate,
-                placeholder = "Pick a date",
-                onClick = { showDatePicker = true },
-                hasError = dateError != null
-            )
-
-            if (dateError != null) {
-                Text(
-                    text = dateError!!,
-                    color = ErrorRed,
-                    fontSize = 12.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 28.dp, bottom = 4.dp)
-                )
-            }
-
-            Divider(
-                color = if (dateError != null) ErrorRed else BrandGreen.copy(alpha = 0.4f),
-                thickness = 1.dp
-            )
-
-            FormRow(
-                icon = Icons.Default.CreditCard,
-                label = "Payment Method :",
-                value = paymentMethod,
-                placeholder = "Select payment",
-                onClick = { showPaymentDialog = true }
-            )
-
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Note,
-                    contentDescription = null,
-                    tint = BrandGreen,
-                    modifier = Modifier
-                        .padding(top = 14.dp, end = 8.dp)
-                        .size(20.dp)
-                )
-
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = {
-                        if (it.length <= 300) {
-                            note = it
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(Color(0xFFE8F5E9))
+                            .padding(4.dp)
+                    ) {
+                        listOf("expense" to "Expense", "income" to "Income").forEach { (value, label) ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (selectedType == value) BudgetGreen else Color.Transparent)
+                                    .clickable {
+                                        selectedType = value
+                                        selectedMainCategory = ""
+                                        selectedSubCategory = ""
+                                        categoryError = null
+                                        expandedMainCategoryInDialog = null
+                                    }
+                                    .padding(horizontal = 28.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (selectedType == value) Color.White else Color.Gray,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                )
+                            }
                         }
-                    },
-                    label = { Text("Note") },
-                    placeholder = { Text("Add a note...") },
-                    minLines = 2,
-                    maxLines = 4,
-                    supportingText = {
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    FormRow(
+                        icon = Icons.Default.Category,
+                        label = "Category :",
+                        value = if (selectedSubCategory.isNotBlank()) {
+                            "$selectedMainCategory / $selectedSubCategory"
+                        } else {
+                            selectedMainCategory
+                        },
+                        placeholder = if (selectedType == "income") {
+                            "Select income category"
+                        } else {
+                            "Select expense category"
+                        },
+                        onClick = { showCategoryDialog = true },
+                        trailingIcon = Icons.Default.List,
+                        hasError = categoryError != null
+                    )
+
+                    if (categoryError != null) {
                         Text(
-                            text = "${note.length}/300",
+                            text = categoryError!!,
+                            color = ErrorRed,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 28.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    Divider(
+                        color = if (categoryError != null) ErrorRed else BudgetGreen.copy(alpha = 0.4f),
+                        thickness = 1.dp
+                    )
+
+                    FormRow(
+                        icon = Icons.Default.CalendarMonth,
+                        label = "Date :",
+                        value = selectedDate,
+                        placeholder = "Pick a date",
+                        onClick = { showDatePicker = true },
+                        hasError = dateError != null
+                    )
+
+                    if (dateError != null) {
+                        Text(
+                            text = dateError!!,
+                            color = ErrorRed,
+                            fontSize = 12.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 28.dp, bottom = 4.dp)
+                        )
+                    }
+
+                    Divider(
+                        color = if (dateError != null) ErrorRed else BudgetGreen.copy(alpha = 0.4f),
+                        thickness = 1.dp
+                    )
+
+                    FormRow(
+                        icon = Icons.Default.CreditCard,
+                        label = "Payment Method :",
+                        value = paymentMethod,
+                        placeholder = "Select payment",
+                        onClick = { showPaymentDialog = true }
+                    )
+
+                    Divider(color = BudgetGreen.copy(alpha = 0.4f), thickness = 1.dp)
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Note,
+                                contentDescription = null,
+                                tint = BudgetGreen,
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .size(20.dp)
+                            )
+                            Text(
+                                text = "Note",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF2D3A35)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = note,
+                            onValueChange = {
+                                if (it.length <= 300) {
+                                    note = it
+                                }
+                            },
+                            placeholder = {
+                                Text(
+                                    text = "Add an optional note...",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color.Gray
+                                )
+                            },
+                            minLines = 3,
+                            maxLines = 4,
+                            supportingText = {
+                                Text(
+                                    text = "${note.length}/300",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = if (note.length >= 280) Color(0xFFF57C00) else Color.Gray,
+                                    fontSize = 11.sp
+                                )
+                            },
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth(),
-                            color = if (note.length >= 280) Color(0xFFF57C00) else Color.Gray,
-                            fontSize = 11.sp
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BrandGreen,
-                        unfocusedBorderColor = Color.Transparent
-                    )
-                )
-            }
-
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp)
-                    .clickable { showPhotoDialog = true },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Image,
-                        contentDescription = null,
-                        tint = BrandGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Column {
-                        Text(
-                            text = if (selectedImageUri != null) "Photo attached ✓" else "Add Photo :",
-                            color = if (selectedImageUri != null) BrandGreen else Color.Gray
-                        )
-
-                        Text(
-                            text = "Optional",
-                            color = Color.LightGray,
-                            fontSize = 11.sp
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = BudgetGreen,
+                                unfocusedBorderColor = BudgetGreen.copy(alpha = 0.35f),
+                                cursorColor = BudgetGreen
+                            )
                         )
                     }
-                }
 
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "Add photo",
-                    tint = BrandGreen,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .background(LightGreen, RoundedCornerShape(6.dp))
-                        .padding(4.dp)
-                )
-            }
+                    Divider(color = BudgetGreen.copy(alpha = 0.4f), thickness = 1.dp)
 
-            selectedImageUri?.let { uri ->
-                Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
+                            .clickable { showPhotoDialog = true },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = null,
+                                tint = BudgetGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
 
-                Image(
-                    painter = rememberAsyncImagePainter(uri),
-                    contentDescription = "Selected transaction photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(1.dp, BrandGreen.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                )
+                            Spacer(modifier = Modifier.width(8.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+                            Column {
+                                Text(
+                                    text = if (selectedImageUri != null) "Photo attached ✓" else "Add Photo :",
+                                    color = if (selectedImageUri != null) BudgetGreen else Color.DarkGray,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
 
-                TextButton(
-                    onClick = {
-                        selectedImageUri = null
-                        photoUriString = null
-                        cameraUri = null
+                                Text(
+                                    text = "Optional",
+                                    color = Color.LightGray,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.CameraAlt,
+                            contentDescription = "Add photo",
+                            tint = BudgetGreen,
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(LightGreen, RoundedCornerShape(6.dp))
+                                .padding(4.dp)
+                        )
                     }
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error
-                    )
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    selectedImageUri?.let { uri ->
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    Text(
-                        "Remove photo",
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
+                        Image(
+                            painter = rememberAsyncImagePainter(uri),
+                            contentDescription = "Selected transaction photo",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .border(1.dp, BudgetGreen.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        )
 
-            Divider(color = BrandGreen.copy(alpha = 0.4f), thickness = 1.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Repeat,
-                        contentDescription = null,
-                        tint = BrandGreen,
-                        modifier = Modifier.size(20.dp)
-                    )
+                        TextButton(
+                            onClick = {
+                                selectedImageUri = null
+                                photoUriString = null
+                                cameraUri = null
+                            }
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
 
-                    Text("Recurring :")
-                }
+                            Text(
+                                "Remove photo",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
 
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Color(0xFFE0E0E0))
-                        .padding(2.dp)
-                ) {
-                    listOf(false to "Off", true to "On").forEach { (value, label) ->
-                        Box(
+                    Divider(color = BudgetGreen.copy(alpha = 0.4f), thickness = 1.dp)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Repeat,
+                                contentDescription = null,
+                                tint = BudgetGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Text(
+                                text = "Recurring :",
+                                color = Color.DarkGray,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
-                                .background(if (isRecurring == value) BrandGreen else Color.Transparent)
-                                .clickable { isRecurring = value }
-                                .padding(horizontal = 16.dp, vertical = 6.dp),
-                            contentAlignment = Alignment.Center
+                                .background(Color(0xFFE0E0E0))
+                                .padding(2.dp)
                         ) {
+                            listOf(false to "Off", true to "On").forEach { (value, label) ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(50))
+                                        .background(if (isRecurring == value) BudgetGreen else Color.Transparent)
+                                        .clickable { isRecurring = value }
+                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isRecurring == value) Color.White else Color.Gray,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    uiMessage?.let { message ->
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val isSuccess = message.contains("success", ignoreCase = true)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSuccess) LightGreen else ErrorBackground)
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
+                                contentDescription = null,
+                                tint = if (isSuccess) BudgetGreen else ErrorRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
                             Text(
-                                text = label,
-                                color = if (isRecurring == value) Color.White else Color.Gray,
+                                text = message,
+                                color = if (isSuccess) BudgetGreen else ErrorRed,
+                                fontSize = 13.sp
+                            )
+                        }
+
+                        LaunchedEffect(message) {
+                            delay(3500)
+                            expenseViewModel.clearMessage()
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (isUploadingImage) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = BudgetGreen,
+                                strokeWidth = 2.dp
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Text(
+                                text = "Uploading photo...",
+                                color = Color.Gray,
                                 fontSize = 13.sp
                             )
                         }
                     }
+
+                    Button(
+                        enabled = !isUploadingImage,
+                        onClick = {
+                            var isValid = true
+
+                            val parsedAmount = amountText.toDoubleOrNull()
+
+                            when {
+                                amountText.isBlank() -> {
+                                    amountError = "Amount is required"
+                                    isValid = false
+                                }
+
+                                parsedAmount == null -> {
+                                    amountError = "Enter a valid number"
+                                    isValid = false
+                                }
+
+                                parsedAmount <= 0.0 -> {
+                                    amountError = "Amount must be greater than zero"
+                                    isValid = false
+                                }
+
+                                parsedAmount > 9_999_999.99 -> {
+                                    amountError = "Amount is too large"
+                                    isValid = false
+                                }
+
+                                else -> amountError = null
+                            }
+
+                            if (selectedMainCategory.isBlank()) {
+                                categoryError = "Please select a category"
+                                isValid = false
+                            } else {
+                                categoryError = null
+                            }
+
+                            if (selectedDate.isBlank()) {
+                                dateError = "Please select a date"
+                                isValid = false
+                            } else {
+                                dateError = null
+                            }
+
+                            if (isValid) {
+                                expenseViewModel.saveExpense(
+                                    amount = parsedAmount!!,
+                                    type = selectedType,
+                                    category = selectedMainCategory,
+                                    subCategory = selectedSubCategory,
+                                    date = selectedDate,
+                                    note = note.trim(),
+                                    photoPath = photoUriString,
+                                    paymentMethod = paymentMethod,
+                                    isRecurring = isRecurring
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(containerColor = BudgetGreen)
+                    ) {
+                        Text("Save Transaction", fontWeight = FontWeight.Bold)
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
             }
 
-            uiMessage?.let { message ->
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val isSuccess = message.contains("success", ignoreCase = true)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSuccess) LightGreen else ErrorBackground)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Error,
-                        contentDescription = null,
-                        tint = if (isSuccess) BrandGreen else ErrorRed,
-                        modifier = Modifier.size(18.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = message,
-                        color = if (isSuccess) BrandGreen else ErrorRed,
-                        fontSize = 13.sp
-                    )
-                }
-
-                LaunchedEffect(message) {
-                    delay(3500)
-                    expenseViewModel.clearMessage()
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            if (isUploadingImage) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        color = BrandGreen,
-                        strokeWidth = 2.dp
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Uploading photo...",
-                        color = Color.Gray,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-
-            Button(
-                enabled = !isUploadingImage,
-                onClick = {
-                    var isValid = true
-
-                    val parsedAmount = amountText.toDoubleOrNull()
-
-                    when {
-                        amountText.isBlank() -> {
-                            amountError = "Amount is required"
-                            isValid = false
-                        }
-
-                        parsedAmount == null -> {
-                            amountError = "Enter a valid number"
-                            isValid = false
-                        }
-
-                        parsedAmount <= 0.0 -> {
-                            amountError = "Amount must be greater than zero"
-                            isValid = false
-                        }
-
-                        parsedAmount > 9_999_999.99 -> {
-                            amountError = "Amount is too large"
-                            isValid = false
-                        }
-
-                        else -> amountError = null
-                    }
-
-                    if (selectedMainCategory.isBlank()) {
-                        categoryError = "Please select a category"
-                        isValid = false
-                    } else {
-                        categoryError = null
-                    }
-
-                    if (selectedDate.isBlank()) {
-                        dateError = "Please select a date"
-                        isValid = false
-                    } else {
-                        dateError = null
-                    }
-
-                    if (isValid) {
-                        expenseViewModel.saveExpense(
-                            amount = parsedAmount!!,
-                            type = selectedType,
-                            category = selectedMainCategory,
-                            subCategory = selectedSubCategory,
-                            date = selectedDate,
-                            note = note.trim(),
-                            photoPath = photoUriString,
-                            paymentMethod = paymentMethod,
-                            isRecurring = isRecurring
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .width(160.dp)
-                    .height(46.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = BrandGreen)
-            ) {
-                Text("Save")
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
 
         if (showCategoryDialog) {
@@ -766,7 +814,7 @@ fun AddTransactionScreen(
                                         Text(
                                             text = main,
                                             fontWeight = FontWeight.Bold,
-                                            color = BrandGreen,
+                                            color = BudgetGreen,
                                             fontSize = 15.sp,
                                             modifier = Modifier.weight(1f)
                                         )
@@ -782,7 +830,7 @@ fun AddTransactionScreen(
                                             } else {
                                                 "Expand category"
                                             },
-                                            tint = BrandGreen
+                                            tint = BudgetGreen
                                         )
                                     }
 
@@ -837,7 +885,7 @@ fun AddTransactionScreen(
                                                     Icon(
                                                         imageVector = Icons.Default.CheckCircle,
                                                         contentDescription = "Selected",
-                                                        tint = BrandGreen,
+                                                        tint = BudgetGreen,
                                                         modifier = Modifier.size(20.dp)
                                                     )
                                                 }
@@ -913,7 +961,7 @@ fun AddTransactionScreen(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
+                            colors = ButtonDefaults.buttonColors(containerColor = BudgetGreen),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(Icons.Default.PhotoLibrary, contentDescription = null)
@@ -1024,7 +1072,7 @@ private fun FormRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (hasError) ErrorRed else BrandGreen,
+                tint = if (hasError) ErrorRed else BudgetGreen,
                 modifier = Modifier.size(20.dp)
             )
 
@@ -1033,7 +1081,8 @@ private fun FormRow(
             Text(
                 text = label,
                 color = if (hasError) ErrorRed else Color.DarkGray,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.width(4.dp))
@@ -1045,7 +1094,8 @@ private fun FormRow(
                     value.isBlank() -> Color.LightGray
                     else -> Color.Black
                 },
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal
             )
         }
 
@@ -1053,7 +1103,7 @@ private fun FormRow(
             Icon(
                 imageVector = it,
                 contentDescription = null,
-                tint = if (hasError) ErrorRed else BrandGreen,
+                tint = if (hasError) ErrorRed else BudgetGreen,
                 modifier = Modifier.size(18.dp)
             )
         }

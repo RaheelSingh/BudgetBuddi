@@ -4,10 +4,12 @@ package group12.budgetbuddi.ui.screens
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,8 +31,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import group12.budgetbuddi.data.AchievementsData
 import group12.budgetbuddi.ui.components.AppScaffold
-import group12.budgetbuddi.ui.theme.BrandGreen
+import group12.budgetbuddi.ui.theme.BrandGreenDark as BudgetGreen
 import group12.budgetbuddi.ui.theme.TextBlack
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
@@ -76,6 +79,23 @@ fun HomeScreen(
     )
     val currentMonthName = monthNames[currentMonth]
 
+    val weekRange = remember(today) {
+        val mondayCal = Calendar.getInstance()
+        mondayCal.firstDayOfWeek = Calendar.MONDAY
+        while (mondayCal.get(Calendar.DAY_OF_WEEK) != Calendar.MONDAY) {
+            mondayCal.add(Calendar.DAY_OF_MONTH, -1)
+        }
+
+        val saturdayCal = mondayCal.clone() as Calendar
+        saturdayCal.add(Calendar.DAY_OF_MONTH, 5)
+
+        val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        format.format(mondayCal.time) to format.format(saturdayCal.time)
+    }
+
+    val weekStart = weekRange.first
+    val weekEnd = weekRange.second
+
     val monthlyTransactions = remember(allTransactions, currentMonth, currentYear) {
         allTransactions.filter { transaction ->
             try {
@@ -102,15 +122,30 @@ fun HomeScreen(
         allTransactions.filter { it.date == today && it.type == "expense" }.sumOf { it.amount }
     }
 
-    val topCategories = remember(monthlyExpenses) {
-        monthlyExpenses.groupBy { it.category }
-            .map { (category, expenses) -> category to expenses.sumOf { it.amount } }
-            .sortedByDescending { it.second }
-            .take(5)
+    val weekExpenses = remember(allTransactions, weekStart, weekEnd) {
+        allTransactions.filter {
+            it.type == "expense" &&
+                    it.date >= weekStart &&
+                    it.date <= weekEnd
+        }
     }
 
-    val recentTransactions = remember(monthlyTransactions) {
-        monthlyTransactions.sortedByDescending { it.date }.take(5)
+    val topCategoriesThisWeek = remember(weekExpenses) {
+        weekExpenses.groupBy { it.category }
+            .map { (category, expenses) -> category to expenses.sumOf { it.amount } }
+            .sortedByDescending { it.second }
+            .take(3)
+    }
+
+    val totalWeeklyExpenses = remember(weekExpenses) {
+        weekExpenses.sumOf { it.amount }
+    }
+
+    val recentTransactions = remember(allTransactions) {
+        allTransactions.sortedWith(
+            compareByDescending<group12.budgetbuddi.data.entity.ExpenseEntity> { it.createdAt }
+                .thenByDescending { it.updatedAt }
+        ).take(5)
     }
 
     var contentVisible by remember { mutableStateOf(false) }
@@ -121,6 +156,35 @@ fun HomeScreen(
         animationSpec = tween(500),
         label = "contentAlpha"
     )
+
+    val homeListState = rememberLazyListState()
+    val rawCollapseProgress by remember {
+        derivedStateOf {
+            if (homeListState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (homeListState.firstVisibleItemScrollOffset / 190f).coerceIn(0f, 1f)
+            }
+        }
+    }
+
+    val collapseProgress by animateFloatAsState(
+        targetValue = rawCollapseProgress,
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        label = "homeHeaderCollapseProgress"
+    )
+
+    val expandedAlpha = 1f - collapseProgress
+    val compactAlpha = collapseProgress
+
+    val headerVerticalPadding = (16f - (6f * collapseProgress)).dp
+    val avatarSize = (48f - (6f * collapseProgress)).dp
+    val greetingFontSize = 14f - (2f * collapseProgress)
+    val nameFontSize = 22f - (4f * collapseProgress)
+    val avatarTextFontSize = 20f - (2f * collapseProgress)
+    val headerSpacerHeight = (12f - (4f * collapseProgress)).dp
+    val expandedStatsHeight = (150f * expandedAlpha).dp
+    val compactStatsHeight = (52f * compactAlpha).dp
 
     AppScaffold(
         navController = navController,
@@ -135,195 +199,193 @@ fun HomeScreen(
                 .graphicsLayer(alpha = contentAlpha)
         ) {
             // Header
-            Box(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp), clip = false)
+                    .shadow(elevation = 4.dp, shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp), clip = false),
+                shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+                color = BudgetGreen
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
-                    color = BrandGreen
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = headerVerticalPadding)
                 ) {
-                    Column(
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Good ${getTimeOfDay()},",
+                                fontSize = greetingFontSize.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White.copy(alpha = 0.85f)
+                            )
+                            Text(
+                                text = displayName,
+                                fontSize = nameFontSize.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+
+                        Surface(
+                            modifier = Modifier
+                                .size(avatarSize)
+                                .border(2.dp, Color.White, CircleShape)
+                                .clickable {
+                                    navController.navigate("user_profile") { launchSingleTop = true }
+                                },
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.2f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                if (selectedAchievement != null) {
+                                    AsyncImage(
+                                        model = selectedAchievement.badgeUrl,
+                                        contentDescription = "Profile Avatar",
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                    )
+                                } else {
+                                    Text(
+                                        text = displayName.take(1).uppercase(),
+                                        fontSize = avatarTextFontSize.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(headerSpacerHeight))
+
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                            .height(compactStatsHeight)
+                            .clip(RoundedCornerShape(12.dp))
+                            .graphicsLayer(alpha = compactAlpha)
                     ) {
-                        // Greeting and Profile
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column {
-                                Text(
-                                    text = "Good ${getTimeOfDay()},",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = Color.White.copy(alpha = 0.85f),
-                                )
-                                Text(
-                                    text = displayName,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.White,
-                                )
-                            }
+                            HomeHeaderMiniStat(Icons.Default.Fireplace, Color(0xFFFF9800), currentStreak.toString(), "Streak", Modifier.weight(1f))
+                            HomeHeaderMiniStat(Icons.Default.Star, Color(0xFFFFD700), longestStreak.toString(), "Best", Modifier.weight(1f))
+                            HomeHeaderMiniStat(Icons.Default.EmojiEvents, Color(0xFFFFD700), "Lvl ${uiState.currentLevel}", uiState.levelTitle, Modifier.weight(1f))
+                        }
+                    }
 
-                            // Profile Picture with Avatar Support
-                            Surface(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clickable {
-                                        navController.navigate("user_profile") {
-                                            launchSingleTop = true
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(expandedStatsHeight)
+                            .clip(RoundedCornerShape(12.dp))
+                            .graphicsLayer(alpha = expandedAlpha)
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    modifier = Modifier.weight(1f).height(70.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color.White.copy(alpha = 0.15f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Fireplace, contentDescription = "Current Streak Icon", tint = Color(0xFFFF9800), modifier = Modifier.size(28.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text("$currentStreak", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text("Day Streak", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
                                         }
-                                    },
-                                shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.2f)
+                                    }
+                                }
+
+                                Surface(
+                                    modifier = Modifier.weight(1f).height(70.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color.White.copy(alpha = 0.15f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize().padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Star, contentDescription = "Longest Streak Icon", tint = Color(0xFFFFD700), modifier = Modifier.size(28.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column {
+                                            Text("$longestStreak", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text("Best Streak", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White.copy(alpha = 0.15f)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    if (selectedAchievement != null) {
-                                        AsyncImage(
-                                            model = selectedAchievement.badgeUrl,
-                                            contentDescription = "Profile Avatar",
-                                            modifier = Modifier.fillMaxSize().clip(CircleShape)
-                                        )
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    val nextLevelXP = AchievementsData.getXpRequiredForLevel(uiState.currentLevel + 1)
+                                    val safeXpProgress = if (nextLevelXP > 0) {
+                                        (uiState.currentXP.toFloat() / nextLevelXP.toFloat()).coerceIn(0f, 1f)
                                     } else {
+                                        1f
+                                    }
+                                    val xpTargetText = if (nextLevelXP > 0) {
+                                        "${uiState.currentXP} / $nextLevelXP XP"
+                                    } else {
+                                        "${uiState.currentXP} XP"
+                                    }
+                                    val xpToNextText = if (uiState.xpToNextLevel > 0) {
+                                        "${uiState.xpToNextLevel} XP to next level"
+                                    } else {
+                                        "Max level reached"
+                                    }
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text("Lvl ${uiState.currentLevel}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(uiState.levelTitle, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
+                                        }
                                         Text(
-                                            text = displayName.take(1).uppercase(),
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            text = xpTargetText,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
                                             color = Color.White
                                         )
                                     }
-                                }
-                            }
-                        }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
 
-                        // Streak Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Current Streak
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(70.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.15f)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.Fireplace,
-                                        contentDescription = "Current Streak Icon",
-                                        tint = Color(0xFFFF9800),
-                                        modifier = Modifier.size(28.dp)
+                                    WhiteXpProgressBar(
+                                        progress = safeXpProgress,
+                                        modifier = Modifier.height(6.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(
-                                            text = "$currentStreak",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                        Text(
-                                            text = "Day Streak",
-                                            fontSize = 11.sp,
-                                            color = Color.White.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                }
-                            }
 
-                            // Longest Streak
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(70.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White.copy(alpha = 0.15f)
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Default.Star,
-                                        contentDescription = "Longest Streak Icon",
-                                        tint = Color(0xFFFFD700),
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(
-                                            text = "$longestStreak",
-                                            fontSize = 20.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                        Text(
-                                            text = "Best Streak",
-                                            fontSize = 11.sp,
-                                            color = Color.White.copy(alpha = 0.7f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                                    Spacer(modifier = Modifier.height(4.dp))
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // XP Card
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color.White.copy(alpha = 0.15f)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Lvl ${uiState.currentLevel}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(uiState.levelTitle, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
-                                    }
-                                    Text("${uiState.currentXP} XP", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White)
-                                }
-
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(RoundedCornerShape(3.dp))
-                                        .background(Color.White.copy(alpha = 0.3f))
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(uiState.levelProgress)
-                                            .fillMaxHeight()
-                                            .clip(RoundedCornerShape(3.dp))
-                                            .background(Color(0xFFFFD700))
+                                    Text(
+                                        text = xpToNextText,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White.copy(alpha = 0.8f)
                                     )
                                 }
-
-                                Text("${uiState.xpToNextLevel} XP to next level", fontSize = 10.sp, color = Color.White.copy(alpha = 0.7f))
                             }
                         }
                     }
@@ -332,10 +394,53 @@ fun HomeScreen(
 
             // Main Content
             LazyColumn(
+                state = homeListState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 12.dp, bottom = 100.dp),
+                contentPadding = PaddingValues(top = 12.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Today's Spending
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    modifier = Modifier.size(40.dp),
+                                    shape = CircleShape,
+                                    color = BudgetGreen.copy(alpha = 0.15f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Default.Today,
+                                            contentDescription = "Today Icon",
+                                            tint = BudgetGreen,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("Today's Spending", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextBlack)
+                                    Text(formatHomeDate(today), fontSize = 10.sp, color = Color.Gray)
+                                }
+                            }
+                            Text("R${String.format("%.2f", todayExpenses)}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = BudgetGreen)
+                        }
+                    }
+                }
+
                 // Monthly Summary
                 item {
                     Card(
@@ -355,22 +460,22 @@ fun HomeScreen(
                                     Icon(
                                         Icons.Default.CalendarMonth,
                                         contentDescription = "Calendar Icon",
-                                        tint = BrandGreen,
+                                        tint = BudgetGreen,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("$currentMonthName Summary", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextBlack)
                                 }
                                 Surface(
-                                    modifier = Modifier.size(32.dp).clickable { navController.navigate("category_totals") },
+                                    modifier = Modifier.size(32.dp).clickable { navController.navigate("budget_report") },
                                     shape = CircleShape,
-                                    color = BrandGreen.copy(alpha = 0.1f)
+                                    color = BudgetGreen.copy(alpha = 0.1f)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Default.TrendingUp,
                                             contentDescription = "View Monthly Report",
-                                            tint = BrandGreen,
+                                            tint = BudgetGreen,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -391,48 +496,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Today's Spending
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = BrandGreen.copy(alpha = 0.05f))
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Surface(
-                                    modifier = Modifier.size(40.dp),
-                                    shape = CircleShape,
-                                    color = BrandGreen.copy(alpha = 0.15f)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.Today,
-                                            contentDescription = "Today Icon",
-                                            tint = BrandGreen,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text("Today's Spending", fontSize = 12.sp, color = Color.Gray)
-                                    Text(formatHomeDate(today), fontSize = 10.sp, color = Color.Gray)
-                                }
-                            }
-                            Text("R${String.format("%.2f", todayExpenses)}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = BrandGreen)
-                        }
-                    }
-                }
-
                 // Pie Chart
                 item {
                     Card(
@@ -446,15 +509,20 @@ fun HomeScreen(
                             modifier = Modifier.padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("Income vs Expenses", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextBlack)
+                            Text("Income vs Expenses (This Month)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextBlack)
                             Spacer(modifier = Modifier.height(12.dp))
-                            SimplePieChart(totalMonthlyIncome, totalMonthlyExpenses)
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SimplePieChart(totalMonthlyIncome, totalMonthlyExpenses)
+                            }
                         }
                     }
                 }
 
-                // Top Categories
-                if (topCategories.isNotEmpty()) {
+                // Top Categories This Week
+                if (topCategoriesThisWeek.isNotEmpty()) {
                     item {
                         Card(
                             modifier = Modifier
@@ -464,12 +532,12 @@ fun HomeScreen(
                             colors = CardDefaults.cardColors(containerColor = Color.White)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text("Top Spending Categories", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextBlack)
+                                Text("Top Spending Categories This Week", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextBlack)
                                 Spacer(modifier = Modifier.height(12.dp))
-                                topCategories.forEach { (category, amount) ->
-                                    SimpleCategoryRow(category, amount, totalMonthlyExpenses)
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
+                                TopWeeklyCategoryCards(
+                                    categories = topCategoriesThisWeek,
+                                    totalWeeklyExpenses = totalWeeklyExpenses
+                                )
                             }
                         }
                     }
@@ -492,7 +560,7 @@ fun HomeScreen(
                                 ) {
                                     Text("Recent Transactions", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextBlack)
                                     TextButton(onClick = { navController.navigate("expense_list") }) {
-                                        Text("View All", color = BrandGreen, fontSize = 11.sp)
+                                        Text("View All", color = BudgetGreen, fontSize = 11.sp)
                                     }
                                 }
                                 recentTransactions.take(3).forEach { transaction ->
@@ -518,11 +586,12 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.SpaceEvenly,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 SimpleActionButton(Icons.Default.AddCircle, "Add", "Add Transaction") { navController.navigate("add_transaction") }
                                 SimpleActionButton(Icons.Default.Category, "Categories", "Manage Categories") { navController.navigate("categories") }
-                                SimpleActionButton(Icons.Default.EmojiEvents, "Goals", "Budget Goals") { navController.navigate("budget_goals") }
+                                SimpleActionButton(Icons.Default.EmojiEvents, "Goals", "Budget Goals") { navController.navigate("category_totals") }
                             }
                         }
                     }
@@ -546,10 +615,71 @@ fun SimpleStatItem(title: String, amount: Double, color: Color, icon: androidx.c
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(100.dp)) {
         Icon(icon, contentDescription = iconDescription, tint = color, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.height(4.dp))
-        Text("R${String.format("%.0f", amount)}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextBlack)
+        val amountText = if (amount < 0) {
+            "-R${String.format("%.0f", kotlin.math.abs(amount))}"
+        } else {
+            "R${String.format("%.0f", amount)}"
+        }
+        Text(amountText, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextBlack)
         Text(title, fontSize = 10.sp, color = Color.Gray)
     }
 }
+
+
+@Composable
+fun TopWeeklyCategoryCards(
+    categories: List<Pair<String, Double>>,
+    totalWeeklyExpenses: Double
+) {
+    val paddedCategories = categories.take(3)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.Top
+    ) {
+        paddedCategories.forEach { (category, amount) ->
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = getHomeCategoryEmoji(category),
+                    fontSize = 26.sp
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = category,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextBlack,
+                    maxLines = 1
+                )
+
+                Spacer(modifier = Modifier.height(3.dp))
+
+                Text(
+                    text = "R${String.format("%.0f", amount)}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BudgetGreen
+                )
+
+            }
+        }
+
+        repeat(3 - paddedCategories.size) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
 
 @Composable
 fun SimpleCategoryRow(category: String, amount: Double, total: Double) {
@@ -579,7 +709,7 @@ fun SimpleCategoryRow(category: String, amount: Double, total: Double) {
                     .fillMaxWidth(percentage / 100f)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(2.dp))
-                    .background(BrandGreen)
+                    .background(BudgetGreen)
             )
         }
     }
@@ -597,7 +727,7 @@ fun SimpleTransactionRow(transaction: group12.budgetbuddi.data.entity.ExpenseEnt
             Surface(
                 modifier = Modifier.size(32.dp),
                 shape = CircleShape,
-                color = BrandGreen.copy(alpha = 0.1f)
+                color = BudgetGreen.copy(alpha = 0.1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(getHomeCategoryEmoji(transaction.category), fontSize = 14.sp)
@@ -629,7 +759,7 @@ fun SimpleActionButton(icon: androidx.compose.ui.graphics.vector.ImageVector, la
             .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, contentDescription = description, tint = BrandGreen, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = description, tint = BudgetGreen, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.height(4.dp))
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = TextBlack)
     }
@@ -720,5 +850,61 @@ fun formatHomeDate(dateString: String): String {
         outputFormat.format(date ?: Date())
     } catch (e: Exception) {
         dateString
+    }
+}
+
+@Composable
+private fun WhiteXpProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier
+) {
+    val safeProgress = progress.coerceIn(0f, 1f)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50.dp))
+            .background(Color.White.copy(alpha = 0.25f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(safeProgress)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(50.dp))
+                .background(Color.White)
+        )
+    }
+}
+
+@Composable
+private fun HomeHeaderMiniStat(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.height(52.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.15f)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Column(horizontalAlignment = Alignment.Start) {
+                Text(value, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                Text(label, fontSize = 9.sp, color = Color.White.copy(alpha = 0.75f), maxLines = 1)
+            }
+        }
     }
 }

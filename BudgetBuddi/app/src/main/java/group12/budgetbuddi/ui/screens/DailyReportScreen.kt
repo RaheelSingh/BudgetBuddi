@@ -1,5 +1,12 @@
 package group12.budgetbuddi.ui.screens
 
+import android.net.Uri
+import androidx.compose.foundation.border
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import java.io.File
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,17 +29,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.ui.components.AppScaffold
-import group12.budgetbuddi.ui.theme.BackgroundWhite
-import group12.budgetbuddi.ui.theme.BrandGreen
+import group12.budgetbuddi.ui.theme.BrandGreenDark as BudgetGreen
 import group12.budgetbuddi.ui.theme.TextBlack
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -72,22 +80,13 @@ fun DailyReportScreen(
 
     val netTotal = totalIncome - totalExpenses
 
-    // Group expenses by category for bar chart
-    val expensesByCategory = remember(todayExpenses) {
-        todayExpenses.groupBy { it.category }
-            .map { (category, items) -> category to items.sumOf { it.amount } }
-            .sortedByDescending { it.second }
-    }
-
-    val maxExpenseAmount = remember(expensesByCategory) {
-        expensesByCategory.maxOfOrNull { it.second } ?: 1.0
-    }
-
     val dateFormatter = remember { SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.getDefault()) }
     val formattedDate = dateFormatter.format(Date())
 
     // Animation
     var contentVisible by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var transactionToDelete by remember { mutableStateOf<ExpenseEntity?>(null) }
     LaunchedEffect(Unit) { contentVisible = true }
 
     val contentAlpha by animateFloatAsState(
@@ -105,13 +104,13 @@ fun DailyReportScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .background(BackgroundWhite)
+                .background(Color(0xFFE8F5E9))
                 .graphicsLayer(alpha = contentAlpha)
         ) {
             // Header
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = BrandGreen,
+                color = BudgetGreen,
                 shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
             ) {
                 Column(
@@ -160,13 +159,13 @@ fun DailyReportScreen(
                         Surface(
                             modifier = Modifier.size(120.dp),
                             shape = CircleShape,
-                            color = BrandGreen.copy(alpha = 0.1f)
+                            color = BudgetGreen.copy(alpha = 0.1f)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     Icons.Default.ReceiptLong,
                                     contentDescription = null,
-                                    tint = BrandGreen,
+                                    tint = BudgetGreen,
                                     modifier = Modifier.size(60.dp)
                                 )
                             }
@@ -193,7 +192,7 @@ fun DailyReportScreen(
                                     launchSingleTop = true
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
+                            colors = ButtonDefaults.buttonColors(containerColor = BudgetGreen),
                             shape = RoundedCornerShape(50.dp),
                             modifier = Modifier
                                 .width(200.dp)
@@ -208,7 +207,7 @@ fun DailyReportScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     // Summary cards
                     item {
@@ -246,7 +245,7 @@ fun DailyReportScreen(
                                 .padding(horizontal = 16.dp),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (netTotal >= 0) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
+                                containerColor = Color.White
                             ),
                             elevation = CardDefaults.cardElevation(2.dp)
                         ) {
@@ -273,7 +272,7 @@ fun DailyReportScreen(
                                     )
                                 }
                                 Text(
-                                    text = "R${String.format("%.2f", kotlin.math.abs(netTotal))}",
+                                    text = if (netTotal < 0) "-R${String.format("%.2f", kotlin.math.abs(netTotal))}" else "R${String.format("%.2f", netTotal)}",
                                     fontSize = 20.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = if (netTotal >= 0) Color(0xFF43A047) else Color(0xFFE53935)
@@ -282,59 +281,6 @@ fun DailyReportScreen(
                         }
 
                         Spacer(modifier = Modifier.height(20.dp))
-                    }
-
-                    // Bar Graph Section (only if there are expenses)
-                    if (expensesByCategory.isNotEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                elevation = CardDefaults.cardElevation(3.dp)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = "Spending by Category",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = TextBlack
-                                        )
-                                        Icon(
-                                            Icons.Default.BarChart,
-                                            contentDescription = null,
-                                            tint = BrandGreen,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    // Horizontal Bar Chart
-                                    expensesByCategory.forEach { (category, amount) ->
-                                        val percentage = (amount / maxExpenseAmount).toFloat()
-                                        DailyBarChartRow(
-                                            category = category,
-                                            amount = amount,
-                                            percentage = percentage,
-                                            maxAmount = maxExpenseAmount
-                                        )
-                                        Spacer(modifier = Modifier.height(12.dp))
-                                    }
-                                }
-                            }
-                        }
                     }
 
                     // Section title for transactions
@@ -357,7 +303,7 @@ fun DailyReportScreen(
                             TextButton(
                                 onClick = { navController.navigate("expense_list") }
                             ) {
-                                Text("View All", color = BrandGreen)
+                                Text("View All", color = BudgetGreen)
                             }
                         }
 
@@ -368,7 +314,15 @@ fun DailyReportScreen(
                     items(todayTransactions.sortedByDescending { it.createdAt }) { transaction ->
                         DailyTransactionItem(
                             transaction = transaction,
-                            onClick = { }
+                            onPhotoClick = { photoPath ->
+                                val encodedPath = URLEncoder.encode(photoPath, "UTF-8")
+                                navController.navigate("photo_viewer/$encodedPath")
+                            },
+                            onClick = { },
+                            onDeleteClick = {
+                                transactionToDelete = transaction
+                                showDeleteDialog = true
+                            }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
@@ -377,6 +331,43 @@ fun DailyReportScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteDialog && transactionToDelete != null) {
+        val transaction = transactionToDelete!!
+        val typeLabel = if (transaction.type.equals("income", ignoreCase = true)) "income" else "expense"
+
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                transactionToDelete = null
+            },
+            title = { Text("Delete Transaction") },
+            text = {
+                Text("Are you sure you want to delete this $typeLabel transaction?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        expenseViewModel.deleteExpense(transaction)
+                        showDeleteDialog = false
+                        transactionToDelete = null
+                    }
+                ) {
+                    Text("Delete", color = Color(0xFFE53935), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        transactionToDelete = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -449,7 +440,7 @@ fun DailyBarChartRow(
         "bills", "utilities" -> Color(0xFF607D8B)
         "health", "medical" -> Color(0xFF4CAF50)
         "education" -> Color(0xFF3F51B5)
-        else -> BrandGreen
+        else -> BudgetGreen
     }
 
     Column {
@@ -534,87 +525,209 @@ fun DailyBarChartRow(
 @Composable
 fun DailyTransactionItem(
     transaction: ExpenseEntity,
-    onClick: () -> Unit
+    onPhotoClick: (String) -> Unit,
+    onClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
-    val isExpense = transaction.type == "expense"
-    val amountColor = if (isExpense) Color(0xFFE53935) else Color(0xFF43A047)
-    val amountPrefix = if (isExpense) "-R" else "+R"
+    val isIncome = transaction.type.equals("income", ignoreCase = true)
+    val amountColor = if (isIncome) Color(0xFF43A047) else Color(0xFFE53935)
+    val amountPrefix = if (isIncome) "+R" else "-R"
+    val typeLabel = if (isIncome) "Income" else "Expense"
+    val hasPhoto = !transaction.photoPath.isNullOrBlank()
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(1.dp)
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(14.dp)
         ) {
+            IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete transaction",
+                    tint = Color(0xFFE53935),
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
             Row(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 34.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(42.dp),
                     shape = CircleShape,
-                    color = BrandGreen.copy(alpha = 0.1f)
+                    color = BudgetGreen.copy(alpha = 0.1f)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = getDailyCategoryEmoji(transaction.category),
-                            fontSize = 22.sp
+                            text = if (isIncome) "💰" else getDailyCategoryEmoji(transaction.category),
+                            fontSize = 20.sp
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                Column {
-                    Text(
-                        text = transaction.category,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextBlack
-                    )
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = transaction.category.ifBlank { typeLabel },
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextBlack,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Surface(
+                            shape = CircleShape,
+                            color = amountColor.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = typeLabel,
+                                fontSize = 10.sp,
+                                color = amountColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
                     if (transaction.subCategory.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(5.dp))
                         Text(
                             text = transaction.subCategory,
                             fontSize = 12.sp,
-                            color = Color.Gray
+                            color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                    Text(
-                        text = transaction.paymentMethod,
-                        fontSize = 11.sp,
-                        color = Color.Gray
-                    )
-                }
-            }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "$amountPrefix${String.format("%.2f", transaction.amount)}",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = amountColor
-                )
-                if (transaction.note.isNotBlank()) {
                     Text(
-                        text = transaction.note.take(20),
+                        text = transaction.paymentMethod.ifBlank { "No payment method" },
                         fontSize = 11.sp,
-                        color = Color.Gray
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (transaction.note.isNotBlank()) {
+                        Text(
+                            text = transaction.note,
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (transaction.isRecurring) {
+                        Text(
+                            text = "Recurring transaction",
+                            fontSize = 11.sp,
+                            color = BudgetGreen,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (hasPhoto) {
+                        DailyTransactionPhotoThumb(
+                            photoPath = transaction.photoPath!!,
+                            onClick = { onPhotoClick(transaction.photoPath!!) }
+                        )
+                    }
+
+                    Text(
+                        text = "$amountPrefix${String.format("%.2f", transaction.amount)}",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = amountColor,
+                        maxLines = 1
                     )
                 }
             }
         }
     }
 }
+
+
+@Composable
+private fun DailyTransactionPhotoThumb(
+    photoPath: String,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val imageModel: Any? = remember(photoPath) {
+        when {
+            photoPath.startsWith("https://") || photoPath.startsWith("http://") -> photoPath
+            photoPath.startsWith("content://") -> Uri.parse(photoPath)
+            else -> {
+                val file = File(photoPath)
+                if (file.exists()) Uri.fromFile(file) else null
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, BudgetGreen.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageModel != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(imageModel)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Transaction photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = "Photo missing",
+                tint = Color.Gray.copy(alpha = 0.45f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
 
 fun getDailyCategoryEmoji(category: String): String {
     return when (category.lowercase()) {

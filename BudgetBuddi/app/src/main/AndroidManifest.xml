@@ -8,7 +8,7 @@
     <!-- Internet permission -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Optional: declare camera feature (not required, avoids crashes on devices without camera) -->
+    <!-- Optional camera feature so the app can install on devices without a camera -->
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -18,13 +18,13 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/bb_applogo2full_adaptive"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/bb_applogo2full_adaptive"
         android:supportsRtl="true"
         android:theme="@style/Theme.BudgetBuddi">
 
-        <!-- REQUIRED for camera file handling -->
+        <!-- Required for camera file handling -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
@@ -41,10 +41,12 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:screenOrientation="portrait"
             android:theme="@style/Theme.BudgetBuddi">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 

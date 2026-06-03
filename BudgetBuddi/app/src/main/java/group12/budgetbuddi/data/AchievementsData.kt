@@ -4,11 +4,9 @@ import group12.budgetbuddi.data.entity.AchievementEntity
 
 object AchievementsData {
 
-
     private const val BADGE_BASE_URL = "https://raygwqqsmrwtlaviqvei.supabase.co/storage/v1/object/public/achievement-badges/"
 
     val achievements = listOf(
-
         AchievementEntity(
             id = "first_expense",
             name = "First Drop",
@@ -59,8 +57,6 @@ object AchievementsData {
             criteriaType = "transaction_with_photo",
             criteriaValue = 1
         ),
-
-
         AchievementEntity(
             id = "streak_7",
             name = "Week Warrior",
@@ -111,8 +107,6 @@ object AchievementsData {
             criteriaType = "income_count",
             criteriaValue = 10
         ),
-
-
         AchievementEntity(
             id = "saver_1000",
             name = "Saver",
@@ -168,7 +162,6 @@ object AchievementsData {
 
     fun getAchievementById(id: String): AchievementEntity? = achievements.find { it.id == id }
 
-    // Calculate level based on XP
     fun calculateLevel(xp: Int): Int {
         return when {
             xp >= 6700 -> 15
@@ -211,19 +204,22 @@ object AchievementsData {
 
     fun getXpToNextLevel(currentXP: Int, currentLevel: Int): Int {
         val nextLevelXP = getXpRequiredForLevel(currentLevel + 1)
-        return if (nextLevelXP > 0) nextLevelXP - currentXP else 0
+
+        if (nextLevelXP <= 0) {
+            return 0
+        }
+
+        return (nextLevelXP - currentXP).coerceAtLeast(0)
     }
 
     fun getLevelProgress(currentXP: Int, currentLevel: Int): Float {
-        val currentLevelXP = getXpRequiredForLevel(currentLevel)
         val nextLevelXP = getXpRequiredForLevel(currentLevel + 1)
 
-        if (nextLevelXP == 0) return 1f
+        if (nextLevelXP <= 0) {
+            return 1f
+        }
 
-        val xpInCurrentLevel = currentXP - currentLevelXP
-        val xpNeededForNext = nextLevelXP - currentLevelXP
-
-        return if (xpNeededForNext > 0) xpInCurrentLevel.toFloat() / xpNeededForNext else 1f
+        return (currentXP.toFloat() / nextLevelXP.toFloat()).coerceIn(0f, 1f)
     }
 
     fun getLevelTitle(level: Int): String {

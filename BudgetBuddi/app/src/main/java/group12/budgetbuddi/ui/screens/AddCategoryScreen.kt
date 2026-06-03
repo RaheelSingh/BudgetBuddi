@@ -1,15 +1,15 @@
 package group12.budgetbuddi.ui.screens
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,6 +32,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val BudgetGreen = Color(0xFF139A43)
+private val ScreenBg = Color(0xFFE8F5E9)
+private val TextBlack = Color(0xFF17231D)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,21 +45,15 @@ fun AddCategoryScreen(
 ) {
     val scope = rememberCoroutineScope()
     val allCategories by categoryViewModel.allCategories.collectAsState()
-    val isSaving by categoryViewModel.isSaving.collectAsState()
-    var isNavigating by remember { mutableStateOf(false) }
 
-    var selectedCategoryType by remember {
-        mutableStateOf(
-            if (initialCategoryType == "income") "income" else "expense"
-        )
-    }
-
+    var selectedCategoryType by remember { mutableStateOf(if (initialCategoryType == "income") "income" else "expense") }
     var mainCategory by remember { mutableStateOf("") }
     var subCategory by remember { mutableStateOf("") }
     var visualType by remember { mutableStateOf("emoji") }
     var visualValue by remember { mutableStateOf("🍳") }
     var selectedColor by remember { mutableStateOf(colorFromHex("#139A43")) }
     var expanded by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     val outlineColor = colorToHex(selectedColor)
 
@@ -69,19 +66,12 @@ fun AddCategoryScreen(
             .sorted()
     }
 
-    val canAdd =
-        selectedCategoryType.isNotBlank() &&
-                mainCategory.isNotBlank() &&
-                subCategory.isNotBlank() &&
-                visualValue.isNotBlank()
+    val canSave = mainCategory.isNotBlank() && subCategory.isNotBlank() && visualValue.isNotBlank() && !isSaving
 
-    // Function to save and navigate
-    fun saveAndNavigate() {
-        if (isNavigating) return
-        isNavigating = true
-
+    fun saveCategory() {
+        if (!canSave) return
+        isSaving = true
         scope.launch {
-            // Save the category
             categoryViewModel.addCategory(
                 categoryType = selectedCategoryType,
                 mainCategory = mainCategory,
@@ -90,11 +80,7 @@ fun AddCategoryScreen(
                 visualValue = visualValue,
                 outlineColor = outlineColor
             )
-
-            // Wait for the operation to complete (500ms is enough for Firestore and achievement)
-            delay(800)
-
-            // Navigate back
+            delay(650)
             navController.popBackStack()
         }
     }
@@ -107,351 +93,201 @@ fun AddCategoryScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .background(ScreenBg)
         ) {
-            Row(
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                color = BudgetGreen,
+                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
             ) {
-                TextButton(
-                    onClick = { navController.popBackStack() },
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text(
-                        text = "<",
-                        color = BudgetGreen,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Text(
-                    text = "New Category",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                IconButton(
-                    onClick = { saveAndNavigate() },
-                    enabled = canAdd && !isNavigating
-                ) {
-                    if (isNavigating) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = BudgetGreen,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Save Category",
-                            tint = BudgetGreen
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Image(
-                painter = painterResource(id = R.drawable.category_bubu),
-                contentDescription = "Category Image",
-                modifier = Modifier
-                    .size(95.dp)
-                    .align(Alignment.CenterHorizontally)
-            )
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            TabRow(
-                selectedTabIndex = if (selectedCategoryType == "expense") 0 else 1,
-                containerColor = Color.White,
-                contentColor = BudgetGreen
-            ) {
-                Tab(
-                    selected = selectedCategoryType == "expense",
-                    onClick = {
-                        selectedCategoryType = "expense"
-                        mainCategory = ""
-                        subCategory = ""
-                    },
-                    text = { Text("Expense") }
-                )
-
-                Tab(
-                    selected = selectedCategoryType == "income",
-                    onClick = {
-                        selectedCategoryType = "income"
-                        mainCategory = ""
-                        subCategory = ""
-                    },
-                    text = { Text("Income") }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = mainCategory,
-                    onValueChange = { mainCategory = it },
-                    label = { Text("Main Category") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BudgetGreen,
-                        unfocusedBorderColor = BudgetGreen,
-                        focusedLabelColor = BudgetGreen,
-                        cursorColor = BudgetGreen
-                    ),
+                Row(
                     modifier = Modifier
-                        .menuAnchor(
-                            type = ExposedDropdownMenuAnchorType.PrimaryEditable,
-                            enabled = true
-                        )
                         .fillMaxWidth()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                        .padding(horizontal = 18.dp, vertical = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Add new category...") },
-                        onClick = {
-                            mainCategory = ""
-                            expanded = false
-                        }
-                    )
-
-                    filteredMainCategories.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category) },
-                            onClick = {
-                                mainCategory = category
-                                expanded = false
-                            }
-                        )
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                     }
+                    Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("New Category", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Create your own budget category", fontSize = 13.sp, color = Color.White.copy(alpha = 0.82f))
+                    }
+
+                    Spacer(modifier = Modifier.width(48.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = subCategory,
-                onValueChange = { subCategory = it },
-                label = { Text("Sub Category Type") },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = BudgetGreen,
-                    unfocusedBorderColor = BudgetGreen,
-                    focusedLabelColor = BudgetGreen,
-                    cursorColor = BudgetGreen
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            HorizontalDivider(color = BudgetGreen, thickness = 2.dp)
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Appearance",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = BudgetGreen
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CategoryVisualPreview(
-                    visualType = visualType,
-                    visualValue = visualValue,
-                    outlineColor = outlineColor,
-                    modifier = Modifier.size(52.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.category_bubu),
+                    contentDescription = "Category Image",
+                    modifier = Modifier.size(92.dp)
                 )
 
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                AnimatedVisualTypeToggle(
-                    selectedType = visualType,
-                    onSelected = { newType ->
-                        visualType = newType
-                        visualValue = if (newType == "emoji") "🍳" else "restaurant"
+                CategoryTypeSliderAdd(
+                    selectedCategoryType = selectedCategoryType,
+                    onSelected = {
+                        selectedCategoryType = it
+                        mainCategory = ""
+                        subCategory = ""
                     }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Category details", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextBlack)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                            OutlinedTextField(
+                                value = mainCategory,
+                                onValueChange = { mainCategory = it },
+                                label = { Text("Main Category") },
+                                placeholder = { Text("e.g. Food, Transport, Salary") },
+                                singleLine = true,
+                                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BudgetGreen, unfocusedBorderColor = BudgetGreen.copy(alpha = 0.55f), focusedLabelColor = BudgetGreen, cursorColor = BudgetGreen),
+                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true).fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                                DropdownMenuItem(text = { Text("Add new category...") }, onClick = { mainCategory = ""; expanded = false })
+                                filteredMainCategories.forEach { category ->
+                                    DropdownMenuItem(text = { Text(category) }, onClick = { mainCategory = category; expanded = false })
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        OutlinedTextField(
+                            value = subCategory,
+                            onValueChange = { subCategory = it },
+                            label = { Text("Subcategory") },
+                            placeholder = { Text("e.g. Fuel, Lunch, Monthly Salary") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BudgetGreen, unfocusedBorderColor = BudgetGreen.copy(alpha = 0.55f), focusedLabelColor = BudgetGreen, cursorColor = BudgetGreen),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Appearance", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextBlack)
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CategoryVisualPreview(visualType = visualType, visualValue = visualValue, outlineColor = outlineColor, modifier = Modifier.size(62.dp))
+                            Spacer(modifier = Modifier.width(16.dp))
+                            CategoryVisualTypeSlider(selectedType = visualType, onSelected = { newType ->
+                                visualType = newType
+                                visualValue = if (newType == "emoji") "🍳" else "restaurant"
+                            })
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Text(if (visualType == "emoji") "Choose Emoji" else "Choose Icon", fontWeight = FontWeight.SemiBold, color = TextBlack)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (visualType == "emoji") {
+                            EmojiPicker(selectedEmoji = visualValue, onEmojiSelected = { visualValue = it })
+                        } else {
+                            IconPicker(selectedIconKey = visualValue, onIconSelected = { visualValue = it })
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Text("Outline Colour", fontWeight = FontWeight.SemiBold, color = TextBlack)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            SimpleColorWheel(selectedColor = selectedColor, onColorSelected = { selectedColor = it })
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Button(
+                    onClick = { saveCategory() },
+                    enabled = canSave,
+                    colors = ButtonDefaults.buttonColors(containerColor = BudgetGreen, disabledContainerColor = Color.LightGray),
+                    shape = RoundedCornerShape(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) {
+                    Text("Add Category", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            if (visualType == "emoji") {
-                Text(
-                    text = "Choose Emoji",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                EmojiPicker(
-                    selectedEmoji = visualValue,
-                    onEmojiSelected = { visualValue = it }
-                )
-            } else {
-                Text(
-                    text = "Choose Icon",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = Color.Gray
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                IconPicker(
-                    selectedIconKey = visualValue,
-                    onIconSelected = { visualValue = it }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "Outline Colour",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
+@Composable
+private fun CategoryTypeSliderAdd(selectedCategoryType: String, onSelected: (String) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50.dp))
+            .background(Color.White)
+            .padding(4.dp)
+    ) {
+        listOf("expense" to "Expense", "income" to "Income").forEach { (value, label) ->
             Box(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(if (selectedCategoryType == value) BudgetGreen else Color.Transparent)
+                    .clickable { onSelected(value) }
+                    .padding(vertical = 11.dp),
                 contentAlignment = Alignment.Center
             ) {
-                SimpleColorWheel(
-                    selectedColor = selectedColor,
-                    onColorSelected = { selectedColor = it }
-                )
+                Text(label, color = if (selectedCategoryType == value) Color.White else Color.Gray, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            OutlinedButton(
-                onClick = { saveAndNavigate() },
-                enabled = canAdd && !isNavigating,
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = BudgetGreen
-                ),
-                border = ButtonDefaults.outlinedButtonBorder(
-                    enabled = canAdd && !isNavigating
-                ).copy(
-                    brush = SolidColor(BudgetGreen)
-                ),
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .width(150.dp)
-            ) {
-                if (isNavigating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = BudgetGreen,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Add")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun AnimatedVisualTypeToggle(
-    selectedType: String,
-    onSelected: (String) -> Unit
-) {
-    val toggleWidth = 184.dp
-    val optionWidth = 92.dp
-
-    val indicatorOffset by animateDpAsState(
-        targetValue = if (selectedType == "emoji") 0.dp else optionWidth,
-        label = "visualToggleSlide"
-    )
-
-    Box(
+private fun CategoryVisualTypeSlider(selectedType: String, onSelected: (String) -> Unit) {
+    Row(
         modifier = Modifier
-            .width(toggleWidth)
-            .height(40.dp)
-            .clip(RoundedCornerShape(50))
+            .width(190.dp)
+            .clip(RoundedCornerShape(50.dp))
             .background(Color(0xFFE0E0E0))
-            .padding(3.dp)
+            .padding(4.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .offset(x = indicatorOffset)
-                .width(optionWidth - 6.dp)
-                .fillMaxHeight()
-                .clip(RoundedCornerShape(50))
-                .background(BudgetGreen)
-        )
-
-        Row(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            ToggleOption(
-                text = "Emoji",
-                selected = selectedType == "emoji",
-                modifier = Modifier.weight(1f),
-                onClick = { onSelected("emoji") }
-            )
-
-            ToggleOption(
-                text = "Icon",
-                selected = selectedType == "icon",
-                modifier = Modifier.weight(1f),
-                onClick = { onSelected("icon") }
-            )
+        listOf("emoji" to "Emoji", "icon" to "Icon").forEach { (value, label) ->
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(if (selectedType == value) BudgetGreen else Color.Transparent)
+                    .clickable { onSelected(value) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(label, color = if (selectedType == value) Color.White else Color.Gray, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
         }
-    }
-}
-
-@Composable
-private fun ToggleOption(
-    text: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .clip(RoundedCornerShape(50))
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            color = if (selected) Color.White else Color.Gray,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp
-        )
     }
 }

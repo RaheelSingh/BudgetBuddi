@@ -1,8 +1,10 @@
 package group12.budgetbuddi.ui.screens
 
-import android.widget.Toast
-import androidx.compose.animation.core.*
+import android.net.Uri
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,46 +12,73 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Wallet
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import group12.budgetbuddi.data.entity.ExpenseEntity
 import group12.budgetbuddi.ui.components.AppScaffold
-import group12.budgetbuddi.ui.theme.BrandGreen
+import group12.budgetbuddi.ui.theme.BrandGreenDark as BudgetGreen
 import group12.budgetbuddi.ui.theme.TextBlack
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.ExpenseViewModel
+import java.io.File
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
-import java.util.*
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.platform.LocalLocale
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
-// Light green background
-val LightGreenBg = Color(0xFFE8F5E9)
-
-// Accent colors for categories
-val AccentOrange = Color(0xFFFF9800)
-val AccentBlue = Color(0xFF2196F3)
-val AccentPurple = Color(0xFF9C27B0)
-val AccentPink = Color(0xFFE91E63)
-val AccentTeal = Color(0xFF009688)
-val ExpenseRed = Color(0xFFE53935)
+private val LightGreenBg = Color(0xFFE8F5E9)
+private val ExpenseRed = Color(0xFFE53935)
+private val IncomeGreen = Color(0xFF2E7D32)
+private val SoftBorder = Color(0xFFE0EDE8)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,455 +88,332 @@ fun ExpenseListScreen(
     expenseViewModel: ExpenseViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val allExpenses by expenseViewModel.allExpenses.collectAsState()
+    val allTransactions by expenseViewModel.allExpenses.collectAsState()
 
-    val expensesOnly = remember(allExpenses) {
-        allExpenses.filter { it.type == "expense" }
-    }
-
-    var startDate by remember { mutableStateOf<Date?>(null) }
-    var endDate by remember { mutableStateOf<Date?>(null) }
+    var startDateString by remember { mutableStateOf<String?>(null) }
+    var endDateString by remember { mutableStateOf<String?>(null) }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
-    var expandedCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
-
-    // State for delete confirmation dialog
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var expenseToDelete by remember { mutableStateOf<ExpenseEntity?>(null) }
+    var transactionToDelete by remember { mutableStateOf<ExpenseEntity?>(null) }
 
-    val filteredExpenses = remember(expensesOnly, startDate, endDate) {
-        var filtered = expensesOnly
-        startDate?.let { start ->
-            filtered = filtered.filter { expense ->
-                try {
-                    val expenseDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expense.date)
-                    expenseDate != null && expenseDate >= start
-                } catch (e: Exception) { false }
+    val displayDateFormat = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+
+    val filteredTransactions = remember(allTransactions, startDateString, endDateString) {
+        allTransactions
+            .filter { transaction ->
+                val date = transaction.date
+                val afterStart = startDateString?.let { date >= it } ?: true
+                val beforeEnd = endDateString?.let { date <= it } ?: true
+                afterStart && beforeEnd
             }
-        }
-        endDate?.let { end ->
-            filtered = filtered.filter { expense ->
-                try {
-                    val expenseDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(expense.date)
-                    expenseDate != null && expenseDate <= end
-                } catch (e: Exception) { false }
-            }
-        }
-        filtered
+            .sortedWith(
+                compareByDescending<ExpenseEntity> { it.date }
+                    .thenByDescending { it.createdAt }
+            )
     }
 
-    val groupedExpenses = remember(filteredExpenses) {
-        filteredExpenses.groupBy { it.category }
-            .map { (category, expenses) ->
-                category to expenses.sortedByDescending { it.date }
-            }
-            .sortedBy { it.first }
+    val groupedByDate = remember(filteredTransactions) {
+        filteredTransactions
+            .groupBy { it.date }
+            .toSortedMap(compareByDescending { it })
+            .map { it.key to it.value }
     }
 
-    val totalExpenses = remember(filteredExpenses) {
-        filteredExpenses.sumOf { it.amount }
+    val totalExpenses = remember(filteredTransactions) {
+        filteredTransactions
+            .filter { it.type.equals("expense", ignoreCase = true) }
+            .sumOf { it.amount }
     }
 
-    val dateDisplayFormat = SimpleDateFormat("MMM dd, yyyy", LocalLocale.current.platformLocale)
-
-    fun toggleCategory(category: String) {
-        expandedCategories = if (expandedCategories.contains(category)) {
-            expandedCategories - category
-        } else {
-            expandedCategories + category
-        }
+    val totalIncome = remember(filteredTransactions) {
+        filteredTransactions
+            .filter { it.type.equals("income", ignoreCase = true) }
+            .sumOf { it.amount }
     }
+
+    val netTotal = totalIncome - totalExpenses
 
     var contentVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { contentVisible = true }
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (contentVisible) 1f else 0f,
-        animationSpec = tween(500),
+        animationSpec = tween(350),
         label = "contentAlpha"
     )
+
+    fun clearFilters() {
+        startDateString = null
+        endDateString = null
+    }
 
     AppScaffold(
         navController = navController,
         selectedRoute = "expense_list",
         authViewModel = authViewModel
     ) { modifier ->
-
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .background(LightGreenBg)
                 .graphicsLayer(alpha = contentAlpha)
         ) {
-            // Header
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(8.dp, RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp), clip = false)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
+                color = BudgetGreen
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp),
-                    color = BrandGreen
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 28.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        BrandGreen,
-                                        Color(0xFF0D8B5E),
-                                        Color(0xFF139A43),
-                                        Color(0xFF1EAB5A)
-                                    )
-                                )
-                            )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 28.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Column {
-                                    Text(
-                                        text = "Expense List",
-                                        fontSize = 28.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White
-                                    )
-                                    Text(
-                                        text = "Track all your spending",
-                                        fontSize = 14.sp,
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                                Surface(
-                                    modifier = Modifier
-                                        .size(50.dp)
-                                        .shadow(8.dp, CircleShape),
-                                    shape = CircleShape,
-                                    color = Color.White.copy(alpha = 0.2f)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.ReceiptLong,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Transaction List",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Expenses and income, grouped by date",
+                            fontSize = 14.sp,
+                            color = Color.White.copy(alpha = 0.82f),
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
                 }
             }
 
-            // Stats and Filter Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .shadow(4.dp, RoundedCornerShape(20.dp)),
+                    .padding(16.dp),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(3.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = "Total Expenses",
-                                fontSize = 14.sp,
-                                color = Color.Gray
-                            )
-                            Text(
-                                text = "R${String.format("%.2f", totalExpenses)}",
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = ExpenseRed
-                            )
-                        }
-                        FilterChip(
-                            onClick = { showStartDatePicker = true },
-                            label = {
-                                Text(
-                                    if (startDate != null || endDate != null) "Filter Active" else "Set Date Range",
-                                    fontSize = 12.sp
-                                )
-                            },
-                            selected = startDate != null || endDate != null,
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.DateRange,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = BrandGreen.copy(alpha = 0.1f),
-                                selectedLabelColor = BrandGreen
-                            ),
-                            modifier = Modifier
-                                .height(40.dp)
-                                .clip(RoundedCornerShape(50.dp))
+                        TransactionTotalCard(
+                            label = "Income",
+                            amount = totalIncome,
+                            iconColor = IncomeGreen,
+                            icon = Icons.Default.TrendingUp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TransactionTotalCard(
+                            label = "Expenses",
+                            amount = totalExpenses,
+                            iconColor = ExpenseRed,
+                            icon = Icons.Default.TrendingDown,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TransactionTotalCard(
+                            label = "Net",
+                            amount = netTotal,
+                            iconColor = if (netTotal >= 0) IncomeGreen else ExpenseRed,
+                            icon = Icons.Default.Wallet,
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                    if (startDate != null || endDate != null) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = BrandGreen.copy(alpha = 0.05f))
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { showStartDatePicker = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp)
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = BrandGreen, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "From: ${startDate?.let { dateDisplayFormat.format(it) } ?: "Any"}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                        Icon(Icons.Default.CalendarToday, contentDescription = null, tint = BrandGreen, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(text = "To: ${endDate?.let { dateDisplayFormat.format(it) } ?: "Any"}", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                                    }
-                                    IconButton(onClick = { startDate = null; endDate = null }, modifier = Modifier.size(28.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray, modifier = Modifier.size(16.dp))
-                                    }
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = startDateString?.let { formatTransactionDate(it) } ?: "Start date",
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = { showEndDatePicker = true },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(14.dp)
+                        ) {
+                            Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = endDateString?.let { formatTransactionDate(it) } ?: "End date",
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    if (startDateString != null || endDateString != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = true,
+                                onClick = {},
+                                label = {
+                                    Text(
+                                        text = "${startDateString?.let { formatTransactionDate(it) } ?: "Any"} - ${endDateString?.let { formatTransactionDate(it) } ?: "Any"}",
+                                        fontSize = 12.sp
+                                    )
                                 }
+                            )
+
+                            TextButton(onClick = { clearFilters() }) {
+                                Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Clear", color = BudgetGreen)
                             }
                         }
                     }
                 }
             }
 
-            // Expense List
-            if (groupedExpenses.isEmpty()) {
+            if (filteredTransactions.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Surface(modifier = Modifier.size(120.dp), shape = CircleShape, color = BrandGreen.copy(alpha = 0.1f)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.ReceiptLong, contentDescription = null, tint = BrandGreen, modifier = Modifier.size(60.dp))
-                            }
-                        }
-                        Text(text = "No Expenses Found", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextBlack)
-                        Text(
-                            text = if (startDate != null || endDate != null) "No expenses in this date range" else "Add your first expense to get started",
-                            fontSize = 14.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 32.dp),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.ReceiptLong,
+                            contentDescription = null,
+                            tint = Color.Gray.copy(alpha = 0.45f),
+                            modifier = Modifier.size(70.dp)
                         )
-                        if (startDate != null || endDate != null) {
-                            OutlinedButton(onClick = { startDate = null; endDate = null }, colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandGreen), shape = RoundedCornerShape(50.dp)) {
-                                Icon(Icons.Default.Clear, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Clear Filters")
-                            }
-                        } else {
-                            Button(onClick = { navController.navigate("add_transaction") }, colors = ButtonDefaults.buttonColors(containerColor = BrandGreen), shape = RoundedCornerShape(50.dp)) {
-                                Icon(Icons.Default.Add, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Add Expense")
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = "No transactions found",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextBlack
+                        )
+                        Text(
+                            text = "Try clearing the date filter or adding a transaction.",
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(groupedExpenses) { (category, expenses) ->
-                        val isExpanded = expandedCategories.contains(category)
-                        val categoryTotal = expenses.sumOf { it.amount }
-                        val categoryColor = getCategoryColor(category)
-                        val firstExpensePhoto = expenses.firstOrNull()?.photoPath
+                    groupedByDate.forEach { (date, transactionsForDate) ->
+                        item(key = "header_$date") {
+                            TransactionDateHeader(
+                                date = date,
+                                transactions = transactionsForDate
+                            )
+                        }
 
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .shadow(2.dp, RoundedCornerShape(16.dp)),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White)
-                        ) {
-                            Column {
-                                // Category Header
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { toggleCategory(category) }
-                                        .background(categoryColor.copy(alpha = 0.05f))
-                                        .padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Surface(
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .clip(CircleShape)
-                                                .then(
-                                                    if (!firstExpensePhoto.isNullOrBlank()) {
-                                                        Modifier.clickable {
-                                                            val encodedPath = URLEncoder.encode(firstExpensePhoto, "UTF-8")
-                                                            navController.navigate("photo_viewer/$encodedPath")
-                                                        }
-                                                    } else Modifier
-                                                ),
-                                            shape = CircleShape,
-                                            color = categoryColor.copy(alpha = 0.15f)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                if (!firstExpensePhoto.isNullOrBlank()) {
-                                                    AsyncImage(
-                                                        model = firstExpensePhoto,
-                                                        contentDescription = category,
-                                                        modifier = Modifier.fillMaxSize().clip(CircleShape),
-                                                        contentScale = ContentScale.Crop,
-                                                        error = painterResource(id = android.R.drawable.ic_menu_gallery)
-                                                    )
-                                                } else {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Image,
-                                                        contentDescription = "No photo",
-                                                        tint = categoryColor,
-                                                        modifier = Modifier.size(28.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.width(14.dp))
-                                        Column {
-                                            Text(text = category, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextBlack)
-                                            Text(text = "${expenses.size} transaction${if (expenses.size != 1) "s" else ""}", fontSize = 12.sp, color = Color.Gray)
-                                        }
-                                    }
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(text = "R${String.format("%.2f", categoryTotal)}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = categoryColor)
-                                        Icon(
-                                            if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                            contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                            tint = categoryColor,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
+                        items(
+                            items = transactionsForDate,
+                            key = { it.id.ifBlank { "${it.date}_${it.createdAt}_${it.amount}" } }
+                        ) { transaction ->
+                            TransactionListItem(
+                                transaction = transaction,
+                                onClick = {},
+                                onPhotoClick = { photoPath ->
+                                    val encodedPath = URLEncoder.encode(photoPath, "UTF-8")
+                                    navController.navigate("photo_viewer/$encodedPath")
+                                },
+                                onDeleteClick = {
+                                    transactionToDelete = transaction
+                                    showDeleteDialog = true
                                 }
-
-                                // Expanded Expenses List with delete button
-                                if (isExpanded) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(Color.White)
-                                            .padding(bottom = 8.dp)
-                                    ) {
-                                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.2f))
-                                        expenses.forEachIndexed { index, expense ->
-                                            ColorfulExpenseListItem(
-                                                expense = expense,
-                                                onClick = {
-                                                    Toast.makeText(context, "${expense.category}: R${expense.amount}", Toast.LENGTH_SHORT).show()
-                                                },
-                                                onPhotoClick = { photoPath ->
-                                                    val encodedPath = URLEncoder.encode(photoPath, "UTF-8")
-                                                    navController.navigate("photo_viewer/$encodedPath")
-                                                },
-                                                onDeleteClick = {
-                                                    expenseToDelete = expense
-                                                    showDeleteDialog = true
-                                                }
-                                            )
-                                            if (index < expenses.size - 1) {
-                                                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.LightGray.copy(alpha = 0.15f))
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            )
                         }
                     }
-                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
             }
         }
     }
 
-    // Date picker dialogs
     if (showStartDatePicker) {
-        DatePickerDialog(
+        TransactionDatePickerDialog(
             title = "Select Start Date",
             onDateSelected = { date ->
-                startDate = date
+                startDateString = date
+                if (endDateString != null && endDateString!! < date) {
+                    endDateString = null
+                }
                 showStartDatePicker = false
-                showEndDatePicker = true
             },
             onDismiss = { showStartDatePicker = false }
         )
     }
+
     if (showEndDatePicker) {
-        DatePickerDialog(
+        TransactionDatePickerDialog(
             title = "Select End Date",
             onDateSelected = { date ->
-                endDate = date
+                if (startDateString != null && date < startDateString!!) {
+                    startDateString = date
+                    endDateString = date
+                } else {
+                    endDateString = date
+                }
                 showEndDatePicker = false
-                Toast.makeText(context, "Filter applied: ${dateDisplayFormat.format(startDate)} - ${dateDisplayFormat.format(date)}", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { showEndDatePicker = false }
         )
     }
 
-    // Delete confirmation dialog
-    if (showDeleteDialog && expenseToDelete != null) {
+    if (showDeleteDialog && transactionToDelete != null) {
+        val transaction = transactionToDelete!!
+        val typeLabel = if (transaction.type.equals("income", ignoreCase = true)) "income" else "expense"
+
         AlertDialog(
             onDismissRequest = {
                 showDeleteDialog = false
-                expenseToDelete = null
+                transactionToDelete = null
             },
-            title = { Text("Delete Expense") },
-            text = { Text("Are you sure you want to delete this expense?") },
+            title = { Text("Delete Transaction") },
+            text = {
+                Text("Are you sure you want to delete this $typeLabel transaction?")
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        expenseToDelete?.let { expenseViewModel.deleteExpense(it) }
+                        expenseViewModel.deleteExpense(transaction)
                         showDeleteDialog = false
-                        expenseToDelete = null
-                        Toast.makeText(context, "Expense deleted", Toast.LENGTH_SHORT).show()
+                        transactionToDelete = null
                     }
                 ) {
                     Text("Delete", color = ExpenseRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                    expenseToDelete = null
-                }) {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        transactionToDelete = null
+                    }
+                ) {
                     Text("Cancel")
                 }
             }
@@ -516,141 +422,556 @@ fun ExpenseListScreen(
 }
 
 @Composable
-fun ColorfulExpenseListItem(
-    expense: ExpenseEntity,
-    onClick: () -> Unit,
-    onPhotoClick: (String) -> Unit,
-    onDeleteClick: () -> Unit
+private fun TransactionTotalCard(
+    label: String,
+    amount: Double,
+    iconColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier
 ) {
-    val categoryColor = getCategoryColor(expense.category)
-    val hasPhoto = !expense.photoPath.isNullOrBlank()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = iconColor.copy(alpha = 0.08f)),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Thumbnail (photo or emoji) - clickable
-            Surface(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .then(if (hasPhoto) Modifier.clickable { onPhotoClick(expense.photoPath!!) } else Modifier),
-                shape = CircleShape,
-                color = categoryColor.copy(alpha = 0.15f)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    if (hasPhoto) {
-                        AsyncImage(
-                            model = expense.photoPath,
-                            contentDescription = expense.category,
-                            modifier = Modifier.fillMaxSize().clip(CircleShape),
-                            contentScale = ContentScale.Crop,
-                            error = painterResource(id = android.R.drawable.ic_menu_gallery)
-                        )
-                    } else {
-                        Text(text = getExpenseCategoryEmoji(expense.category), fontSize = 20.sp)
-                    }
-                }
-            }
-
-            // Expense details (clickable for details)
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { onClick() }
-            ) {
-                Text(
-                    text = expense.subCategory.ifBlank { expense.category },
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = TextBlack
-                )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = formatExpenseDate(expense.date), fontSize = 11.sp, color = Color.Gray)
-                    if (expense.paymentMethod.isNotBlank()) Text(text = "• ${expense.paymentMethod}", fontSize = 11.sp, color = Color.Gray)
-                    if (expense.note.isNotBlank()) Text(text = "• ${expense.note.take(15)}", fontSize = 11.sp, color = Color.Gray)
-                }
-            }
-        }
-
-        // Delete button
-        IconButton(
-            onClick = onDeleteClick,
-            modifier = Modifier.size(36.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete",
-                tint = ExpenseRed,
-                modifier = Modifier.size(20.dp)
+                icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                label,
+                fontSize = 9.sp,
+                color = Color.Gray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (label == "Net" && amount < 0) "-R${String.format("%.0f", kotlin.math.abs(amount))}" else "R${String.format("%.0f", kotlin.math.abs(amount))}",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = iconColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
-
-        // Amount
-        Text(
-            text = "-R${String.format("%.2f", expense.amount)}",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
-            color = ExpenseRed,
-            modifier = Modifier.padding(start = 8.dp)
-        )
     }
 }
 
 @Composable
-fun DatePickerDialog(title: String, onDateSelected: (Date) -> Unit, onDismiss: () -> Unit) {
-    val datePickerState = rememberDatePickerState()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title, fontWeight = FontWeight.Bold) },
-        text = { Column { DatePicker(state = datePickerState, showModeToggle = false) } },
-        confirmButton = {
-            TextButton(onClick = { datePickerState.selectedDateMillis?.let { onDateSelected(Date(it)) } }) {
-                Text("OK", color = BrandGreen, fontWeight = FontWeight.Bold)
+private fun TransactionDateHeader(
+    date: String,
+    transactions: List<ExpenseEntity>
+) {
+    val expensesTotal = transactions
+        .filter { it.type.equals("expense", ignoreCase = true) }
+        .sumOf { it.amount }
+
+    val incomeTotal = transactions
+        .filter { it.type.equals("income", ignoreCase = true) }
+        .sumOf { it.amount }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            Column {
+                Text(
+                    text = formatTransactionDateLong(date),
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextBlack
+                )
+                Text(
+                    text = "${transactions.size} transaction${if (transactions.size == 1) "" else "s"}",
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
             }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Color.Gray) } }
-    )
+
+            Column(horizontalAlignment = Alignment.End) {
+                if (incomeTotal > 0) {
+                    Text(
+                        text = "+R${String.format("%.2f", incomeTotal)}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = IncomeGreen
+                    )
+                }
+                if (expensesTotal > 0) {
+                    Text(
+                        text = "-R${String.format("%.2f", expensesTotal)}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ExpenseRed
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider(color = BudgetGreen.copy(alpha = 0.18f))
+    }
 }
 
-fun getCategoryColor(category: String): Color = when (category.lowercase()) {
-    "food", "groceries", "restaurant" -> AccentOrange
-    "transport", "car", "fuel" -> AccentBlue
-    "shopping", "clothing" -> AccentPurple
-    "entertainment", "movies" -> AccentPink
-    "bills", "utilities" -> Color(0xFF607D8B)
-    "health", "medical" -> Color(0xFF4CAF50)
-    "education" -> AccentTeal
-    else -> BrandGreen
+@Composable
+private fun TransactionListItem(
+    transaction: ExpenseEntity,
+    onClick: () -> Unit,
+    onPhotoClick: (String) -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    val isIncome = transaction.type.equals("income", ignoreCase = true)
+    val amountColor = if (isIncome) IncomeGreen else ExpenseRed
+    val amountPrefix = if (isIncome) "+R" else "-R"
+    val typeLabel = if (isIncome) "Income" else "Expense"
+    val categoryColor = getTransactionCategoryColor(transaction.category, isIncome)
+    val hasPhoto = !transaction.photoPath.isNullOrBlank()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SoftBorder),
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            IconButton(
+                onClick = onDeleteClick,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete",
+                    tint = ExpenseRed,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 34.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(42.dp),
+                    shape = CircleShape,
+                    color = categoryColor.copy(alpha = 0.13f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = if (isIncome) "💰" else getTransactionCategoryEmoji(transaction.category),
+                            fontSize = 20.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = transaction.category.ifBlank { typeLabel },
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextBlack,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Surface(
+                            shape = CircleShape,
+                            color = amountColor.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = typeLabel,
+                                fontSize = 10.sp,
+                                color = amountColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    if (transaction.subCategory.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Text(
+                            text = transaction.subCategory,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Text(
+                        text = transaction.paymentMethod.ifBlank { "No payment method" },
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (transaction.note.isNotBlank()) {
+                        Text(
+                            text = transaction.note,
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (transaction.isRecurring) {
+                        Text(
+                            text = "Recurring transaction",
+                            fontSize = 11.sp,
+                            color = BudgetGreen,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (hasPhoto) {
+                        TransactionPhotoThumb(
+                            photoPath = transaction.photoPath!!,
+                            onClick = { onPhotoClick(transaction.photoPath!!) }
+                        )
+                    }
+
+                    Text(
+                        text = "$amountPrefix${String.format("%.2f", transaction.amount)}",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = amountColor,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
 }
 
-fun getExpenseCategoryEmoji(category: String): String = when (category.lowercase()) {
-    "food", "groceries", "restaurant" -> "🍔"
-    "transport", "car", "fuel" -> "🚗"
-    "shopping", "clothing" -> "🛍️"
-    "entertainment", "movies" -> "🎬"
-    "bills", "utilities" -> "📄"
-    "health", "medical" -> "🏥"
-    "education" -> "📚"
-    "housing", "rent" -> "🏠"
-    "travel" -> "✈️"
-    else -> "💸"
+
+@Composable
+private fun TransactionPhotoThumb(
+    photoPath: String,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val imageModel: Any? = remember(photoPath) {
+        when {
+            photoPath.startsWith("https://") || photoPath.startsWith("http://") -> photoPath
+            photoPath.startsWith("content://") -> Uri.parse(photoPath)
+            else -> {
+                val file = File(photoPath)
+                if (file.exists()) Uri.fromFile(file) else null
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.dp, SoftBorder, RoundedCornerShape(10.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageModel != null) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(imageModel)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = "Transaction photo",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Image,
+                contentDescription = "Photo missing",
+                tint = Color.Gray.copy(alpha = 0.45f),
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
 }
 
-fun formatExpenseDate(dateString: String): String = try {
-    val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val outputFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    val date = inputFormat.parse(dateString)
-    outputFormat.format(date ?: Date())
-} catch (e: Exception) { dateString }
+@Composable
+private fun TransactionDatePickerDialog(
+    title: String,
+    onDateSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val outputFormat = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()) }
+    val monthTitleFormat = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()) }
+    val today = remember { Calendar.getInstance() }
+    var visibleMonth by remember {
+        mutableStateOf(
+            Calendar.getInstance().apply {
+                set(Calendar.DAY_OF_MONTH, 1)
+            }
+        )
+    }
+    var selectedDate by remember { mutableStateOf<Calendar?>(null) }
+
+    val daysInMonth = visibleMonth.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val firstDayOffset = remember(visibleMonth.timeInMillis) {
+        val first = visibleMonth.clone() as Calendar
+        first.set(Calendar.DAY_OF_MONTH, 1)
+        first.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.94f),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextBlack
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = monthTitleFormat.format(visibleMonth.time),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextBlack
+                    )
+                    Row {
+                        IconButton(
+                            onClick = {
+                                visibleMonth = (visibleMonth.clone() as Calendar).apply {
+                                    add(Calendar.MONTH, -1)
+                                    set(Calendar.DAY_OF_MONTH, 1)
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.ChevronLeft, contentDescription = "Previous month", tint = BudgetGreen)
+                        }
+                        IconButton(
+                            onClick = {
+                                visibleMonth = (visibleMonth.clone() as Calendar).apply {
+                                    add(Calendar.MONTH, 1)
+                                    set(Calendar.DAY_OF_MONTH, 1)
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Next month", tint = BudgetGreen)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    listOf("S", "M", "T", "W", "T", "F", "S").forEach { day ->
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = day,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                val totalCells = firstDayOffset + daysInMonth
+                val rowCount = ((totalCells + 6) / 7)
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (row in 0 until rowCount) {
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            for (col in 0..6) {
+                                val cellIndex = row * 7 + col
+                                val dayNumber = cellIndex - firstDayOffset + 1
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(38.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (dayNumber in 1..daysInMonth) {
+                                        val cellDate = (visibleMonth.clone() as Calendar).apply {
+                                            set(Calendar.DAY_OF_MONTH, dayNumber)
+                                        }
+                                        val isSelected = selectedDate?.let {
+                                            it.get(Calendar.YEAR) == cellDate.get(Calendar.YEAR) &&
+                                                    it.get(Calendar.MONTH) == cellDate.get(Calendar.MONTH) &&
+                                                    it.get(Calendar.DAY_OF_MONTH) == cellDate.get(Calendar.DAY_OF_MONTH)
+                                        } ?: false
+                                        val isToday = today.get(Calendar.YEAR) == cellDate.get(Calendar.YEAR) &&
+                                                today.get(Calendar.MONTH) == cellDate.get(Calendar.MONTH) &&
+                                                today.get(Calendar.DAY_OF_MONTH) == cellDate.get(Calendar.DAY_OF_MONTH)
+
+                                        Box(
+                                            modifier = Modifier
+                                                .size(34.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    when {
+                                                        isSelected -> BudgetGreen
+                                                        isToday -> BudgetGreen.copy(alpha = 0.12f)
+                                                        else -> Color.Transparent
+                                                    }
+                                                )
+                                                .clickable { selectedDate = cellDate },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = dayNumber.toString(),
+                                                fontSize = 14.sp,
+                                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) Color.White else TextBlack
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Button(
+                        onClick = {
+                            selectedDate?.let { onDateSelected(outputFormat.format(it.time)) }
+                        },
+                        enabled = selectedDate != null,
+                        colors = ButtonDefaults.buttonColors(containerColor = BudgetGreen),
+                        shape = RoundedCornerShape(50.dp)
+                    ) {
+                        Text("OK")
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun formatTransactionDate(dateString: String): String {
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("MMM dd", Locale.getDefault())
+        val date = inputFormat.parse(dateString)
+        outputFormat.format(date ?: Date())
+    } catch (e: Exception) {
+        dateString
+    }
+}
+
+private fun formatTransactionDateLong(dateString: String): String {
+    return try {
+        val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val outputFormat = SimpleDateFormat("d MMMM yyyy", Locale.getDefault())
+        val date = inputFormat.parse(dateString)
+        outputFormat.format(date ?: Date())
+    } catch (e: Exception) {
+        dateString
+    }
+}
+
+private fun getTransactionCategoryColor(category: String, isIncome: Boolean): Color {
+    if (isIncome) return IncomeGreen
+
+    return when (category.lowercase()) {
+        "food", "food & drink", "groceries", "restaurant" -> Color(0xFFFF9800)
+        "transport", "car", "fuel" -> Color(0xFF2196F3)
+        "shopping", "clothing" -> Color(0xFF9C27B0)
+        "entertainment", "movie", "movies" -> Color(0xFFE91E63)
+        "housing", "rent" -> Color(0xFF795548)
+        "health", "healthcare", "medical" -> Color(0xFF4CAF50)
+        "education" -> Color(0xFF009688)
+        else -> BudgetGreen
+    }
+}
+
+private fun getTransactionCategoryEmoji(category: String): String {
+    return when (category.lowercase()) {
+        "food", "food & drink", "groceries", "restaurant" -> "🍔"
+        "transport", "car", "fuel" -> "🚗"
+        "shopping", "clothing" -> "🛍️"
+        "entertainment", "movie", "movies" -> "🎬"
+        "bills", "utilities" -> "📄"
+        "health", "healthcare", "medical" -> "🏥"
+        "education" -> "📚"
+        "housing", "rent" -> "🏠"
+        "travel" -> "✈️"
+        else -> "💸"
+    }
+}

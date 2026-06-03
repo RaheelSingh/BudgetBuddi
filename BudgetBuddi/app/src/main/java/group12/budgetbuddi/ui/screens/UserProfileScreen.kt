@@ -1,6 +1,9 @@
 package group12.budgetbuddi.ui.screens
 
 import android.widget.Toast
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,7 +35,7 @@ import coil.compose.AsyncImage
 import group12.budgetbuddi.data.AchievementsData
 import group12.budgetbuddi.data.entity.AchievementEntity
 import group12.budgetbuddi.ui.components.AppScaffold
-import group12.budgetbuddi.ui.theme.BrandGreen
+import group12.budgetbuddi.ui.theme.BrandGreenDark as BudgetGreen
 import group12.budgetbuddi.ui.theme.TextBlack
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.UserProfileViewModel
@@ -66,6 +70,44 @@ fun UserProfileScreen(
     val selectedAvatarId = uiState.userProfile?.selectedAvatarBadgeId
     val selectedAchievement = uiState.unlockedAchievements.find { it.id == selectedAvatarId }
 
+    val profileListState = rememberLazyListState()
+    val profileCollapsed by remember {
+        derivedStateOf {
+            profileListState.firstVisibleItemIndex > 0 || profileListState.firstVisibleItemScrollOffset > 80
+        }
+    }
+
+    val profileHeaderPadding by animateDpAsState(
+        targetValue = if (profileCollapsed) 16.dp else 32.dp,
+        animationSpec = tween(durationMillis = 280),
+        label = "profileHeaderPadding"
+    )
+    val profileAvatarSize by animateDpAsState(
+        targetValue = if (profileCollapsed) 58.dp else 80.dp,
+        animationSpec = tween(durationMillis = 280),
+        label = "profileAvatarSize"
+    )
+    val profileAvatarTextSize by animateFloatAsState(
+        targetValue = if (profileCollapsed) 26f else 36f,
+        animationSpec = tween(durationMillis = 280),
+        label = "profileAvatarTextSize"
+    )
+    val profileNameTextSize by animateFloatAsState(
+        targetValue = if (profileCollapsed) 20f else 24f,
+        animationSpec = tween(durationMillis = 280),
+        label = "profileNameTextSize"
+    )
+    val profileSpacerHeight by animateDpAsState(
+        targetValue = if (profileCollapsed) 10.dp else 16.dp,
+        animationSpec = tween(durationMillis = 280),
+        label = "profileSpacerHeight"
+    )
+    val profileLevelTextSize by animateFloatAsState(
+        targetValue = if (profileCollapsed) 18f else 24f,
+        animationSpec = tween(durationMillis = 280),
+        label = "profileLevelTextSize"
+    )
+
     AppScaffold(
         navController = navController,
         selectedRoute = "user_profile",
@@ -82,21 +124,19 @@ fun UserProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(BrandGreen, Color(0xFF0D8B5E))
-                        )
+                        color = BudgetGreen
                     )
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(32.dp),
+                        .padding(horizontal = 24.dp, vertical = profileHeaderPadding),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     // Clickable Avatar
                     Surface(
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(profileAvatarSize)
                             .border(3.dp, Color.White, CircleShape)
                             .clickable { showAvatarPicker = true },
                         shape = CircleShape,
@@ -112,7 +152,7 @@ fun UserProfileScreen(
                             } else {
                                 Text(
                                     text = currentUser?.username?.take(1)?.uppercase() ?: "?",
-                                    fontSize = 36.sp,
+                                    fontSize = profileAvatarTextSize.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
@@ -175,7 +215,7 @@ fun UserProfileScreen(
                         ) {
                             Text(
                                 text = currentUser?.username ?: "User",
-                                fontSize = 24.sp,
+                                fontSize = profileNameTextSize.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
@@ -196,7 +236,7 @@ fun UserProfileScreen(
                         modifier = Modifier.padding(top = 4.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(profileSpacerHeight))
 
                     // Level Card
                     Card(
@@ -212,8 +252,10 @@ fun UserProfileScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column {
-                                    Text("Current Level", fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
-                                    Text("Level $currentLevel", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                    if (!profileCollapsed) {
+                                        Text("Current Level", fontSize = 12.sp, color = Color.White.copy(alpha = 0.7f))
+                                    }
+                                    Text("Level $currentLevel", fontSize = profileLevelTextSize.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                     Text(levelTitle, fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f))
                                 }
                                 Surface(
@@ -227,54 +269,81 @@ fun UserProfileScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            if (!profileCollapsed) {
+                                Spacer(modifier = Modifier.height(12.dp))
 
-                            // XP Progress Bar
-                            Text("$currentXP / ${currentXP + xpToNext} XP", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(Color.White.copy(alpha = 0.3f))
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(xpProgress)
-                                        .fillMaxHeight()
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFFFFD700))
+                                val nextLevelXP = AchievementsData.getXpRequiredForLevel(currentLevel + 1)
+                                val safeXpProgress = if (nextLevelXP > 0) {
+                                    (currentXP.toFloat() / nextLevelXP.toFloat()).coerceIn(0f, 1f)
+                                } else {
+                                    1f
+                                }
+                                val xpTargetText = if (nextLevelXP > 0) {
+                                    "$currentXP / $nextLevelXP XP"
+                                } else {
+                                    "$currentXP XP"
+                                }
+                                val xpToNextText = if (xpToNext > 0) {
+                                    "$xpToNext XP to next level"
+                                } else {
+                                    "Max level reached"
+                                }
+
+                                // XP Progress Bar
+                                Text(
+                                    text = xpTargetText,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                WhiteXpProgressBar(
+                                    progress = safeXpProgress,
+                                    modifier = Modifier.height(8.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = xpToNextText,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White.copy(alpha = 0.85f)
                                 )
                             }
-                            Text("$xpToNext XP to next level", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
                         }
                     }
                 }
             }
 
             // Stats Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                StatCard(
-                    title = "Total XP",
-                    value = "${uiState.currentXP}",
-                    icon = Icons.Default.Star,
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    title = "Achievements",
-                    value = "${uiState.unlockedAchievements.size}/${uiState.allAchievements.size}",
-                    icon = Icons.Default.EmojiEvents,
-                    modifier = Modifier.weight(1f)
-                )
+            if (!profileCollapsed) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatCard(
+                        title = "Total XP",
+                        value = "${uiState.currentXP}",
+                        icon = Icons.Default.Star,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "Achievements",
+                        value = "${uiState.unlockedAchievements.size}/${uiState.allAchievements.size}",
+                        icon = Icons.Default.EmojiEvents,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             // Achievements Section
             LazyColumn(
+                state = profileListState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -294,7 +363,7 @@ fun UserProfileScreen(
                             text = "Unlocked (${uiState.unlockedAchievements.size})",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
-                            color = BrandGreen,
+                            color = BudgetGreen,
                             modifier = Modifier.padding(top = 8.dp)
                         )
                     }
@@ -408,7 +477,7 @@ fun UserProfileScreen(
 
                     Button(
                         onClick = { showAvatarPicker = false },
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
+                        colors = ButtonDefaults.buttonColors(containerColor = BudgetGreen),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Close", color = Color.White)
@@ -442,10 +511,10 @@ fun StatCard(
             Surface(
                 modifier = Modifier.size(36.dp),
                 shape = CircleShape,
-                color = BrandGreen.copy(alpha = 0.1f)
+                color = BudgetGreen.copy(alpha = 0.1f)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = BrandGreen, modifier = Modifier.size(18.dp))
+                    Icon(icon, contentDescription = null, tint = BudgetGreen, modifier = Modifier.size(18.dp))
                 }
             }
             Column {
@@ -477,7 +546,7 @@ fun AchievementListItem(
             Surface(
                 modifier = Modifier.size(48.dp),
                 shape = CircleShape,
-                color = if (isUnlocked) BrandGreen.copy(alpha = 0.1f) else Color(0xFFEEEEEE)
+                color = if (isUnlocked) BudgetGreen.copy(alpha = 0.1f) else Color(0xFFEEEEEE)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     if (isUnlocked) {
@@ -516,14 +585,14 @@ fun AchievementListItem(
                         "transaction_with_photo" -> "Add ${achievement.criteriaValue} photo(s)"
                         else -> "${achievement.criteriaValue} ${achievement.criteriaType}"
                     }
-                    Text(requirementText, fontSize = 10.sp, color = BrandGreen.copy(alpha = 0.7f))
+                    Text(requirementText, fontSize = 10.sp, color = BudgetGreen.copy(alpha = 0.7f))
                 } else {
-                    Text("+${achievement.xpReward} XP", fontSize = 10.sp, color = BrandGreen, fontWeight = FontWeight.Medium)
+                    Text("+${achievement.xpReward} XP", fontSize = 10.sp, color = BudgetGreen, fontWeight = FontWeight.Medium)
                 }
             }
 
             if (isUnlocked) {
-                Icon(Icons.Default.CheckCircle, contentDescription = "Unlocked", tint = BrandGreen, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.CheckCircle, contentDescription = "Unlocked", tint = BudgetGreen, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -546,8 +615,8 @@ fun AvatarOption(
         Surface(
             modifier = Modifier.size(70.dp),
             shape = CircleShape,
-            color = if (isSelected) BrandGreen.copy(alpha = 0.2f) else Color.Transparent,
-            border = if (isSelected) BorderStroke(3.dp, BrandGreen) else null
+            color = if (isSelected) BudgetGreen.copy(alpha = 0.2f) else Color.Transparent,
+            border = if (isSelected) BorderStroke(3.dp, BudgetGreen) else null
         ) {
             Box(contentAlignment = Alignment.Center) {
                 if (badgeUrl != null) {
@@ -577,8 +646,32 @@ fun AvatarOption(
         Text(
             text = label.take(15),
             fontSize = 10.sp,
-            color = if (isSelected) BrandGreen else Color.Gray,
+            color = if (isSelected) BudgetGreen else Color.Gray,
             modifier = Modifier.padding(top = 4.dp)
         )
     }
 }
+
+@Composable
+private fun WhiteXpProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier
+) {
+    val safeProgress = progress.coerceIn(0f, 1f)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(50.dp))
+            .background(Color.White.copy(alpha = 0.25f))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(safeProgress)
+                .fillMaxHeight()
+                .clip(RoundedCornerShape(50.dp))
+                .background(Color.White)
+        )
+    }
+}
+

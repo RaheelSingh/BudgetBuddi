@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -26,346 +25,151 @@ import androidx.navigation.NavController
 import group12.budgetbuddi.R
 import group12.budgetbuddi.viewmodel.AuthViewModel
 
-// Colors
-
-val cardBackground = Color(0xFFFFFFFF)
-val textLight = Color(0xFFFFFFFF)
-val inputBorderColor = Color(0xFF139A43)
-val textDark = Color(0xFF1A1A1A)
-val errorRed = Color(0xFFD32F2F)
-val linkGreen = Color(0xFF139A43)
+private val LoginGreen = Color(0xFF139A43)
+private val LoginCard = Color.White
+private val LoginTextDark = Color(0xFF1A1A1A)
+private val LoginError = Color(0xFFD32F2F)
 
 @Composable
 fun LoginScreen(
     navController: NavController,
     authViewModel: AuthViewModel = viewModel()
 ) {
-    var contentVisible by remember { mutableStateOf(false) }
-    var cardVisible by remember { mutableStateOf(false) }
-
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-
-    val showBubuLooking = email.isNotBlank() && password.isBlank()
-    val showBubuEyesClosed = email.isNotBlank() && password.isNotBlank()
-
-    val image1Scale by animateFloatAsState(
-        targetValue = if (showBubuLooking) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "image1Scale"
-    )
-
-    val image1Alpha by animateFloatAsState(
-        targetValue = if (showBubuLooking) 1f else 0f,
-        animationSpec = tween(300),
-        label = "image1Alpha"
-    )
-
-    val image2Scale by animateFloatAsState(
-        targetValue = if (showBubuEyesClosed) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "image2Scale"
-    )
-
-    val image2Alpha by animateFloatAsState(
-        targetValue = if (showBubuEyesClosed) 1f else 0f,
-        animationSpec = tween(300),
-        label = "image2Alpha"
-    )
-
-    LaunchedEffect(Unit) {
-        contentVisible = true
-        kotlinx.coroutines.delay(200)
-        cardVisible = true
-    }
-
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (contentVisible) 1f else 0f,
-        animationSpec = tween(500),
-        label = "contentAlpha"
-    )
-
-    val contentOffset by animateFloatAsState(
-        targetValue = if (contentVisible) 0f else 50f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "contentOffset"
-    )
-
-    val cardOffset by animateFloatAsState(
-        targetValue = if (cardVisible) 0f else 200f,
-        animationSpec = tween(
-            durationMillis = 600,
-            easing = FastOutSlowInEasing
-        ),
-        label = "cardOffset"
-    )
-
-    val cardAlpha by animateFloatAsState(
-        targetValue = if (cardVisible) 1f else 0f,
-        animationSpec = tween(500),
-        label = "cardAlpha"
-    )
+    var visible by remember { mutableStateOf(false) }
 
     val loginState by authViewModel.loginState.collectAsState()
 
+    LaunchedEffect(Unit) { visible = true }
+
     LaunchedEffect(loginState.isSuccess) {
         if (loginState.isSuccess) {
-            navController.navigate("home") {
-                popUpTo("login") { inclusive = true }
-            }
+            navController.navigate("home") { popUpTo("login") { inclusive = true } }
             authViewModel.resetLoginState()
         }
     }
 
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, label = "loginAlpha")
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(backgroundColor)
+            .background(LoginGreen)
+            .graphicsLayer(alpha = alpha)
     ) {
-        // Main Content
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(alpha = contentAlpha)
-                .offset(y = contentOffset.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+                .fillMaxWidth()
+                .padding(top = 64.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(80.dp))
-
-            Text(
-                text = "Welcome Back!",
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Bold,
-                color = textLight,
-                letterSpacing = 2.sp
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Login to continue",
-                fontSize = 20.sp,
-                color = textLight.copy(alpha = 0.9f),
-                letterSpacing = 1.sp
-            )
+            Text("Welcome Back!", fontSize = 42.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Login to continue", fontSize = 18.sp, color = Color.White.copy(alpha = 0.9f))
         }
 
-        // Floating Image Container
-        Box(
+        Image(
+            painter = painterResource(id = R.drawable.bubulookingdown),
+            contentDescription = "Bubu",
             modifier = Modifier
-                .fillMaxWidth()
                 .align(Alignment.Center)
-                .padding(bottom = 10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.bubulookingdown),
-                contentDescription = "Bubu Looking",
-                modifier = Modifier
-                    .size(800.dp)
-                    .scale(image1Scale)
-                    .graphicsLayer(alpha = image1Alpha)
-            )
+                .size(360.dp)
+                .offset(y = (-45).dp)
+        )
 
-            Image(
-                painter = painterResource(id = R.drawable.bubublockingeyes),
-                contentDescription = "Bubu Eyes Closed",
-                modifier = Modifier
-                    .size(800.dp)
-                    .scale(image2Scale)
-                    .graphicsLayer(alpha = image2Alpha)
-            )
-        }
-
-        Box(
+        Card(
             modifier = Modifier
-                .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .offset(y = cardOffset.dp)
-                .graphicsLayer(alpha = cardAlpha)
+                .fillMaxWidth()
+                .height(460.dp)
+                .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
+            colors = CardDefaults.cardColors(containerColor = LoginCard),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Card(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(460.dp)
-                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 0.dp, bottomEnd = 0.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = cardBackground
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp, vertical = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = LoginGreen, unfocusedBorderColor = LoginGreen.copy(alpha = 0.5f))
+                )
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = LoginGreen, unfocusedBorderColor = LoginGreen.copy(alpha = 0.5f)),
+                    trailingIcon = {
+                        TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp, color = LoginGreen)
+                        }
+                    }
+                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { navController.navigate("forgot") }) { Text("Forgot Password?", color = LoginGreen) }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Button(
+                    onClick = { authViewModel.login(email, password) },
+                    enabled = !loginState.isLoading && email.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = LoginGreen)
                 ) {
-                    // Email Input
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = inputBorderColor,
-                            unfocusedBorderColor = inputBorderColor.copy(alpha = 0.5f)
-                        )
-                    )
+                    if (loginState.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Login", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
 
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Password Input
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = inputBorderColor,
-                            unfocusedBorderColor = inputBorderColor.copy(alpha = 0.5f)
-                        ),
-                        trailingIcon = {
-                            TextButton(
-                                onClick = { passwordVisible = !passwordVisible }
-                            ) {
-                                Text(
-                                    if (passwordVisible) "Hide" else "Show",
-                                    fontSize = 12.sp,
-                                    color = linkGreen
-                                )
-                            }
-                        }
-                    )
-
+                loginState.error?.let {
                     Spacer(modifier = Modifier.height(8.dp))
+                    Text(it, color = LoginError, fontSize = 13.sp)
+                }
 
-                    // Forgot Password Link
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = { navController.navigate("forgot") }
-                        ) {
-                            Text(
-                                "Forgot Password?",
-                                color = backgroundColor
-                            )
-                        }
-                    }
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Login Button
-                    Button(
-                        onClick = { authViewModel.login(email, password) },
-                        enabled = !loginState.isLoading && email.isNotBlank() && password.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = backgroundColor
-                        )
-                    ) {
-                        if (loginState.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = textLight
-                            )
-                        } else {
-                            Text(
-                                text = "Login",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textLight
-                            )
-                        }
-                    }
-
-                    loginState.error?.let {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = it,
-                            color = errorRed,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Don't have an account? ",
-                            color = textDark,
-                            fontSize = 14.sp
-                        )
-                        TextButton(
-                            onClick = { navController.navigate("register") }
-                        ) {
-                            Text(
-                                "Sign Up",
-                                fontWeight = FontWeight.Bold,
-                                color = linkGreen,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Don't have an account?", color = LoginTextDark, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
                     TextButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxWidth()
+                        onClick = { navController.navigate("register") },
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
                     ) {
-                        Text(
-                            "Back to Welcome",
-                            fontWeight = FontWeight.Normal,
-                            color = linkGreen,
-                            fontSize = 14.sp
-                        )
+                        Text("Sign Up", fontWeight = FontWeight.Bold, color = LoginGreen, fontSize = 14.sp)
                     }
+                }
+
+                TextButton(onClick = { navController.popBackStack() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Back to Welcome", color = LoginGreen, fontSize = 14.sp)
                 }
             }
         }
     }
 }
-
-
-/**
- * references:
- * developer.android.com (2026) 'State in Compose', Android Developers.
- * Available at: https://developer.android.com/jetpack/compose/state
- * (Accessed: 29 April 2026).
- * developer.android.com (2026) 'Repository pattern - Result wrapper', Android Developers.
- * Available at: https://developer.android.com/jetpack/guide
- * (Accessed: 29 April 2026).
- * developer.android.com (2026) 'Text fields in Compose', Android Developers.
- *      Available at: https://developer.android.com/jetpack/compose/text
- *      (Accessed: 29 April 2026).
- * developer.android.com (2026) 'Navigation in Compose', Android Developers.
- *      Available at: https://developer.android.com/jetpack/compose/navigation
- *      (Accessed: 29 April 2026).
- * developer.android.com (2026) 'Material Design 3 buttons', Android Developers.
- *      Available at: https://developer.android.com/jetpack/compose/button
- *      (Accessed: 29 April 2026).
- */

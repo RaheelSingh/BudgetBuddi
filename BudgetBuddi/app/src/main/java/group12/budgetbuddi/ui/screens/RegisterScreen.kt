@@ -12,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -29,14 +28,9 @@ import group12.budgetbuddi.R
 import group12.budgetbuddi.utils.PasswordUtils
 import group12.budgetbuddi.viewmodel.AuthViewModel
 
-// Colors
-val backgroundColorReg = Color(0xFF139A43)
-val cardBackgroundReg = Color(0xFFFFFFFF)
-val textLightReg = Color(0xFFFFFFFF)
-val inputBorderColorReg = Color(0xFF139A43)
-val textDarkReg = Color(0xFF1A1A1A)
-val errorRedReg = Color(0xFFD32F2F)
-val linkGreenReg = Color(0xFF139A43)
+private val RegisterGreen = Color(0xFF139A43)
+private val RegisterError = Color(0xFFD32F2F)
+private val RegisterTextDark = Color(0xFF1A1A1A)
 
 @Composable
 fun RegisterScreen(
@@ -45,98 +39,25 @@ fun RegisterScreen(
 ) {
     val context = LocalContext.current
 
-    var contentVisible by remember { mutableStateOf(false) }
-    var cardVisible by remember { mutableStateOf(false) }
-
     var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-
-    // Password validation state
     var passwordErrors by remember { mutableStateOf(listOf<String>()) }
     var isPasswordValid by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(false) }
 
-    // Validate password when it changes
+    val registerState by authViewModel.registerState.collectAsState()
+
+    LaunchedEffect(Unit) { visible = true }
+
     LaunchedEffect(password) {
         val validation = PasswordUtils.isValidPassword(password)
         passwordErrors = validation.errors
         isPasswordValid = validation.isValid
     }
 
-    val showBubuLooking = email.isNotBlank() && password.isBlank()
-    val showBubuEyesClosed = email.isNotBlank() && password.isNotBlank()
-
-    val image1Scale by animateFloatAsState(
-        targetValue = if (showBubuLooking) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "image1Scale"
-    )
-
-    val image1Alpha by animateFloatAsState(
-        targetValue = if (showBubuLooking) 1f else 0f,
-        animationSpec = tween(300),
-        label = "image1Alpha"
-    )
-
-    val image2Scale by animateFloatAsState(
-        targetValue = if (showBubuEyesClosed) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "image2Scale"
-    )
-
-    val image2Alpha by animateFloatAsState(
-        targetValue = if (showBubuEyesClosed) 1f else 0f,
-        animationSpec = tween(300),
-        label = "image2Alpha"
-    )
-
-    LaunchedEffect(Unit) {
-        contentVisible = true
-        kotlinx.coroutines.delay(200)
-        cardVisible = true
-    }
-
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (contentVisible) 1f else 0f,
-        animationSpec = tween(500),
-        label = "contentAlpha"
-    )
-
-    val contentOffset by animateFloatAsState(
-        targetValue = if (contentVisible) 0f else 50f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "contentOffset"
-    )
-
-    val cardOffset by animateFloatAsState(
-        targetValue = if (cardVisible) 0f else 200f,
-        animationSpec = tween(
-            durationMillis = 600,
-            easing = FastOutSlowInEasing
-        ),
-        label = "cardOffset"
-    )
-
-    val cardAlpha by animateFloatAsState(
-        targetValue = if (cardVisible) 1f else 0f,
-        animationSpec = tween(500),
-        label = "cardAlpha"
-    )
-
-    val registerState by authViewModel.registerState.collectAsState()
-
-    // Navigate to login on successful registration
     LaunchedEffect(registerState.isSuccess) {
         if (registerState.isSuccess) {
             Toast.makeText(context, "Registration successful! Please log in.", Toast.LENGTH_LONG).show()
@@ -148,272 +69,149 @@ fun RegisterScreen(
         }
     }
 
-    // Show error toast if registration fails
     LaunchedEffect(registerState.error) {
-        if (registerState.error != null && registerState.error!!.isNotEmpty()) {
+        if (!registerState.error.isNullOrBlank()) {
             Toast.makeText(context, registerState.error, Toast.LENGTH_LONG).show()
         }
     }
 
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, label = "registerAlpha")
+
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColorReg)
+        modifier = Modifier.fillMaxSize().background(RegisterGreen).graphicsLayer(alpha = alpha)
     ) {
-
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(alpha = contentAlpha)
-                .offset(y = contentOffset.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+            modifier = Modifier.fillMaxWidth().padding(top = 52.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
-
-            Text(
-                text = "Create Account",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                color = textLightReg,
-                letterSpacing = 2.sp
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Join Budget Buddi today",
-                fontSize = 18.sp,
-                color = textLightReg.copy(alpha = 0.9f),
-                letterSpacing = 1.sp
-            )
+            Text("Create Account", fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Join Budget Buddi today", fontSize = 17.sp, color = Color.White.copy(alpha = 0.9f))
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .padding(bottom = 100.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.bubulookingdown),
-                contentDescription = "Bubu Looking",
-                modifier = Modifier
-                    .size(800.dp)
-                    .scale(image1Scale)
-                    .graphicsLayer(alpha = image1Alpha)
-            )
+        Image(
+            painter = painterResource(id = R.drawable.bubulookingdown),
+            contentDescription = "Bubu",
+            modifier = Modifier.align(Alignment.Center).size(340.dp).offset(y = (-70).dp)
+        )
 
-            Image(
-                painter = painterResource(id = R.drawable.bubublockingeyes),
-                contentDescription = "Bubu Eyes Closed",
-                modifier = Modifier
-                    .size(800.dp)
-                    .scale(image2Scale)
-                    .graphicsLayer(alpha = image2Alpha)
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .offset(y = cardOffset.dp)
-                .graphicsLayer(alpha = cardAlpha)
+        Card(
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(590.dp).clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(580.dp) // Slightly increased height to accommodate error messages
-                    .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 0.dp, bottomEnd = 0.dp)),
-                colors = CardDefaults.cardColors(
-                    containerColor = cardBackgroundReg
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp, vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = RegisterGreen, unfocusedBorderColor = RegisterGreen.copy(alpha = 0.5f))
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = RegisterGreen, unfocusedBorderColor = RegisterGreen.copy(alpha = 0.5f))
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    isError = password.isNotEmpty() && passwordErrors.isNotEmpty(),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = RegisterGreen, unfocusedBorderColor = RegisterGreen.copy(alpha = 0.5f)),
+                    trailingIcon = {
+                        TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp, color = RegisterGreen)
+                        }
+                    },
+                    supportingText = {
+                        if (password.isNotEmpty() && passwordErrors.isNotEmpty()) {
+                            Text(passwordErrors.first(), fontSize = 10.sp, color = RegisterError, maxLines = 1)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Confirm Password") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    isError = confirmPassword.isNotEmpty() && confirmPassword != password,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = RegisterGreen, unfocusedBorderColor = RegisterGreen.copy(alpha = 0.5f)),
+                    supportingText = {
+                        if (confirmPassword.isNotEmpty() && confirmPassword != password) {
+                            Text("Passwords do not match", fontSize = 10.sp, color = RegisterError)
+                        }
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Button(
+                    onClick = { authViewModel.register(email, username, password) },
+                    enabled = !registerState.isLoading && email.isNotBlank() && username.isNotBlank() && isPasswordValid && password == confirmPassword,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = RegisterGreen)
                 ) {
-                    // Email Input
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
-                        label = { Text("Email") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = inputBorderColorReg,
-                            unfocusedBorderColor = inputBorderColorReg.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Username Input
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = { username = it },
-                        label = { Text("Username") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = inputBorderColorReg,
-                            unfocusedBorderColor = inputBorderColorReg.copy(alpha = 0.5f)
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Password Input
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("Password") },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = inputBorderColorReg,
-                            unfocusedBorderColor = inputBorderColorReg.copy(alpha = 0.5f)
-                        ),
-                        trailingIcon = {
-                            TextButton(
-                                onClick = { passwordVisible = !passwordVisible }
-                            ) {
-                                Text(if (passwordVisible) "Hide" else "Show", fontSize = 12.sp, color = linkGreenReg)
-                            }
-                        },
-                        isError = password.isNotEmpty() && passwordErrors.isNotEmpty(),
-                        supportingText = {
-                            if (password.isNotEmpty() && passwordErrors.isNotEmpty()) {
-                                Column {
-                                    passwordErrors.take(2).forEach { error ->
-                                        Text(error, fontSize = 10.sp, color = errorRedReg)
-                                    }
-                                    if (passwordErrors.size > 2) {
-                                        Text("+${passwordErrors.size - 2} more...", fontSize = 10.sp, color = errorRedReg)
-                                    }
-                                }
-                            }
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Confirm Password Input
-                    OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
-                        label = { Text("Confirm Password") },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = inputBorderColorReg,
-                            unfocusedBorderColor = inputBorderColorReg.copy(alpha = 0.5f)
-                        ),
-                        isError = confirmPassword.isNotEmpty() && confirmPassword != password,
-                        supportingText = {
-                            if (confirmPassword.isNotEmpty() && confirmPassword != password) {
-                                Text("Passwords do not match", fontSize = 11.sp, color = errorRedReg)
-                            }
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Register Button
-                    Button(
-                        onClick = {
-                            authViewModel.register(email, username, password)
-                        },
-                        enabled = !registerState.isLoading &&
-                                email.isNotBlank() &&
-                                username.isNotBlank() &&
-                                isPasswordValid &&
-                                password == confirmPassword,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = backgroundColorReg
-                        )
-                    ) {
-                        if (registerState.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = textLightReg,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = "Sign Up",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textLightReg
-                            )
-                        }
+                    if (registerState.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                    } else {
+                        Text("Sign Up", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
+                }
 
+                if (!registerState.error.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(registerState.error ?: "", color = RegisterError, fontSize = 12.sp, maxLines = 1)
+                }
 
-                    if (registerState.error != null && registerState.error!!.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = registerState.error!!,
-                            color = errorRedReg,
-                            fontSize = 12.sp,
-                            maxLines = 2
-                        )
-                    }
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Login Link
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "Already have an account? ",
-                            color = textDarkReg,
-                            fontSize = 13.sp
-                        )
-                        TextButton(
-                            onClick = { navController.navigate("login") }
-                        ) {
-                            Text(
-                                "Login",
-                                fontWeight = FontWeight.Bold,
-                                color = linkGreenReg,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-
-                    // Back to Welcome
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Already have an account?", color = RegisterTextDark, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(4.dp))
                     TextButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.fillMaxWidth()
+                        onClick = { navController.navigate("login") },
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
                     ) {
-                        Text(
-                            "Back to Welcome",
-                            fontWeight = FontWeight.Normal,
-                            color = linkGreenReg,
-                            fontSize = 13.sp
-                        )
+                        Text("Login", fontWeight = FontWeight.Bold, color = RegisterGreen, fontSize = 13.sp)
                     }
+                }
+
+                TextButton(onClick = { navController.popBackStack() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Back to Welcome", color = RegisterGreen, fontSize = 13.sp)
                 }
             }
         }

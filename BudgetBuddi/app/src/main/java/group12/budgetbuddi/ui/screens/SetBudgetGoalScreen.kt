@@ -5,16 +5,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Savings
+import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.mutableStateMapOf
@@ -30,12 +30,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import group12.budgetbuddi.data.entity.CategoryEntity
-import group12.budgetbuddi.ui.theme.BackgroundWhite
-import group12.budgetbuddi.ui.theme.PrimaryGreen
-import group12.budgetbuddi.ui.theme.TextBlack
+import group12.budgetbuddi.ui.components.AppScaffold
 import group12.budgetbuddi.viewmodel.AuthViewModel
 import group12.budgetbuddi.viewmodel.BudgetGoalViewModel
 import java.util.Calendar
+
+private val BudgetGreen = Color(0xFF139A43)
+private val LightGreen = Color(0xFFE8F5E9)
+private val TextDark = Color(0xFF1A1A1A)
+private val ErrorRed = Color(0xFFD32F2F)
 
 @Composable
 fun SetBudgetGoalScreen(
@@ -44,7 +47,6 @@ fun SetBudgetGoalScreen(
     budgetGoalViewModel: BudgetGoalViewModel = viewModel()
 ) {
     val addState by budgetGoalViewModel.addGoalUiState.collectAsState()
-
     var showCategoryPicker by remember { mutableStateOf(false) }
 
     val monthNames = listOf(
@@ -60,9 +62,8 @@ fun SetBudgetGoalScreen(
         if (addState.isSaved) {
             budgetGoalViewModel.resetSavedFlag()
             budgetGoalViewModel.resetForm()
-
             navController.navigate("category_totals") {
-                popUpTo("budget_goals") { inclusive = true }
+                popUpTo("category_totals") { inclusive = false }
                 launchSingleTop = true
             }
         }
@@ -83,310 +84,291 @@ fun SetBudgetGoalScreen(
                 budgetGoalViewModel.selectCategory(it)
                 showCategoryPicker = false
             },
-            onDismiss = {
-                showCategoryPicker = false
-            }
+            onDismiss = { showCategoryPicker = false }
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundWhite)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
-    ) {
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+    AppScaffold(
+        navController = navController,
+        selectedRoute = "category_totals",
+        authViewModel = authViewModel
+    ) { modifier ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(LightGreen)
         ) {
-            IconButton(
-                onClick = {
-                    budgetGoalViewModel.resetForm()
-                    navController.popBackStack()
-                }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = BudgetGreen,
+                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = PrimaryGreen
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 20.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            budgetGoalViewModel.resetForm()
+                            navController.navigate("category_totals") {
+                                popUpTo("category_totals") { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Back to budget goals",
+                            tint = Color.White
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (addState.isEditMode) "Edit Budget Goal" else "Add Budget Goal",
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "$monthName $year",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.White.copy(alpha = 0.82f)
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            Text(
-                text = if (addState.isEditMode) "Edit Goal" else "Set Budget Goal",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextBlack
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Spacer(modifier = Modifier.width(48.dp))
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "$monthName $year",
-            color = Color.Gray,
-            fontSize = 15.sp,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(50.dp))
-                .background(Color(0xFFE0E0E0))
-                .padding(4.dp)
-        ) {
-            TabButton(
-                text = "Expense",
-                selected = addState.selectedTab == 0,
-                modifier = Modifier.weight(1f),
-                onClick = { budgetGoalViewModel.selectTab(0) }
-            )
-
-            TabButton(
-                text = "Income",
-                selected = addState.selectedTab == 1,
-                modifier = Modifier.weight(1f),
-                onClick = { budgetGoalViewModel.selectTab(1) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        Text(
-            text = if (addState.selectedTab == 1) {
-                "Income Goal"
-            } else {
-                "Expense Goal"
-            },
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextBlack
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = if (addState.selectedTab == 1) {
-                "Set a minimum income amount to reach this month."
-            } else {
-                "Set your minimum and maximum spending target for this month."
-            },
-            fontSize = 14.sp,
-            color = Color.Gray
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Category",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextBlack
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .border(1.dp, PrimaryGreen, RoundedCornerShape(14.dp))
-                .clickable { showCategoryPicker = true }
-                .padding(horizontal = 16.dp, vertical = 14.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                if (addState.selectedCategory == null) {
-                    Text(
-                        text = if (addState.selectedTab == 1) {
-                            "Select income category"
-                        } else {
-                            "Select expense category"
-                        },
-                        color = Color.Gray,
-                        fontSize = 15.sp,
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    val category = addState.selectedCategory!!
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp)
+                        ) {
+                            Text(
+                                text = "Goal Type",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextDark
+                            )
 
-                    Text(
-                        text = if (category.subCategory.isBlank()) {
-                            "${category.visualValue} ${category.mainCategory}"
-                        } else {
-                            "${category.visualValue} ${category.mainCategory} - ${category.subCategory}"
-                        },
-                        color = TextBlack,
-                        fontSize = 15.sp,
-                        modifier = Modifier.weight(1f)
-                    )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(50.dp))
+                                    .background(LightGreen)
+                                    .padding(4.dp)
+                            ) {
+                                GoalTabButton(
+                                    text = "Expense",
+                                    selected = addState.selectedTab == 0,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { budgetGoalViewModel.selectTab(0) }
+                                )
+
+                                GoalTabButton(
+                                    text = "Income",
+                                    selected = addState.selectedTab == 1,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { budgetGoalViewModel.selectTab(1) }
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Choose category",
-                    tint = PrimaryGreen
-                )
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    modifier = Modifier.size(42.dp),
+                                    shape = CircleShape,
+                                    color = BudgetGreen.copy(alpha = 0.12f)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (addState.selectedTab == 1) Icons.Default.Savings else Icons.Default.TrackChanges,
+                                            contentDescription = null,
+                                            tint = BudgetGreen,
+                                            modifier = Modifier.size(23.dp)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column {
+                                    Text(
+                                        text = if (addState.selectedTab == 1) "Income Goal" else "Expense Goal",
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = if (addState.selectedTab == 1) {
+                                            "Set the minimum income you want to reach."
+                                        } else {
+                                            "Set your minimum and maximum spending target."
+                                        },
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            FormLabel("Category")
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            CategorySelectBox(
+                                selectedCategory = addState.selectedCategory,
+                                selectedTab = addState.selectedTab,
+                                onClick = { showCategoryPicker = true }
+                            )
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            FormLabel(
+                                if (addState.selectedTab == 1) "Minimum Income Amount" else "Minimum Spending Amount"
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            GoalAmountField(
+                                value = addState.minGoal,
+                                onValueChange = { budgetGoalViewModel.updateMinGoal(it) },
+                                placeholder = "0.00"
+                            )
+
+                            if (addState.selectedTab == 0) {
+                                Spacer(modifier = Modifier.height(18.dp))
+
+                                FormLabel("Maximum Spending Amount")
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                GoalAmountField(
+                                    value = addState.maxGoal,
+                                    onValueChange = { budgetGoalViewModel.updateMaxGoal(it) },
+                                    placeholder = "0.00"
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(LightGreen)
+                                    .clickable { budgetGoalViewModel.toggleRecurring() }
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Repeat next month",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextDark
+                                    )
+                                    Text(
+                                        text = "Automatically create this goal again next month",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+
+                                Switch(
+                                    checked = addState.isRecurring,
+                                    onCheckedChange = { budgetGoalViewModel.toggleRecurring() },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = BudgetGreen
+                                    )
+                                )
+                            }
+
+                            addState.error?.let { error ->
+                                Spacer(modifier = Modifier.height(14.dp))
+                                Text(
+                                    text = error,
+                                    color = ErrorRed,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Button(
+                        onClick = { budgetGoalViewModel.saveGoal() },
+                        enabled = !addState.isSaving,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BudgetGreen,
+                            disabledContainerColor = Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(50.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                    ) {
+                        if (addState.isSaving) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (addState.isEditMode) "Save Changes" else "Save Goal",
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = if (addState.selectedTab == 1) {
-                "Minimum Income Amount"
-            } else {
-                "Minimum Spending Amount"
-            },
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextBlack
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = addState.minGoal,
-            onValueChange = { budgetGoalViewModel.updateMinGoal(it) },
-            placeholder = { Text("0.00") },
-            prefix = { Text("R") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryGreen,
-                unfocusedBorderColor = PrimaryGreen,
-                cursorColor = PrimaryGreen
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        if (addState.selectedTab == 0) {
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Text(
-                text = "Maximum Spending Amount",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextBlack
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = addState.maxGoal,
-                onValueChange = { budgetGoalViewModel.updateMaxGoal(it) },
-                placeholder = { Text("0.00") },
-                prefix = { Text("R") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = PrimaryGreen,
-                    unfocusedBorderColor = PrimaryGreen,
-                    cursorColor = PrimaryGreen
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0xFFE8F5E9))
-                .clickable { budgetGoalViewModel.toggleRecurring() }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Repeat next month",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextBlack
-                )
-
-                Text(
-                    text = "Automatically create this goal again next month",
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
-            }
-
-            Switch(
-                checked = addState.isRecurring,
-                onCheckedChange = { budgetGoalViewModel.toggleRecurring() },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = BackgroundWhite,
-                    checkedTrackColor = PrimaryGreen
-                )
-            )
-        }
-
-        if (addState.error != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = addState.error ?: "",
-                color = Color(0xFFD32F2F),
-                fontSize = 13.sp,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Button(
-            onClick = { budgetGoalViewModel.saveGoal() },
-            enabled = !addState.isSaving,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = PrimaryGreen,
-                disabledContainerColor = Color.LightGray
-            ),
-            shape = RoundedCornerShape(50.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-        ) {
-            if (addState.isSaving) {
-                CircularProgressIndicator(
-                    color = BackgroundWhite,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(22.dp)
-                )
-            } else {
-                Text(
-                    text = if (addState.isEditMode) "Save Changes" else "Save Goal",
-                    color = BackgroundWhite,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
     }
 }
 
 @Composable
-private fun TabButton(
+private fun GoalTabButton(
     text: String,
     selected: Boolean,
     modifier: Modifier = Modifier,
@@ -395,17 +377,94 @@ private fun TabButton(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(50.dp))
-            .background(if (selected) PrimaryGreen else Color.Transparent)
+            .background(if (selected) BudgetGreen else Color.Transparent)
             .clickable { onClick() }
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            color = if (selected) BackgroundWhite else Color.Gray,
-            fontWeight = FontWeight.SemiBold,
+            color = if (selected) Color.White else Color.Gray,
+            fontWeight = FontWeight.Bold,
             fontSize = 14.sp
         )
+    }
+}
+
+@Composable
+private fun FormLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold,
+        color = TextDark
+    )
+}
+
+@Composable
+private fun GoalAmountField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = Color.LightGray, fontWeight = FontWeight.Medium) },
+        prefix = { Text("R", fontWeight = FontWeight.Bold, color = TextDark) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        shape = RoundedCornerShape(14.dp),
+        textStyle = LocalTextStyle.current.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = BudgetGreen,
+            unfocusedBorderColor = BudgetGreen.copy(alpha = 0.45f),
+            cursorColor = BudgetGreen
+        ),
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun CategorySelectBox(
+    selectedCategory: CategoryEntity?,
+    selectedTab: Int,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .border(1.dp, BudgetGreen.copy(alpha = 0.65f), RoundedCornerShape(14.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val text = selectedCategory?.let { category ->
+                if (category.subCategory.isBlank()) {
+                    "${category.visualValue} ${category.mainCategory}"
+                } else {
+                    "${category.visualValue} ${category.mainCategory} - ${category.subCategory}"
+                }
+            } ?: if (selectedTab == 1) "Select income category" else "Select expense category"
+
+            Text(
+                text = text,
+                color = if (selectedCategory == null) Color.LightGray else TextDark,
+                fontSize = 15.sp,
+                fontWeight = if (selectedCategory == null) FontWeight.Medium else FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = "Choose category",
+                tint = BudgetGreen
+            )
+        }
     }
 }
 
@@ -421,10 +480,7 @@ private fun CategoryPickerDialog(
 
     val entireCategory = categories.firstOrNull {
         it.subCategory.isBlank() &&
-                (
-                        it.mainCategory == "Entire Expense" ||
-                                it.mainCategory == "Entire Income"
-                        )
+                (it.mainCategory == "Entire Expense" || it.mainCategory == "Entire Income")
     }
 
     val realCategories = categories.filterNot {
@@ -439,19 +495,17 @@ private fun CategoryPickerDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = BackgroundWhite),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 620.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(18.dp)
-            ) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 Text(
                     text = title,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextBlack
+                    color = TextDark
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -478,11 +532,7 @@ private fun CategoryPickerDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = if (isIncome) {
-                                        "No income categories found"
-                                    } else {
-                                        "No expense categories found"
-                                    },
+                                    text = if (isIncome) "No income categories found" else "No expense categories found",
                                     color = Color.Gray,
                                     fontSize = 14.sp
                                 )
@@ -498,9 +548,7 @@ private fun CategoryPickerDialog(
                                     visualValue = first.visualValue,
                                     mainCategory = mainCategory,
                                     isExpanded = isExpanded,
-                                    onClick = {
-                                        expandedMap[mainCategory] = !isExpanded
-                                    }
+                                    onClick = { expandedMap[mainCategory] = !isExpanded }
                                 )
                             }
 
@@ -521,20 +569,6 @@ private fun CategoryPickerDialog(
                                     }
                                 }
 
-                                items
-                                    .filter { it.subCategory.isBlank() }
-                                    .drop(1)
-                                    .forEach { extraWholeOption ->
-                                        item {
-                                            ChildCategoryPickerItem(
-                                                label = "${extraWholeOption.mainCategory} - Whole Category",
-                                                subtitle = "Track all ${extraWholeOption.mainCategory}",
-                                                visualValue = extraWholeOption.visualValue,
-                                                onClick = { onCategorySelected(extraWholeOption) }
-                                            )
-                                        }
-                                    }
-
                                 subCategories.forEach { category ->
                                     item {
                                         ChildCategoryPickerItem(
@@ -552,11 +586,8 @@ private fun CategoryPickerDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel", color = PrimaryGreen)
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
+                    Text("Cancel", color = BudgetGreen, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -572,8 +603,8 @@ private fun EntireCategoryPickerItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFE8F5E9))
-            .border(1.dp, PrimaryGreen, RoundedCornerShape(16.dp))
+            .background(LightGreen)
+            .border(1.dp, BudgetGreen, RoundedCornerShape(16.dp))
             .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -582,13 +613,10 @@ private fun EntireCategoryPickerItem(
             modifier = Modifier
                 .size(38.dp)
                 .clip(CircleShape)
-                .background(PrimaryGreen.copy(alpha = 0.15f)),
+                .background(BudgetGreen.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = category.visualValue,
-                fontSize = 21.sp
-            )
+            Text(text = category.visualValue, fontSize = 21.sp)
         }
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -598,9 +626,8 @@ private fun EntireCategoryPickerItem(
                 text = category.mainCategory,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextBlack
+                color = TextDark
             )
-
             Text(
                 text = "Track everything in this type",
                 fontSize = 12.sp,
@@ -626,10 +653,7 @@ private fun MainCategoryHeader(
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = visualValue,
-            fontSize = 21.sp
-        )
+        Text(text = visualValue, fontSize = 21.sp)
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -637,18 +661,14 @@ private fun MainCategoryHeader(
             text = mainCategory,
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = TextBlack,
+            color = TextDark,
             modifier = Modifier.weight(1f)
         )
 
         Icon(
-            imageVector = if (isExpanded) {
-                Icons.Default.KeyboardArrowDown
-            } else {
-                Icons.Default.KeyboardArrowRight
-            },
+            imageVector = if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight,
             contentDescription = if (isExpanded) "Collapse" else "Expand",
-            tint = PrimaryGreen
+            tint = BudgetGreen
         )
     }
 }
@@ -670,10 +690,7 @@ private fun ChildCategoryPickerItem(
             .padding(horizontal = 14.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = visualValue,
-            fontSize = 19.sp
-        )
+        Text(text = visualValue, fontSize = 19.sp)
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -681,10 +698,9 @@ private fun ChildCategoryPickerItem(
             Text(
                 text = label,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextBlack
+                fontWeight = FontWeight.Bold,
+                color = TextDark
             )
-
             Text(
                 text = subtitle,
                 fontSize = 11.sp,
